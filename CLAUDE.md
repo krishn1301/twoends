@@ -24,7 +24,7 @@ plan was written before Phase 0 and this is updated after every phase.
 | Location        | **Opt-in per person, off by default, foreground-only, city-level** unless both opt into precise. The widget shows distance, never position.      |
 | 18+ packs       | **Built, gated.** Both confirm 18+, both opt in, off by default, never surfaced in widgets or notifications. Store age-rating decision deferred. |
 | Streaks         | **Two missed days a month are forgiven.** Quiet mode pauses streaks with no penalty.                                                             |
-| Design          | Chosen in Phase 0 from three shells. **Winner: [pending — see Current phase]**                                                                   |
+| Design          | **Bento, on warm paper.** Photo-led, varied tile sizes, faces as the anchor. See "Design direction" below.                                       |
 | Language        | **English only, hardcoded.** No i18n layer. Adding one later means touching every component; that cost was accepted knowingly.                   |
 | Timeline        | **Bursty.** Every phase must end shippable. This file is the resume point.                                                                       |
 
@@ -59,17 +59,50 @@ commit.
 - Two pushes per person per day, hard cap.
 - Never upload an original-resolution photo.
 
+## Design direction — Bento, on warm paper
+
+Decided on the S9+ in Phase 0, after a first round was rejected.
+
+**Why the first round failed, and the rule that came out of it.** The initial
+three shells were built from numbers, dots and hairline rules — which is exactly
+what a habit tracker is built from, and that is how they read. Every screen in
+the reference apps is built from **faces, photographs and hand-made marks**: two
+avatars joined by a dashed line with the distance sitting on it, a scribbled
+drawing, a snapshot with a caption underneath.
+
+> **Rule: a screen with no face, no photograph and no hand-made mark on it is
+> probably wrong.** If a surface is only numbers, ask what human trace belongs
+> there before shipping it.
+
+**The direction:**
+
+- Warm paper base (`--color-paper` `#F4EFEA`), not the near-black the whole
+  category uses. Accents use their `onLight` variants.
+- Bento layout: tiles of varied size, never a uniform grid of equal cards.
+- The daily snap is the largest object on the home screen, because it is the
+  thing that changed today because of the other person.
+- Two avatars anchor the top, joined by a dashed line carrying the distance.
+- Fraunces for statements and numbers, Karla for body, JetBrains Mono for
+  anything that ticks.
+- No emoji as icons. The reference apps lean on emoji heavily; we do not.
+
+Rejected alternatives, for the record: _Letter_ (a page rather than an
+interface — warmest, but hardest to keep consistent across twenty more screens)
+and _Split_ (two literal columns — strongest concept for the name, but it
+hard-codes a structure every later screen must honour or break).
+
 ## Current phase
 
-**Phase 0 — complete except the design decision.**
+**Phase 0 — closing.** Design decided; primitives not yet promoted to
+`packages/ui`, deliberately, pending one more round of reference input.
 
-Done: monorepo, toolchain, `pnpm check` green (18 tests), three design shells at
-`/#/design/a|b|c`, docs stubs.
+Done: monorepo, toolchain, `pnpm check` green (18 tests), Bento home shell,
+docs stubs, design decision recorded.
 
-Open: the owner picks A (Night seam), B (Paper seam), or C (Cards, no seam) on
-the S9+. On decision, the winner's tokens move into `packages/ui`, the other two
-shells are **deleted**, and this file records the choice. Phase 1 does not start
-before that.
+Open: review the Cloud Love app's UI for anything worth taking, refine Bento,
+then promote its tokens and primitives (`Snapshot`, `Avatar`, `Faces`,
+`Scribble`, currently in `apps/web/src/design/parts.tsx`) into `packages/ui`.
+Phase 1 starts after that.
 
 ## Gotchas found so far
 
