@@ -4,6 +4,7 @@
     { "path": "./packages/core" },
     { "path": "./packages/core/tsconfig.test.json" },
     { "path": "./packages/ui" },
-    { "path": "./apps/web" }
+    { "path": "./apps/web" },
+    { "path": "./supabase/tests" }
   ]
 }

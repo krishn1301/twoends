@@ -35,6 +35,12 @@ export default tseslint.config(
   },
 
   {
+    // Build and test tooling: plain Node, no browser.
+    files: ['scripts/**/*.mjs', '*.config.{js,ts}'],
+    languageOptions: { globals: globals.node },
+  },
+
+  {
     files: ['apps/web/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh },
     rules: {
