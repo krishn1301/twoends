@@ -1,0 +1,13 @@
+# Normalise line endings in the repo. This project is developed on Windows now
+# and gets a MacBook at Phase 8; without this, the first Mac checkout rewrites
+# every file and the diff is unreadable.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.woff2 binary
+*.keystore binary
+*.jks binary
+
+# Generated — collapse it in diffs and exclude it from language stats.
+pnpm-lock.yaml linguist-generated=true -diff

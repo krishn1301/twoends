@@ -1,0 +1,17 @@
+/**
+ * @twoends/core — domain logic, zero platform imports.
+ *
+ * Hard rule: nothing in this package may import from `react`, `dom` typings,
+ * `@capacitor/*`, `dexie`, or `@supabase/*`. It must run in a bare Node process.
+ * `src/boundary.test.ts` fails the build the moment that stops being true.
+ *
+ * Anything that touches a device API goes behind an adapter interface defined
+ * here and implemented in the app layer, so the PWA degrades instead of crashing.
+ */
+
+export * from './accents.ts';
+export * from './types.ts';
+export * from './togetherness.ts';
+export * from './seam.ts';
+export * from './streak.ts';
+export * from './fixtures/sampleCouple.ts';

@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+dist-*/
+dist-ssr/
+*.tsbuildinfo
+
+# secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# signing keys — losing these means you can never update a Play listing.
+# Keep them outside the repo and backed up in two places.
+*.keystore
+*.jks
+keystore.properties
+
+# editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# generated native shells (Capacitor, phases 7-8)
+apps/android/
+apps/ios/
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

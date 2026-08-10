@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist-test",
+    "rootDir": ".",
+    // The boundary test reads core's own source off disk, so it needs Node types.
+    // Core itself does not — that is the point, and tsconfig.json keeps it that way.
+    "types": ["node"]
+  },
+  "include": ["test/**/*.ts"],
+  "references": [{ "path": "./tsconfig.json" }]
+}
