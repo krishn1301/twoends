@@ -1,9 +1,9 @@
-export type OptionId = 'a' | 'b' | 'c';
+export type OptionId = 'bento' | 'letter' | 'split';
 
 const OPTIONS: Array<{ id: OptionId; name: string }> = [
-  { id: 'a', name: 'Night seam' },
-  { id: 'b', name: 'Paper seam' },
-  { id: 'c', name: 'Cards' },
+  { id: 'bento', name: 'Bento' },
+  { id: 'letter', name: 'Letter' },
+  { id: 'split', name: 'Split' },
 ];
 
 /**
@@ -20,7 +20,7 @@ export function Picker({ current }: { current: OptionId }) {
       className="fixed inset-x-0 z-50 flex justify-center"
       style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
     >
-      <div className="flex gap-1 rounded-full border border-white/15 bg-black/75 p-1 backdrop-blur-md">
+      <div className="flex gap-1 rounded-full border border-white/15 bg-black/78 p-1 backdrop-blur-md">
         {OPTIONS.map((o) => {
           const active = o.id === current;
           return (
@@ -28,7 +28,7 @@ export function Picker({ current }: { current: OptionId }) {
               key={o.id}
               href={`#/design/${o.id}`}
               aria-current={active ? 'page' : undefined}
-              className={`flex items-center rounded-full px-4 text-sm font-medium transition-colors ${
+              className={`flex items-center rounded-full px-5 text-sm font-medium transition-colors ${
                 active ? 'bg-white text-black' : 'text-white/70 hover:text-white'
               }`}
             >

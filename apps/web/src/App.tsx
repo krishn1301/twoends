@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react';
 
-import { OptionA } from './design/OptionA.tsx';
-import { OptionB } from './design/OptionB.tsx';
-import { OptionC } from './design/OptionC.tsx';
+import { OptionBento } from './design/OptionBento.tsx';
+import { OptionLetter } from './design/OptionLetter.tsx';
+import { OptionSplit } from './design/OptionSplit.tsx';
 import { Picker, type OptionId } from './design/Picker.tsx';
 
 /**
- * Phase 0 only routes between three candidate designs, so it routes on the hash
- * and nothing more. Phase 2 introduces real screens and a real router; adding
- * one now would be a dependency chosen before there is anything to route.
+ * Phase 0 only routes between candidate designs, so it routes on the hash and
+ * nothing more. Phase 2 introduces real screens and a real router; adding one
+ * now would be a dependency chosen before there is anything to route.
  */
 function readHash(): OptionId {
   const id = window.location.hash.replace('#/design/', '');
-  return id === 'b' || id === 'c' ? id : 'a';
+  return id === 'letter' || id === 'split' ? id : 'bento';
 }
 
 export function App() {
@@ -26,9 +26,9 @@ export function App() {
 
   return (
     <>
-      {option === 'a' && <OptionA />}
-      {option === 'b' && <OptionB />}
-      {option === 'c' && <OptionC />}
+      {option === 'bento' && <OptionBento />}
+      {option === 'letter' && <OptionLetter />}
+      {option === 'split' && <OptionSplit />}
       <Picker current={option} />
     </>
   );
