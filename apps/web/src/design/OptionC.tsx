@@ -39,8 +39,11 @@ export function OptionC() {
           </span>
         </header>
 
-        <Card rail={m.theirAccent.onDark}>
-          <p className="text-ash text-sm tracking-wide uppercase">{m.turnLine}</p>
+        <Card accent={m.theirAccent.onDark}>
+          <p className="text-ash flex items-center gap-2 text-sm tracking-wide uppercase">
+            <Dot color={m.theirAccent.onDark} />
+            {m.turnLine}
+          </p>
           <h1 className="font-display mt-2 text-2xl leading-tight tracking-tight">{m.question}</h1>
           <button
             className="text-ink mt-5 rounded-full px-6 py-3 text-base font-medium"
@@ -69,8 +72,11 @@ export function OptionC() {
           </p>
         </Card>
 
-        <Card rail={m.myAccent.onDark}>
-          <p className="text-ash text-sm">{m.streakLine}</p>
+        <Card accent={m.myAccent.onDark}>
+          <p className="text-ash flex items-center gap-2 text-sm">
+            <Dot color={m.myAccent.onDark} />
+            {m.streakLine}
+          </p>
           <div className="mt-3 flex justify-between">
             {m.week.map((mark, i) => (
               <div key={WEEK_LABELS[i]} className="flex flex-col items-center gap-2">
@@ -131,12 +137,25 @@ function Sep() {
   return <span className="text-ash mx-1">:</span>;
 }
 
-/** `rail` marks whose card this is — the colour cue the seam would otherwise carry. */
-function Card({ rail, children }: { rail?: string; children: React.ReactNode }) {
+/**
+ * `accent` marks whose card this is — the cue the seam would otherwise carry.
+ *
+ * It tints the card's own ground by a few percent rather than painting a thick
+ * bar down one edge. A coloured edge rail is loud out of proportion to what it
+ * says, and it is the single most templated-looking move in card UI. A tint
+ * reads as "this surface belongs to someone" at a glance and survives being
+ * next to five other cards; the dot in the card's eyebrow carries the same
+ * information for anyone who cannot separate the tints.
+ */
+function Card({ accent, children }: { accent?: string; children: React.ReactNode }) {
   return (
     <div
       className="border-hairline bg-ink-raised overflow-hidden rounded-2xl border p-5"
-      style={rail ? { borderLeft: `3px solid ${rail}` } : undefined}
+      style={
+        accent
+          ? { background: `color-mix(in oklab, ${accent} 7%, var(--color-ink-raised))` }
+          : undefined
+      }
     >
       {children}
     </div>
