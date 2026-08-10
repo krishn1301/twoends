@@ -10,5 +10,12 @@
   },
   "scripts": {
     "typecheck": "tsc --build"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "react": "^19.2.0"
   }
 }

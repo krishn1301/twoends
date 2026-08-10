@@ -1,10 +1,16 @@
-import { OptionBento } from './design/OptionBento.tsx';
+import { TabBar } from './components/TabBar.tsx';
+import { Home } from './screens/Home.tsx';
 
 /**
- * Bento won the Phase 0 design decision, so there is nothing left to route
- * between. Phase 2 introduces real screens and a real router; adding one now
- * would be a dependency chosen before there is anything to route.
+ * Phase 0 closed with the Bento direction chosen, so there is nothing left to
+ * route between — one screen, rendered directly. Phase 2 brings the onboarding
+ * and pairing flows and, with them, a real router.
  */
 export function App() {
-  return <OptionBento />;
+  return (
+    <>
+      <Home />
+      <TabBar />
+    </>
+  );
 }

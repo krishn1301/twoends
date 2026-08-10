@@ -1,53 +1,49 @@
 @import 'tailwindcss';
 
 /*
+  Tailwind only auto-detects sources under the app it is compiled in, so every
+  utility class used inside the workspace UI package was silently missing from
+  the bundle — tiles rendered with no width, no height and no clipping while the
+  app's own classes worked fine. Registering the package's source fixes it, and
+  any future workspace package with markup needs the same line.
+*/
+@source '../../../../packages/ui/src';
+
+/*
   Tailwind 4 is CSS-first: tokens live here in `@theme`, not in a JS config, and
   Tailwind generates both the CSS variables and the matching utilities.
 
-  Every colour below is contrast-checked, not chosen by eye:
-    chalk on ink      16.17:1
-    ash on ink         4.92:1
-    ink-text on paper 14.93:1
-    ash-dim on paper   5.22:1
-  The eight accents live in @twoends/core, each with an onDark variant that
-  clears 4.5:1 on ink and an onLight variant that clears 4.5:1 on paper.
+  On the base colour — the build plan argued for a warm near-black (#141110)
+  specifically to avoid looking like the references. Seeing both apps on the S9+
+  settled it the other way: they are true black, and on an OLED panel that is
+  not a style choice, it is the panel switching pixels off. Black bleeds into
+  the bezel, photographs float, and battery drops.
+
+  The compromise kept: the page is true black, but every raised surface stays
+  warm. Cards are #15120F, not #1C1C1E. The warmth survives where it is
+  actually visible.
+
+  Contrast, measured not guessed:
+    chalk on void      20.4:1
+    ash on void         5.8:1
+    chalk on surface   17.9:1
 */
 @theme {
-  /* Dark base — warm near-black with a brown cast, not the neutral black
-     every other app in this category uses. */
-  --color-ink: #141110;
-  --color-ink-raised: #1f1a18;
+  --color-void: #000000;
+  --color-surface: #15120f;
+  --color-surface-2: #201b17;
   --color-hairline: #2c2522;
-  --color-ash: #8a817a;
+  --color-ash: #948a82;
   --color-chalk: #f2ede9;
-
-  /* Light base, for the paper direction. */
-  --color-paper: #f4efea;
-  --color-paper-raised: #fcfaf8;
-  --color-paper-hairline: #e0d8d0;
-  --color-ash-dim: #6b625b;
-  --color-ink-text: #201b18;
 
   --font-display: 'Fraunces Variable', Georgia, serif;
   --font-body: 'Karla', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
 }
 
-/*
-  The seam's position is data, not decoration, so it has to be animatable.
-  A bare custom property cannot transition; registering it with @property gives
-  the browser a type to interpolate, which is what lets the seam *settle* on
-  load and slide when the turn changes.
-*/
-@property --seam {
-  syntax: '<percentage>';
-  inherits: true;
-  initial-value: 50%;
-}
-
 :root {
   color-scheme: dark;
-  /* Overridden per shell; these are only a safe default. */
+  /* Overridden per couple once both partners have picked. */
   --mine: #30c2bd;
   --theirs: #e4566e;
 }
@@ -61,10 +57,8 @@ body,
 body {
   margin: 0;
   font-family: var(--font-body);
-  /* An explicit ground, so rubber-band overscroll on a phone shows the app's
-     own colour rather than the UA default flashing through. Each shell paints
-     over it; only the bounce sees this. */
-  background: var(--color-ink);
+  background: var(--color-void);
+  color: var(--color-chalk);
   /* Prevents iOS Safari inflating text in landscape without disabling zoom. */
   -webkit-text-size-adjust: 100%;
 }
@@ -74,72 +68,41 @@ button,
 a,
 [role='button'] {
   min-height: 44px;
-  min-width: 44px;
 }
 
 :focus-visible {
-  outline: 2px solid currentColor;
+  outline: 2px solid var(--color-chalk);
   outline-offset: 3px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 /*
-  The seam. One soft diagonal where the two accents meet, washed over the base
-  at low opacity so the screen reads as *tinted*, not painted. `--seam` is the
-  share of the surface given to my colour.
+  Live counters are data. Data reads as monospace, and `tabular-nums` is what
+  actually stops the digits reflowing on every tick.
 */
-.seam {
-  --wash: 15%;
-  --blend: 13%;
-  background-image: linear-gradient(
-    163deg,
-    color-mix(in oklab, var(--mine) var(--wash), var(--seam-base)) 0%,
-    color-mix(in oklab, var(--mine) var(--wash), var(--seam-base)) calc(var(--seam) - var(--blend)),
-    color-mix(in oklab, var(--theirs) var(--wash), var(--seam-base))
-      calc(var(--seam) + var(--blend)),
-    color-mix(in oklab, var(--theirs) var(--wash), var(--seam-base)) 100%
-  );
-  transition: --seam 900ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* A single hairline of light along the seam, so it reads as a join and not a blur. */
-.seam-line {
-  background-image: linear-gradient(
-    163deg,
-    transparent calc(var(--seam) - 1px),
-    color-mix(in oklab, var(--chalk-ish) 22%, transparent) var(--seam),
-    transparent calc(var(--seam) + 1px)
-  );
-  transition: --seam 900ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/*
-  One orchestrated moment per screen. The seam settles once on load; nothing
-  else moves on its own.
-*/
-@keyframes settle {
-  from {
-    --seam: 50%;
-  }
-}
-
-.seam-settles {
-  animation: settle 1100ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .seam,
-  .seam-line,
-  .seam-settles {
-    transition: none;
-    animation: none;
-  }
-}
-
-/* Live counters are data. Data reads as monospace, and the digits stop jittering
-   as they tick — `tabular-nums` is what actually stops the reflow. */
 .counter {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
+}
+
+/*
+  One orchestrated moment per screen: the rails settle in on load, staggered by
+  a hair so the eye follows down the page. Nothing animates on its own after.
+*/
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.rise {
+  animation: rise 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
 }

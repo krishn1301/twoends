@@ -1,16 +1,14 @@
 /**
- * @twoends/ui — shared components and the design tokens.
+ * @twoends/ui — components and design primitives.
  *
- * Deliberately near-empty until Phase 0 closes. The three design shells live in
- * `apps/web/src/design/` while they are still candidates; the winner's tokens
- * and primitives get promoted here, and the other two get deleted rather than
- * kept "just in case". Two abandoned design systems in a shared package is how
- * a codebase stops having a design.
+ * Populated at the close of Phase 0, when the Bento direction won and the other
+ * two candidates were deleted.
  *
- * Unlike `@twoends/core`, this package may import React and touch the DOM.
- * It may not import `@capacitor/*` or `@supabase/*` — components render, they
- * do not fetch.
+ * Unlike `@twoends/core`, this package may import React and touch the DOM. It
+ * may not import `@capacitor/*` or `@supabase/*` — components render, they do
+ * not fetch. Colour tokens live in `apps/web/src/styles/theme.css`, because
+ * Tailwind 4 requires `@theme` to sit in the CSS entry point.
  */
 
-/** Placeholder so the package is a module. Replaced when a design wins. */
-export const UI_PACKAGE_READY = false;
+export * from './media.tsx';
+export * from './layout.tsx';

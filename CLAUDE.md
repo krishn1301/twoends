@@ -15,18 +15,18 @@ plan was written before Phase 0 and this is updated after every phase.
 
 ## Decisions locked
 
-| Question        | Answer                                                                                                                                           |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Name            | **TwoEnds**. Package id `com.twoends.app` — free to change until a Play listing exists.                                                          |
-| Audience        | **Small circle of friends.** Real pairs, no strangers. No moderation, no abuse reporting, no store review at 1.0.                                |
-| Backend         | **Supabase free tier.**                                                                                                                          |
-| Photo retention | **30 days**, auto-deleted unless either partner taps "keep".                                                                                     |
-| Location        | **Opt-in per person, off by default, foreground-only, city-level** unless both opt into precise. The widget shows distance, never position.      |
-| 18+ packs       | **Built, gated.** Both confirm 18+, both opt in, off by default, never surfaced in widgets or notifications. Store age-rating decision deferred. |
-| Streaks         | **Two missed days a month are forgiven.** Quiet mode pauses streaks with no penalty.                                                             |
-| Design          | **Bento, on warm paper.** Photo-led, varied tile sizes, faces as the anchor. See "Design direction" below.                                       |
-| Language        | **English only, hardcoded.** No i18n layer. Adding one later means touching every component; that cost was accepted knowingly.                   |
-| Timeline        | **Bursty.** Every phase must end shippable. This file is the resume point.                                                                       |
+| Question        | Answer                                                                                                                                                                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Name            | **TwoEnds**. Package id `com.twoends.app` — free to change until a Play listing exists.                                                                                                                                                                 |
+| Audience        | **Small circle of friends.** Real pairs, no strangers. No moderation, no abuse reporting, no store review at 1.0.                                                                                                                                       |
+| Backend         | **Supabase free tier.**                                                                                                                                                                                                                                 |
+| Photo retention | **30 days**, auto-deleted unless either partner taps "keep".                                                                                                                                                                                            |
+| Location        | **Opt-in per person, off by default, foreground-only, city-level** unless both opt into precise. The widget shows distance, never position.                                                                                                             |
+| 18+ packs       | **Built, gated.** Both confirm 18+, both opt in, off by default, never surfaced in widgets or notifications. Store age-rating decision deferred.                                                                                                        |
+| Streaks         | **Two missed days a month are forgiven.** Quiet mode pauses streaks with no penalty.                                                                                                                                                                    |
+| Design          | **Bento, on true black.** Section titles with "All ›", rails of uniform cards with the next peeking, lowercase eyebrow + serif headline. Structure from candle; colour is ours — every surface is your accent, their accent, or a gradient across both. |
+| Language        | **English only, hardcoded.** No i18n layer. Adding one later means touching every component; that cost was accepted knowingly.                                                                                                                          |
+| Timeline        | **Bursty.** Every phase must end shippable. This file is the resume point.                                                                                                                                                                              |
 
 ## Feature set
 
@@ -59,50 +59,32 @@ commit.
 - Two pushes per person per day, hard cap.
 - Never upload an original-resolution photo.
 
-## Design direction — Bento, on warm paper
-
-Decided on the S9+ in Phase 0, after a first round was rejected.
-
-**Why the first round failed, and the rule that came out of it.** The initial
-three shells were built from numbers, dots and hairline rules — which is exactly
-what a habit tracker is built from, and that is how they read. Every screen in
-the reference apps is built from **faces, photographs and hand-made marks**: two
-avatars joined by a dashed line with the distance sitting on it, a scribbled
-drawing, a snapshot with a caption underneath.
-
-> **Rule: a screen with no face, no photograph and no hand-made mark on it is
-> probably wrong.** If a surface is only numbers, ask what human trace belongs
-> there before shipping it.
-
-**The direction:**
-
-- Warm paper base (`--color-paper` `#F4EFEA`), not the near-black the whole
-  category uses. Accents use their `onLight` variants.
-- Bento layout: tiles of varied size, never a uniform grid of equal cards.
-- The daily snap is the largest object on the home screen, because it is the
-  thing that changed today because of the other person.
-- Two avatars anchor the top, joined by a dashed line carrying the distance.
-- Fraunces for statements and numbers, Karla for body, JetBrains Mono for
-  anything that ticks.
-- No emoji as icons. The reference apps lean on emoji heavily; we do not.
-
-Rejected alternatives, for the record: _Letter_ (a page rather than an
-interface — warmest, but hardest to keep consistent across twenty more screens)
-and _Split_ (two literal columns — strongest concept for the name, but it
-hard-codes a structure every later screen must honour or break).
-
 ## Current phase
 
-**Phase 0 — closing.** Design decided; primitives not yet promoted to
-`packages/ui`, deliberately, pending one more round of reference input.
+**Phase 0 — complete.** Ready for Phase 1 (Supabase + the RLS leak suite).
 
-Done: monorepo, toolchain, `pnpm check` green (18 tests), Bento home shell,
-docs stubs, design decision recorded.
+Done: monorepo, toolchain, `pnpm check` green (18 tests), the Home screen in the
+chosen direction, shared primitives promoted into `packages/ui`, docs stubs.
+Losing candidates deleted rather than kept.
 
-Open: review the Cloud Love app's UI for anything worth taking, refine Bento,
-then promote its tokens and primitives (`Snapshot`, `Avatar`, `Faces`,
-`Scribble`, currently in `apps/web/src/design/parts.tsx`) into `packages/ui`.
-Phase 1 starts after that.
+Design history worth remembering, because it cost two full rounds: the first
+three shells were built from numbers, dots and hairline rules and read as a
+habit tracker. Both reference apps put a **face, a photograph or a hand-made
+mark** in front of you within the first 200px of every screen. That, not the
+palette, is what makes a couple app feel like one.
+
+## Reference apps
+
+Both are installed on the S9+ and are the fastest way to check a pattern:
+
+- `com.encore.candleapp` — candle. True black, section rails, serif card
+  headlines, emoji as illustration, hard paywall.
+- `com.angcosmin.couple` — Couple Love. Purple gradient, avatar pair with a
+  dashed line and a distance badge, a 78%-off countdown banner on the home
+  screen.
+
+`adb shell monkey -p <package> -c android.intent.category.LAUNCHER 1` to launch,
+`adb exec-out screencap -p > shot.png` to capture.
 
 ## Gotchas found so far
 
@@ -116,22 +98,41 @@ Phase 1 starts after that.
 - **Tailwind 4 has no `tailwind.config.js`.** Tokens live in the `@theme` block
   in `apps/web/src/styles/theme.css` and Tailwind emits the CSS variables. It
   also tree-shakes unused theme variables, so a token referenced only from
-  hand-written CSS will not exist unless some utility uses it too — that is why
-  the shells carry an explicit `bg-ink` / `bg-paper`.
+  hand-written CSS will not be emitted unless some utility uses it too.
 - **Relative imports carry their `.ts` / `.tsx` extension.** That needs
   `allowImportingTsExtensions` + `emitDeclarationOnly`, both set in
   `tsconfig.base.json`. Nothing here ships compiled JS.
-- **The seam animates via `@property --seam`.** A bare custom property cannot
-  transition; registering it gives the browser a type to interpolate.
+- **A bare CSS custom property cannot transition.** If a token ever needs to
+  animate, register it with `@property` first so the browser has a type to
+  interpolate. (The abandoned "seam" direction needed this; nothing does today.)
 - **No accent can clear 4.5:1 on both a dark and a light ground** — the maths
   forbids it. Every accent in `packages/core/src/accents.ts` therefore has an
   `onDark` and an `onLight` variant. Their contrast targets are staggered on
   purpose: solving all eight to the same 4.5 makes them identically light and
   indistinguishable to a colourblind user.
-- **Android toolchain is absent and Phase 7 is blocked on it.** No `adb`, no
-  `ANDROID_HOME`, no Android Studio. Installed JDKs are 23 and JRE 8; the
-  Android Gradle Plugin supports neither. Install Android Studio (it bundles a
-  JBR 21) before starting Phase 7.
+- **Tailwind does not scan workspace packages.** It auto-detects sources only
+  under the app it compiles in, so every utility class used inside
+  `packages/ui` was missing from the bundle — tiles rendered with no width, no
+  height and no clipping while the app's own classes worked. Fixed by
+  `@source "../../../../packages/ui/src"` in `theme.css`. **Any new workspace
+  package containing markup needs its own `@source` line**, and the failure is
+  silent.
+- **`aspect-square` is not a height.** `aspect-ratio` loses to content, so tiles
+  with longer copy grew taller than their neighbours and text spilled past the
+  rounded corners. Cards in a rail use a fixed `h-44` with an absolutely
+  positioned footer.
+- **`mix-blend-*` escapes a rounded clip in Chromium.** A grain overlay inside a
+  `rounded-full overflow-hidden` avatar painted a black square around every
+  avatar on the S9+. Blended children need their own radius, or no blend.
+- **Android SDK platform-tools ARE installed**, just not on PATH:
+  `C:\Users\Admin\AppData\Local\Android\platform-tools\adb.exe`. The S9+
+  (SM-G965F, `star2lte`, 1080x2220 override, density 420) connects over USB.
+  `adb reverse tcp:5173 tcp:5173` then `http://localhost:5173` on the phone is
+  more reliable than the LAN address, and works regardless of Wi-Fi.
+- **Phase 7 is still blocked on a JDK.** Installed JDKs are 23 and JRE 8; the
+  Android Gradle Plugin supports neither, and there is no Android Studio.
+  Install it (it bundles a JBR 21) before starting Phase 7. `adb` alone is
+  enough to install and debug, not to build.
 - **The dev loop for the S9+ is `pnpm dev` over LAN** — Vite is configured with
   `host: true`, so the phone loads `http://<laptop-ip>:5173`. Both devices must
   be on the same router.

@@ -87,7 +87,14 @@ importers:
 
   packages/core: {}
 
-  packages/ui: {}
+  packages/ui:
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      react:
+        specifier: ^19.2.0
+        version: 19.2.8
 
 packages:
 
