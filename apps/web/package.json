@@ -16,6 +16,8 @@
     "@supabase/supabase-js": "^2.112.2",
     "@twoends/core": "workspace:*",
     "@twoends/ui": "workspace:*",
+    "dexie": "^4.4.4",
+    "dexie-react-hooks": "^4.4.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "zustand": "^5.0.14"

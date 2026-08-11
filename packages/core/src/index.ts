@@ -18,4 +18,5 @@ export * from './types.ts';
 export * from './togetherness.ts';
 export * from './seam.ts';
 export * from './streak.ts';
+export * from './sync.ts';
 export * from './fixtures/sampleCouple.ts';

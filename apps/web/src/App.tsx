@@ -1,6 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
-import { TabBar } from './components/TabBar.tsx';
+import { TabBar, type TabId } from './components/TabBar.tsx';
+import { watchConnectivity } from './db/outbox.ts';
+import { pull, subscribe } from './db/repository.ts';
+import { Countdowns } from './screens/Countdowns.tsx';
 import { Home } from './screens/Home.tsx';
 import { Onboarding } from './screens/Onboarding.tsx';
 import { Pair } from './screens/Pair.tsx';
@@ -16,9 +19,26 @@ import { useSession } from './state/session.ts';
  */
 export function App() {
   const status = useSession((s) => s.status);
+  const coupleId = useSession((s) => s.couple?.id);
   const bootstrap = useSession((s) => s.bootstrap);
+  const [tab, setTab] = useState<TabId>('home');
 
   useEffect(() => bootstrap(), [bootstrap]);
+
+  // Sync starts only once there is a couple to sync, and stops when there is
+  // not — signing out must not leave a socket open on someone else's data.
+  useEffect(() => {
+    if (!coupleId) return;
+
+    const stopConnectivity = watchConnectivity();
+    const stopRealtime = subscribe(coupleId);
+    void pull();
+
+    return () => {
+      stopConnectivity();
+      stopRealtime();
+    };
+  }, [coupleId]);
 
   switch (status) {
     case 'loading':
@@ -38,8 +58,8 @@ export function App() {
     case 'paired':
       return (
         <>
-          <Home />
-          <TabBar />
+          {tab === 'home' ? <Home /> : <Countdowns />}
+          <TabBar current={tab} onSelect={setTab} />
         </>
       );
   }

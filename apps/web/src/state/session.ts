@@ -2,6 +2,7 @@ import type { AccentKey, Proximity } from '@twoends/core';
 import type { Session } from '@supabase/supabase-js';
 import { create } from 'zustand';
 
+import { wipeLocal } from '../db/schema.ts';
 import { supabase } from '../lib/supabase.ts';
 
 /**
@@ -137,6 +138,10 @@ export const useSession = create<SessionState>((set, get) => ({
 
   signOut: async () => {
     await supabase.auth.signOut();
+    // The local mirror goes with the session. Leaving a copy of the pair's
+    // photographs and words in IndexedDB for the next person to open the
+    // browser would make "sign out" a lie, and this is a shared-laptop world.
+    await wipeLocal();
     set({ status: 'signed-out', session: null, profile: null, couple: null, partner: null });
   },
 }));

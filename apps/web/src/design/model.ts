@@ -1,5 +1,3 @@
-import { useEffect, useState } from 'react';
-
 import {
   SAMPLE_COUNTDOWN,
   SAMPLE_COUPLE,
@@ -19,6 +17,7 @@ import {
 } from '@twoends/core';
 
 import { useSession } from '../state/session.ts';
+import { useNow } from '../state/useNow.ts';
 
 /**
  * One view model, three shells. The options must differ in treatment and never
@@ -45,35 +44,6 @@ export interface DesignModel {
 }
 
 /**
- * Ticks once per second, re-anchoring to the wall clock each time.
- *
- * A bare `setInterval(fn, 1000)` drifts: it fires *at least* a second later, and
- * the error accumulates until the seconds digit visibly skips. Scheduling the
- * next tick for the start of the next real second keeps it honest. Phase 5 moves
- * this behind the counter component; the maths already lives in core.
- */
-function useSecond(): Date {
-  const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    let timer = 0;
-    const schedule = () => {
-      timer = window.setTimeout(
-        () => {
-          setNow(new Date());
-          schedule();
-        },
-        1000 - (Date.now() % 1000),
-      );
-    };
-    schedule();
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  return now;
-}
-
-/**
  * Real identity, sample everything else.
  *
  * Names and accents come from the signed-in pair — that is Phase 2's definition
@@ -82,7 +52,7 @@ function useSecond(): Date {
  * until Phases 3 to 5 replace them with Dexie reads.
  */
 export function useDesignModel(): DesignModel {
-  const now = useSecond();
+  const now = useNow(1000);
   const profile = useSession((s) => s.profile);
   const partner = useSession((s) => s.partner);
   const couple = useSession((s) => s.couple);

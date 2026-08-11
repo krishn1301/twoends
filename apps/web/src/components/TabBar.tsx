@@ -2,19 +2,27 @@ import { ChatIcon, HomeIcon, PairIcon } from './icons.tsx';
 
 /**
  * A floating translucent bar, the way both reference apps do it — it keeps the
- * black page reaching the bottom bezel instead of ending in a grey slab, which
- * on an OLED panel is most of why they look like they do.
+ * black reaching the bottom bezel instead of ending in a grey slab, which on an
+ * OLED panel is most of why they look like they do.
  *
- * Three destinations, not five. The build plan's cap is five; we only have
+ * Three destinations, not five. The build plan caps it at five; we only have
  * three things that are genuinely places rather than actions.
  */
 const TABS = [
   { id: 'home', label: 'Home', Icon: HomeIcon },
-  { id: 'inbox', label: 'Inbox', Icon: ChatIcon },
+  { id: 'dates', label: 'Dates', Icon: ChatIcon },
   { id: 'us', label: 'Us', Icon: PairIcon },
 ] as const;
 
-export function TabBar({ current = 'home' }: { current?: (typeof TABS)[number]['id'] }) {
+export type TabId = (typeof TABS)[number]['id'];
+
+export function TabBar({
+  current = 'home',
+  onSelect,
+}: {
+  current?: TabId;
+  onSelect?: (id: TabId) => void;
+}) {
   return (
     <nav
       aria-label="Main"
@@ -31,6 +39,7 @@ export function TabBar({ current = 'home' }: { current?: (typeof TABS)[number]['
             <button
               key={id}
               type="button"
+              onClick={() => onSelect?.(id)}
               aria-current={active ? 'page' : undefined}
               aria-label={label}
               className={`flex items-center gap-2 rounded-full px-5 transition-colors ${
