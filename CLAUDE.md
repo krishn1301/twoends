@@ -59,9 +59,33 @@ commit.
 - Two pushes per person per day, hard cap.
 - Never upload an original-resolution photo.
 
+## Backend
+
+**Hosted Supabase, no Docker — ever.**
+
+- Project `twoends-dev`, ref `gwsiivjkpvnygklmlebl`, `ap-south-1` (Mumbai), free tier.
+- Docker was uninstalled. It was only ever needed for `supabase start`, a local
+  copy of the stack; `db push --linked`, `db query --linked` and
+  `gen types --linked` all talk straight to the hosted project.
+- **Free projects pause after 1 week of inactivity.** With a bursty schedule you
+  will hit this. Resuming is one click in the dashboard.
+- Considered and rejected: a smaller local database (PocketBase, native
+  Postgres). The reason is structural — two phones in two cities means the
+  backend must be internet-reachable, so a local database is a dev convenience,
+  never the backend. Supabase's free tier _is_ the hosting and costs no local
+  disk.
+
+Commands: `pnpm db:push`, `pnpm db:types`, `pnpm test:rls`, `pnpm verify`.
+`.env.local` holds the keys and is gitignored.
+
 ## Current phase
 
-**Phase 0 — complete.** Ready for Phase 1 (Supabase + the RLS leak suite).
+**Phase 1 — complete.** Ready for Phase 2 (auth, onboarding, pairing).
+
+The schema, RLS and storage policies are applied to the live project and the
+leak suite is green — **and proven**: a `members read` policy was deliberately
+dropped, the suite went red on exactly the right assertion, and it was restored.
+A leak suite that has never failed is not known to work.
 
 Done: monorepo, toolchain, `pnpm check` green (18 tests), the Home screen in the
 chosen direction, shared primitives promoted into `packages/ui`, docs stubs.
@@ -88,6 +112,14 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
 
 ## Gotchas found so far
 
+- **`supabase db execute` does not exist** — it is `supabase db query --linked
+--file x.sql`. Useful for ad-hoc policy surgery against the live project.
+- **`pnpm test:rls` refuses to run** unless `.env.local` sets
+  `SUPABASE_ENV=development`. The suite creates and deletes users; it must never
+  point at a project holding a real couple's data.
+- **`packages/core/src/database.types.ts` is generated** by `pnpm db:types` and
+  is in `.prettierignore`. Reformatting it would produce a diff on every
+  regeneration and bury real schema changes.
 - **TypeScript is pinned to 6.x, deliberately.** TS 7.0 is `latest` and
   typechecks this repo fine, but `typescript-eslint` 8.66 refuses to load
   against the TS 7 API and `pnpm lint` dies. Revisit when typescript-eslint

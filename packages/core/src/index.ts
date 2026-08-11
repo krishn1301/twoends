@@ -9,6 +9,10 @@
  * here and implemented in the app layer, so the PWA degrades instead of crashing.
  */
 
+// Generated from the live schema by `pnpm db:types`. Pure type declarations,
+// zero runtime, so it does not breach the no-platform-imports rule above.
+export type { Database, Json } from './database.types.ts';
+
 export * from './accents.ts';
 export * from './types.ts';
 export * from './togetherness.ts';

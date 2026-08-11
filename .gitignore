@@ -34,3 +34,11 @@ apps/ios/
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Credentials kept loose in the working tree. A password file was committed once
+# by accident; these patterns exist so it cannot happen a second time.
+*password*.txt
+*secret*.txt
+*credentials*
+*.pem
+*.key

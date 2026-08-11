@@ -13,6 +13,7 @@
     "@fontsource-variable/fraunces": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@fontsource/karla": "^5.3.0",
+    "@supabase/supabase-js": "^2.112.2",
     "@twoends/core": "workspace:*",
     "@twoends/ui": "workspace:*",
     "react": "^19.2.0",
