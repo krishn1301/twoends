@@ -17,10 +17,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
-    "db:start": "supabase start",
-    "db:stop": "supabase stop",
-    "db:reset": "supabase db reset",
-    "db:types": "supabase gen types typescript --local --schema public > packages/core/src/database.types.ts",
+    "db:push": "supabase db push",
+    "db:types": "supabase gen types typescript --linked --schema public > packages/core/src/database.types.ts",
     "test:rls": "node scripts/rls.mjs",
     "verify": "pnpm check && pnpm test:rls"
   },
