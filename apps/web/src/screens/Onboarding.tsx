@@ -1,53 +1,47 @@
 import { useState } from 'react';
 
-import { ACCENTS, ACCENT_KEYS, type AccentKey, type Proximity } from '@twoends/core';
+import { ACCENTS, ACCENT_KEYS, type AccentKey } from '@twoends/core';
 
 import { BackButton, Button, Field, Progress, TextInput } from '../components/Field.tsx';
 import { supabase } from '../lib/supabase.ts';
 import { stashCoupleDraft } from '../state/coupleDraft.ts';
-import { useSession } from '../state/session.ts';
+import { useSession, type RelationshipType } from '../state/session.ts';
 
 /**
- * Six steps, one of which is required.
+ * Five questions, one of which is required.
  *
- * The reference apps ask the same questions but make most of them feel
- * compulsory. Here every step but the name has a visible Skip, back always
- * works, and the progress bar counts all six whether or not you answer them —
- * a bar that only counts what you filled in lurches forward and stops meaning
- * anything.
+ * These come *first* — before any account, any email, any wall. Someone who has
+ * just been told about this app should be answering questions about their
+ * relationship within seconds of opening it, not proving who they are to a
+ * service they have no reason to trust yet. The account already exists,
+ * anonymously, made in the background.
  *
- * Nothing is written until the end, so abandoning halfway leaves no half-built
- * profile behind and no row for the next session to trip over.
+ * Every step but the name has a visible Skip, Back always works, and the
+ * progress bar counts all five whether or not you answer them — a bar that only
+ * counts what you filled in lurches forward and stops meaning anything.
  */
 
-const PROXIMITIES: Array<{ key: Proximity; label: string; hint: string }> = [
-  { key: 'together', label: 'We live together', hint: 'Same roof, most nights' },
-  { key: 'nearby', label: 'Same city', hint: 'Close enough to be spontaneous' },
+const RELATIONSHIPS: Array<{ key: RelationshipType; label: string; hint: string }> = [
+  { key: 'together', label: 'Together', hint: 'Same city, same life' },
   { key: 'long_distance', label: 'Long distance', hint: 'Different cities or countries' },
-  { key: 'varies', label: 'It changes', hint: 'Travel, work, seasons' },
+  { key: 'situationship', label: 'A situationship', hint: 'Undefined, on purpose' },
+  { key: 'friends', label: 'Close friends', hint: 'Not romantic, still ours' },
+  { key: 'complicated', label: "It's complicated", hint: 'The honest answer' },
 ];
 
-const FOCUS_OPTIONS = [
-  'Talking more',
-  'Small everyday things',
-  'Planning what is next',
-  'Being playful',
-  'Nothing in particular',
-];
-
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 5;
 
 export function Onboarding() {
   const refresh = useSession((s) => s.refresh);
   const session = useSession((s) => s.session);
+  const beginSignIn = useSession((s) => s.beginSignIn);
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [accent, setAccent] = useState<AccentKey>('teal');
-  const [birthday, setBirthday] = useState('');
-  const [proximity, setProximity] = useState<Proximity | null>(null);
+  const [relationship, setRelationship] = useState<RelationshipType | null>(null);
   const [startedOn, setStartedOn] = useState('');
-  const [focus, setFocus] = useState<string[]>([]);
+  const [birthday, setBirthday] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,13 +67,9 @@ export function Onboarding() {
       return;
     }
 
-    // The last three answers describe the couple, which does not exist yet —
-    // the row is created when they go to pair. Park them until it does.
-    stashCoupleDraft({
-      proximity,
-      started_on: startedOn || null,
-      nurture_focus: focus,
-    });
+    // These two describe the couple, which does not exist yet — its row is
+    // created when they go to pair. Park them until it does.
+    stashCoupleDraft({ relationship_type: relationship, started_on: startedOn || null });
 
     setBusy(false);
     await refresh();
@@ -146,36 +136,24 @@ export function Onboarding() {
           )}
 
           {step === 2 && (
-            <Step title="When is your birthday?" sub="So neither of you has to remember alone.">
-              <Field label="Birthday" hint="Optional.">
-                <TextInput
-                  type="date"
-                  value={birthday}
-                  onChange={(e) => setBirthday(e.target.value)}
-                />
-              </Field>
-            </Step>
-          )}
-
-          {step === 3 && (
-            <Step title="How do you two connect?" sub="Changes the words, not the features.">
+            <Step title="What are you two?" sub="Changes the words, never the features.">
               <div className="flex flex-col gap-2.5">
-                {PROXIMITIES.map((p) => (
+                {RELATIONSHIPS.map((r) => (
                   <Choice
-                    key={p.key}
-                    label={p.label}
-                    hint={p.hint}
-                    selected={proximity === p.key}
+                    key={r.key}
+                    label={r.label}
+                    hint={r.hint}
+                    selected={relationship === r.key}
                     tint={tint}
-                    onClick={() => setProximity(p.key)}
+                    onClick={() => setRelationship(r.key)}
                   />
                 ))}
               </div>
             </Step>
           )}
 
-          {step === 4 && (
-            <Step title="When did you start?" sub="The counter runs from here.">
+          {step === 3 && (
+            <Step title="When did it start?" sub="The counter runs from here.">
               <Field label="Your date" hint="Optional, and easy to change later.">
                 <TextInput
                   type="date"
@@ -186,23 +164,15 @@ export function Onboarding() {
             </Step>
           )}
 
-          {step === 5 && (
-            <Step title="Anything you want more of?" sub="Pick as many as you like, or none.">
-              <div className="flex flex-col gap-2.5">
-                {FOCUS_OPTIONS.map((f) => (
-                  <Choice
-                    key={f}
-                    label={f}
-                    selected={focus.includes(f)}
-                    tint={tint}
-                    onClick={() =>
-                      setFocus((cur) =>
-                        cur.includes(f) ? cur.filter((x) => x !== f) : [...cur, f],
-                      )
-                    }
-                  />
-                ))}
-              </div>
+          {step === 4 && (
+            <Step title="When is your birthday?" sub="So neither of you has to remember alone.">
+              <Field label="Birthday" hint="Optional." error={error}>
+                <TextInput
+                  type="date"
+                  value={birthday}
+                  onChange={(e) => setBirthday(e.target.value)}
+                />
+              </Field>
             </Step>
           )}
         </div>
@@ -224,14 +194,24 @@ export function Onboarding() {
               )}
             </>
           ) : (
-            <Button accent={tint} onClick={finish} disabled={busy}>
+            <Button accent={tint} onClick={() => void finish()} disabled={busy}>
               {busy ? 'Saving…' : 'Done'}
             </Button>
           )}
-          {error && step === TOTAL_STEPS - 1 && (
-            <p className="text-center text-sm" style={{ color: '#e4566e' }}>
-              {error}
-            </p>
+
+          {/*
+            The way back in. Without this, anyone reinstalling the app or moving
+            to a new phone would be permanently locked out of an account that
+            still exists — the single worst failure mode of anonymous-first.
+          */}
+          {step === 0 && (
+            <button
+              type="button"
+              onClick={beginSignIn}
+              className="text-ash mt-2 h-11 text-sm underline underline-offset-4"
+            >
+              I have used this before
+            </button>
           )}
         </div>
       </div>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { Button, Field, TextInput } from '../components/Field.tsx';
 import { supabase } from '../lib/supabase.ts';
+import { useSession } from '../state/session.ts';
 
 const ACCENT = '#30c2bd';
 
@@ -36,6 +37,9 @@ function humaniseAuth(message: string): string {
  * recovery for free: whoever can read the email is the account.
  */
 export function SignIn() {
+  const cancelSignIn = useSession((s) => s.cancelSignIn);
+  const sessionError = useSession((s) => s.error);
+
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -82,9 +86,15 @@ export function SignIn() {
           twoends
         </h1>
         <p className="text-ash mb-10 text-[0.95rem] leading-relaxed">
-          A small shared space for two people. Everything is free, permanently — no tier, no trial,
-          no ads.
+          Signing back in to an account you already have. If you are new, go back — you do not need
+          one to start.
         </p>
+
+        {sessionError && (
+          <p className="mb-6 text-sm" style={{ color: '#e4566e' }}>
+            {sessionError}
+          </p>
+        )}
 
         {!sentTo ? (
           <form onSubmit={sendCode} className="flex flex-col gap-5">
@@ -105,6 +115,9 @@ export function SignIn() {
             </Field>
             <Button accent={ACCENT} disabled={busy || email.trim().length < 3}>
               {busy ? 'Sending…' : 'Send me a code'}
+            </Button>
+            <Button type="button" variant="quiet" accent={ACCENT} onClick={cancelSignIn}>
+              Back
             </Button>
           </form>
         ) : (

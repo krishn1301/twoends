@@ -7,21 +7,25 @@ import { Countdowns } from './screens/Countdowns.tsx';
 import { Home } from './screens/Home.tsx';
 import { Onboarding } from './screens/Onboarding.tsx';
 import { Pair } from './screens/Pair.tsx';
+import { SaveAccount, emailOffered } from './screens/SaveAccount.tsx';
 import { SignIn } from './screens/SignIn.tsx';
 import { useSession } from './state/session.ts';
 
 /**
  * The app is a state machine, not a set of URLs, so it renders by status.
  *
- * No router yet: onboarding keeps its own step index, and the one link that
- * matters — an invite — is read straight off `location.search`. A router earns
- * its place in Phase 9, when there are screens worth linking to.
+ * No sign-in wall: opening the app makes an anonymous account in the background
+ * and goes straight to the first question. Email is offered once, after pairing,
+ * and is the fire escape rather than the front door.
  */
 export function App() {
   const status = useSession((s) => s.status);
   const coupleId = useSession((s) => s.couple?.id);
+  const isAnonymous = useSession((s) => s.isAnonymous);
   const bootstrap = useSession((s) => s.bootstrap);
+
   const [tab, setTab] = useState<TabId>('home');
+  const [offerDismissed, setOfferDismissed] = useState(() => emailOffered());
 
   useEffect(() => bootstrap(), [bootstrap]);
 
@@ -46,7 +50,7 @@ export function App() {
       // in under a frame is just a flash of anxiety.
       return <div className="bg-void min-h-full" />;
 
-    case 'signed-out':
+    case 'signing-in':
       return <SignIn />;
 
     case 'onboarding':
@@ -56,6 +60,12 @@ export function App() {
       return <Pair />;
 
     case 'paired':
+      // The one moment worth interrupting for: they have just become a pair, so
+      // there is finally something worth not losing.
+      if (isAnonymous && !offerDismissed) {
+        return <SaveAccount onDone={() => setOfferDismissed(true)} />;
+      }
+
       return (
         <>
           {tab === 'home' ? <Home /> : <Countdowns />}

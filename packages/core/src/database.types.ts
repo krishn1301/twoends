@@ -190,8 +190,8 @@ export type Database = {
           member_a: string
           member_b: string | null
           nurture_focus: string[]
-          proximity: string | null
           quiet_until: string | null
+          relationship_type: string | null
           started_on: string | null
           unpair_requested_at: string | null
           unpair_requested_by: string | null
@@ -203,8 +203,8 @@ export type Database = {
           member_a: string
           member_b?: string | null
           nurture_focus?: string[]
-          proximity?: string | null
           quiet_until?: string | null
+          relationship_type?: string | null
           started_on?: string | null
           unpair_requested_at?: string | null
           unpair_requested_by?: string | null
@@ -216,8 +216,8 @@ export type Database = {
           member_a?: string
           member_b?: string | null
           nurture_focus?: string[]
-          proximity?: string | null
           quiet_until?: string | null
+          relationship_type?: string | null
           started_on?: string | null
           unpair_requested_at?: string | null
           unpair_requested_by?: string | null

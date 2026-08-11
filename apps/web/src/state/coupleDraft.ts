@@ -1,9 +1,9 @@
-import type { Proximity } from '@twoends/core';
+import type { RelationshipType } from './session.ts';
 
 /**
- * Onboarding asks three questions about the *couple* — how you connect, when you
- * started, what you want more of — before a couple exists to hang them on. The
- * couple row is only created when you go to pair.
+ * Onboarding asks two questions about the *couple* — what you are to each other,
+ * and when it started — before a couple exists to hang them on. The row is only
+ * created when you go to pair.
  *
  * So the answers wait here, in local storage, and are applied the moment the row
  * appears. The alternative, creating the couple during onboarding, meant calling
@@ -18,19 +18,16 @@ import type { Proximity } from '@twoends/core';
 const KEY = 'twoends.couple-draft';
 
 export interface CoupleDraft {
-  proximity: Proximity | null;
+  relationship_type: RelationshipType | null;
   started_on: string | null;
-  nurture_focus: string[];
 }
 
 export function stashCoupleDraft(draft: CoupleDraft): void {
-  const hasSomething =
-    draft.proximity !== null || draft.started_on !== null || draft.nurture_focus.length > 0;
-  if (!hasSomething) return;
+  if (draft.relationship_type === null && draft.started_on === null) return;
   try {
     localStorage.setItem(KEY, JSON.stringify(draft));
   } catch {
-    // Private browsing, quota, a locked-down webview. Losing three optional
+    // Private browsing, quota, a locked-down webview. Losing two optional
     // answers is not worth breaking onboarding over.
   }
 }
