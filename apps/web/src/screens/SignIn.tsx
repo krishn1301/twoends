@@ -6,6 +6,28 @@ import { supabase } from '../lib/supabase.ts';
 const ACCENT = '#30c2bd';
 
 /**
+ * Auth errors, rewritten as sentences.
+ *
+ * The rule from the build plan is that an error says what failed *and what to
+ * do*. "email rate limit exceeded" does neither — it reads like the person did
+ * something wrong, when in fact the mail provider is throttling and the only
+ * useful action is to wait.
+ */
+const AUTH_ERRORS: Array<[RegExp, string]> = [
+  [
+    /rate limit/i,
+    'Too many codes requested. Wait a few minutes and try again — nothing is wrong with your account.',
+  ],
+  [/invalid|expired/i, 'That code did not work. It may have expired — ask for a new one.'],
+  [/valid email|invalid format/i, 'That does not look like an email address.'],
+  [/network|fetch/i, 'Could not reach the server. Check your connection and try again.'],
+];
+
+function humaniseAuth(message: string): string {
+  return AUTH_ERRORS.find(([pattern]) => pattern.test(message))?.[1] ?? message;
+}
+
+/**
  * Sign in with a six-digit code sent by email. No passwords, anywhere, ever.
  *
  * That is one less thing to leak, one less form to build, one less "forgot
@@ -31,7 +53,7 @@ export function SignIn() {
     });
 
     setBusy(false);
-    if (error) setError(error.message);
+    if (error) setError(humaniseAuth(error.message));
     else setSentTo(email.trim());
   }
 
@@ -50,7 +72,7 @@ export function SignIn() {
     setBusy(false);
     // The session lands via onAuthStateChange, so there is nothing to do on
     // success — the app re-renders itself into the next state.
-    if (error) setError(error.message);
+    if (error) setError(humaniseAuth(error.message));
   }
 
   return (
