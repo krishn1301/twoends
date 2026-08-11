@@ -92,11 +92,17 @@ export function SignIn() {
               hint={`Sent to ${sentTo}. It expires in an hour.`}
               error={error}
             >
+              {/*
+                Not hard-capped at six. Supabase's OTP length is a project
+                setting and its admin-generated codes are eight digits, so a
+                six-character cap silently truncated the code and every attempt
+                failed with "invalid token".
+              */}
               <TextInput
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 required
-                maxLength={6}
+                maxLength={10}
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                 placeholder="000000"

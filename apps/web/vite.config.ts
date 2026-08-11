@@ -8,6 +8,13 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
 
   /*
+    GitHub Pages serves a project site from `/<repo>/`, so the built asset URLs
+    need that prefix. Left as `/` for local dev and for any host that serves
+    from a domain root, and set by the deploy script.
+  */
+  base: process.env.VITE_BASE ?? '/',
+
+  /*
     Vite looks for `.env.local` beside this config — that is, in `apps/web` —
     but the repo keeps one at the root so the app and the leak suite read the
     same file. Without this, `import.meta.env.VITE_*` is silently undefined and

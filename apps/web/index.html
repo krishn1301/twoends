@@ -2,10 +2,24 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      `viewport-fit=cover` lets the page reach under the notch and home
+      indicator; the safe-area insets in the CSS keep content clear of both.
+      Without it an installed PWA renders with black bars on an iPhone.
+    -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="color-scheme" content="dark light" />
+    <meta name="color-scheme" content="dark" />
     <title>TwoEnds</title>
     <meta name="description" content="A small shared space for two people. Free, permanently." />
+
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./favicon-32.png" sizes="32x32" />
+    <!-- iOS ignores the manifest icons and uses this one for the home screen. -->
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="TwoEnds" />
+    <meta name="theme-color" content="#000000" />
   </head>
   <body>
     <div id="root"></div>
