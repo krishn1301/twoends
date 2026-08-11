@@ -193,6 +193,8 @@ export type Database = {
           proximity: string | null
           quiet_until: string | null
           started_on: string | null
+          unpair_requested_at: string | null
+          unpair_requested_by: string | null
         }
         Insert: {
           adult_packs_enabled?: boolean
@@ -204,6 +206,8 @@ export type Database = {
           proximity?: string | null
           quiet_until?: string | null
           started_on?: string | null
+          unpair_requested_at?: string | null
+          unpair_requested_by?: string | null
         }
         Update: {
           adult_packs_enabled?: boolean
@@ -215,6 +219,8 @@ export type Database = {
           proximity?: string | null
           quiet_until?: string | null
           started_on?: string | null
+          unpair_requested_at?: string | null
+          unpair_requested_by?: string | null
         }
         Relationships: [
           {
@@ -227,6 +233,13 @@ export type Database = {
           {
             foreignKeyName: "couples_member_b_fkey"
             columns: ["member_b"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "couples_unpair_requested_by_fkey"
+            columns: ["unpair_requested_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -603,7 +616,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_unpair: { Args: never; Returns: undefined }
+      confirm_unpair: { Args: never; Returns: undefined }
+      create_invite: { Args: { p_ttl?: string }; Returns: string }
+      generate_invite_code: { Args: never; Returns: string }
       is_member_of: { Args: { c: string }; Returns: boolean }
+      redeem_invite: { Args: { p_code: string }; Returns: string }
+      request_unpair: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

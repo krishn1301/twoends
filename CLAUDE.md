@@ -112,6 +112,10 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
 
 ## Gotchas found so far
 
+- **Vite reads `.env.local` from `apps/web`, not the repo root.** The repo keeps
+  one at the root so the app and the leak suite share it, so `vite.config.ts`
+  sets `envDir` to the root. Without it `import.meta.env.VITE_*` is silently
+  undefined and the app dies on a missing-key throw with no hint why.
 - **`supabase db execute` does not exist** — it is `supabase db query --linked
 --file x.sql`. Useful for ad-hoc policy surgery against the live project.
 - **`pnpm test:rls` refuses to run** unless `.env.local` sets

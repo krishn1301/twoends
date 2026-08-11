@@ -18,6 +18,8 @@ import {
   type Elapsed,
 } from '@twoends/core';
 
+import { useSession } from '../state/session.ts';
+
 /**
  * One view model, three shells. The options must differ in treatment and never
  * in content — otherwise the comparison is measuring the copy, not the design.
@@ -71,19 +73,30 @@ function useSecond(): Date {
   return now;
 }
 
+/**
+ * Real identity, sample everything else.
+ *
+ * Names and accents come from the signed-in pair — that is Phase 2's definition
+ * of done, and it is also what makes the screen feel like *yours* the first time
+ * you see it. The daily question, snaps, streak and countdown are still fixtures
+ * until Phases 3 to 5 replace them with Dexie reads.
+ */
 export function useDesignModel(): DesignModel {
   const now = useSecond();
+  const profile = useSession((s) => s.profile);
+  const partner = useSession((s) => s.partner);
+  const couple = useSession((s) => s.couple);
 
   const them = SAMPLE_COUPLE.them;
-  const startedOn = SAMPLE_COUPLE.startedOn ?? '2025-01-01';
+  const startedOn = couple?.started_on ?? SAMPLE_COUPLE.startedOn ?? '2025-01-01';
   const turn = turnFor(SAMPLE_PROMPT, them !== null);
-  const theirName = them?.displayName ?? 'them';
+  const theirName = partner?.display_name ?? them?.displayName ?? 'them';
 
   return {
-    myName: SAMPLE_COUPLE.me.displayName,
+    myName: profile?.display_name ?? SAMPLE_COUPLE.me.displayName,
     theirName,
-    myAccent: getAccent(SAMPLE_COUPLE.me.accentKey),
-    theirAccent: getAccent(them?.accentKey ?? 'rose'),
+    myAccent: getAccent(profile?.accent_key ?? SAMPLE_COUPLE.me.accentKey),
+    theirAccent: getAccent(partner?.accent_key ?? them?.accentKey ?? 'rose'),
     seam: `${Math.round(seamPosition(turn) * 100)}%`,
     turnLine: turnLabel(turn, theirName),
     question: SAMPLE_PROMPT.body,

@@ -1,9 +1,19 @@
+import { fileURLToPath } from 'node:url';
+
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+
+  /*
+    Vite looks for `.env.local` beside this config — that is, in `apps/web` —
+    but the repo keeps one at the root so the app and the leak suite read the
+    same file. Without this, `import.meta.env.VITE_*` is silently undefined and
+    the app dies on a missing-key throw with no hint as to why.
+  */
+  envDir: fileURLToPath(new URL('../../', import.meta.url)),
   server: {
     // `pnpm dev --host` binds to the LAN so the S9+ can load the app off this
     // laptop over Wi-Fi. That is the dev loop for every phase before the
