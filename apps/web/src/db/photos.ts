@@ -1,4 +1,3 @@
-import { shrinkForUpload } from '../lib/image.ts';
 import { supabase } from '../lib/supabase.ts';
 
 /**
@@ -24,24 +23,26 @@ export interface Snap {
   kept: boolean;
 }
 
+/**
+ * Uploads an already-shrunk photo.
+ *
+ * Takes the blob rather than the original file on purpose: the caller shrank it
+ * to show a preview, and shrinking again here would decode and re-encode the
+ * same pixels a second time — slow on an old phone, and a second chance for the
+ * encoder to do something surprising.
+ */
 export async function uploadSnap(
   coupleId: string,
   authorId: string,
-  file: File,
+  blob: Blob,
   caption: string | null,
 ): Promise<{ error: string | null }> {
-  let shrunk;
-  try {
-    shrunk = await shrinkForUpload(file);
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Could not read that photo.' };
-  }
-
-  const extension = shrunk.blob.type === 'image/webp' ? 'webp' : 'jpg';
+  // Derived from what was actually produced, not from what was asked for.
+  const extension = blob.type === 'image/webp' ? 'webp' : 'jpg';
   const path = `${coupleId}/${crypto.randomUUID()}.${extension}`;
 
-  const upload = await supabase.storage.from('photos').upload(path, shrunk.blob, {
-    contentType: shrunk.blob.type,
+  const upload = await supabase.storage.from('photos').upload(path, blob, {
+    contentType: blob.type,
     // Paths are random, so a collision means something is badly wrong and
     // overwriting would hide it.
     upsert: false,

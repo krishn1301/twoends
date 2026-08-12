@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAccent } from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 
-import { keepSnap, uploadSnap, type Snap } from '../db/photos.ts';
+import { deleteSnap, keepSnap, uploadSnap, type Snap } from '../db/photos.ts';
 import { formatBytes, shrinkForUpload } from '../lib/image.ts';
 import { useSession } from '../state/session.ts';
 import { useShared } from '../state/shared.ts';
@@ -31,6 +31,7 @@ export function Snaps() {
   const urls = useShared((s) => s.urls);
   const load = useShared((s) => s.load);
   const markKept = useShared((s) => s.markKept);
+  const dropLocally = useShared((s) => s.dropSnap);
 
   const [pending, setPending] = useState<{
     blob: Blob;
@@ -79,12 +80,7 @@ export function Snaps() {
     setBusy(true);
     setError(null);
 
-    const { error } = await uploadSnap(
-      couple.id,
-      profile.id,
-      new File([pending.blob], 'snap', { type: pending.blob.type }),
-      caption,
-    );
+    const { error } = await uploadSnap(couple.id, profile.id, pending.blob, caption);
     setBusy(false);
     if (error) {
       setError(error);
@@ -95,6 +91,14 @@ export function Snaps() {
     setPending(null);
     setCaption('');
     refresh();
+  }
+
+  async function remove(snap: Snap) {
+    // Deliberately no confirmation dialogue for your own snap: it is one photo,
+    // it is recoverable by sending another, and a modal for every tap is worse
+    // than the rare misfire. Deleting the *partner's* is not offered at all.
+    dropLocally(snap.id);
+    await deleteSnap(snap);
   }
 
   async function toggleKeep(snap: Snap) {
@@ -232,17 +236,30 @@ export function Snaps() {
                         type="button"
                         onClick={() => void toggleKeep(snap)}
                         aria-pressed={snap.kept}
-                        aria-label={snap.kept ? 'Kept' : 'Keep this one'}
+                        aria-label={snap.kept ? 'Kept forever' : 'Keep this one'}
                         title={
                           snap.kept
-                            ? 'Kept — this one will not be swept'
+                            ? 'Kept — this one stays'
                             : 'Photos go after 30 days unless kept'
                         }
                         className="grid h-11 w-11 shrink-0 place-items-center rounded-full"
-                        style={{ color: snap.kept ? mine : '#948A82' }}
+                        style={{ color: snap.kept ? '#e4566e' : '#948A82' }}
                       >
-                        <Pin filled={snap.kept} />
+                        <Heart filled={snap.kept} />
                       </button>
+
+                      {/* Only your own. Deleting the other person's photo from
+                          their own shared space is not a thing this app does. */}
+                      {!isTheirs && (
+                        <button
+                          type="button"
+                          onClick={() => void remove(snap)}
+                          aria-label="Delete this snap"
+                          className="text-ash grid h-11 w-11 shrink-0 place-items-center rounded-full"
+                        >
+                          <Bin />
+                        </button>
+                      )}
                     </figcaption>
                   </figure>
                 );
@@ -267,15 +284,30 @@ function daysLeft(iso: string): number {
   return Math.max(0, Math.ceil((Date.parse(iso) - Date.now()) / 86_400_000));
 }
 
-function Pin({ filled }: { filled: boolean }) {
+/** Filled means kept: this one survives the 30-day sweep. */
+function Heart({ filled }: { filled: boolean }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
-        d="M12 3.5c-3 0-5 2-5 4.6 0 3.4 5 12.4 5 12.4s5-9 5-12.4c0-2.6-2-4.6-5-4.6Z"
+        d="M12 20.3s-7.5-4.6-7.5-9.6a4.2 4.2 0 0 1 7.5-2.6 4.2 4.2 0 0 1 7.5 2.6c0 5-7.5 9.6-7.5 9.6Z"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinejoin="round"
         fill={filled ? 'currentColor' : 'none'}
+      />
+    </svg>
+  );
+}
+
+function Bin() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M5 7h14M10 7V5.5A1.5 1.5 0 0 1 11.5 4h1A1.5 1.5 0 0 1 14 5.5V7m-7 0 .8 11.1A1.9 1.9 0 0 0 9.7 20h4.6a1.9 1.9 0 0 0 1.9-1.9L17 7"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );

@@ -28,6 +28,8 @@ interface SharedState {
   load: (couple: Couple) => Promise<void>;
   /** Optimistic keep toggle; the write follows. */
   markKept: (id: string, kept: boolean) => void;
+  /** Optimistic removal, so a deleted snap leaves the list at once. */
+  dropSnap: (id: string) => void;
   clear: () => void;
 }
 
@@ -67,6 +69,8 @@ export const useShared = create<SharedState>((set) => ({
     set((state) => ({
       snaps: state.snaps.map((s) => (s.id === id ? { ...s, kept } : s)),
     })),
+
+  dropSnap: (id) => set((state) => ({ snaps: state.snaps.filter((s) => s.id !== id) })),
 
   clear: () => set({ snaps: [], urls: new Map(), canvas: null, loaded: false }),
 }));

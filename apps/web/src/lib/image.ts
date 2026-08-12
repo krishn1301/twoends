@@ -48,7 +48,19 @@ export async function shrinkForUpload(file: File): Promise<Shrunk> {
   // uncompressed pixels, and Safari will not collect it promptly on its own.
   if ('close' in bitmap) bitmap.close();
 
-  const blob = await toBlob(canvas);
+  let blob = await toBlob(canvas);
+
+  /*
+    A backstop. Nothing at 1600px encoded as WebP or JPEG should exceed this, so
+    if it does, something about the encoder is not behaving as assumed — which
+    has already happened once. Re-encoding harder costs a little quality and
+    protects the storage budget, which is the thing that keeps this app free.
+  */
+  if (blob.size > 700_000) {
+    const smaller = await encode(canvas, 'image/jpeg', 0.6);
+    if (smaller && smaller.size < blob.size) blob = smaller;
+  }
+
   return { blob, width, height, originalBytes: file.size };
 }
 
@@ -76,26 +88,31 @@ async function loadBitmap(file: File): Promise<ImageBitmap> {
   }
 }
 
-function toBlob(canvas: HTMLCanvasElement): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (blob) {
-          resolve(blob);
-          return;
-        }
-        // Safari only gained WebP encoding in 14; JPEG is the honest fallback
-        // and costs perhaps 25% more bytes rather than failing the upload.
-        canvas.toBlob(
-          (jpeg) => (jpeg ? resolve(jpeg) : reject(new Error('Could not compress the photo.'))),
-          'image/jpeg',
-          QUALITY,
-        );
-      },
-      'image/webp',
-      QUALITY,
-    );
-  });
+const encode = (canvas: HTMLCanvasElement, type: string, quality = QUALITY): Promise<Blob | null> =>
+  new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+
+/**
+ * Encodes to WebP, or to JPEG where WebP cannot be written.
+ *
+ * The trap, and it is a nasty one: `canvas.toBlob` does **not** return null for
+ * an unsupported format. The spec says the browser falls back to `image/png` —
+ * so asking iOS Safari for WebP quietly returns a PNG, a null-check never fires,
+ * and a 200 KB photo ships as a 3 MB one. That happened: five real uploads
+ * landed at 2.5-3.1 MB each, named `.jpg`, actually PNG. Twenty times the cost,
+ * on the only device the app is really used on.
+ *
+ * So the returned type is checked rather than the returned value. PNG is never
+ * accepted here — for a photograph it is the worst possible choice, being
+ * lossless and therefore enormous.
+ */
+async function toBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  const webp = await encode(canvas, 'image/webp');
+  if (webp?.type === 'image/webp') return webp;
+
+  const jpeg = await encode(canvas, 'image/jpeg');
+  if (jpeg?.type === 'image/jpeg') return jpeg;
+
+  throw new Error('Could not compress the photo on this device.');
 }
 
 export function formatBytes(bytes: number): string {

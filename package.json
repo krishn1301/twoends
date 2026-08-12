@@ -24,7 +24,8 @@
     "devlink": "node scripts/devlink.mjs",
     "icons": "node scripts/icons.mjs",
     "deploy": "node scripts/deploy.mjs",
-    "db:seed": "node scripts/seed-prompts.mjs"
+    "db:seed": "node scripts/seed-prompts.mjs",
+    "wipe:dev": "node scripts/wipe-dev.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
