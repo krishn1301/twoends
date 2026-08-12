@@ -7,8 +7,9 @@ import { Countdowns } from './screens/Countdowns.tsx';
 import { Home } from './screens/Home.tsx';
 import { Onboarding } from './screens/Onboarding.tsx';
 import { Pair } from './screens/Pair.tsx';
-import { SaveAccount, emailOffered } from './screens/SaveAccount.tsx';
+import { SaveAccount } from './screens/SaveAccount.tsx';
 import { SignIn } from './screens/SignIn.tsx';
+import { emailOffered } from './state/emailOffer.ts';
 import { useSession } from './state/session.ts';
 
 /**

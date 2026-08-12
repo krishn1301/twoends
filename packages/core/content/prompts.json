@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "note": "Source of truth for prompts. Seeded to the database by `pnpm db:seed`. Ids are derived from the text, so re-seeding is idempotent and a prompt keeps its identity across environments. Change the text and you create a new prompt rather than silently rewriting one two people already answered.",
+  "packs": {
+    "core": {
+      "label": "Everyday",
+      "isAdult": false,
+      "prompts": [
+        "What did you almost tell me about today, and then didn't?",
+        "What is something small I do that you would miss?",
+        "Where were you happiest this week, and who was there?",
+        "What do you need more of from me right now?",
+        "What is something you changed your mind about recently?",
+        "What were you like at sixteen?",
+        "What is the last thing that made you laugh out loud?",
+        "What are you quietly worried about?",
+        "Describe today in one photograph you did not take.",
+        "What would a perfectly ordinary good day together look like?",
+        "What do you want to be better at by next year?",
+        "Which of our plans are you most impatient for?",
+        "What do you think I am wrong about?",
+        "When did you last feel proud of yourself?",
+        "What is a smell that takes you straight back somewhere?",
+        "What is something you have never told anyone?",
+        "Who did you become because of someone else?",
+        "What is the kindest thing a stranger has done for you?",
+        "What would you do with an unexpected free day?",
+        "What is something you are still angry about?",
+        "What song have you had on repeat?",
+        "What do you do when you miss me?",
+        "What is a compliment you did not believe at the time?",
+        "What are you avoiding?",
+        "What is the best thing you ate this week?",
+        "What do you hope has not changed about us in ten years?",
+        "When were you last genuinely surprised?",
+        "What do you do that you would not want me to see?",
+        "What is a small thing you would like to do more of?",
+        "What is the last thing you did purely because you wanted to?"
+      ]
+    },
+    "distance": {
+      "label": "Apart",
+      "isAdult": false,
+      "prompts": [
+        "What is the first thing you want to do when we are in the same room?",
+        "What is the hardest hour of the day to be apart?",
+        "What have you seen this week that you wished I was there for?",
+        "What do you picture when you picture me right now?",
+        "What is something about your day I would never guess?",
+        "What would you show me first if I turned up tomorrow?",
+        "What has been easier about being apart than you expected?",
+        "What do you save up to tell me?"
+      ]
+    },
+    "intimate": {
+      "label": "Just us",
+      "isAdult": true,
+      "prompts": [
+        "What do you think about that you have never said out loud?",
+        "When did you last feel most wanted by me?",
+        "What would you like more of, and have not asked for?",
+        "What is something you want to try?",
+        "What makes you feel closest to me, outside of a bedroom?",
+        "What is a moment between us you keep going back to?"
+      ]
+    }
+  }
+}

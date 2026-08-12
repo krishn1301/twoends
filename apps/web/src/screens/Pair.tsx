@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { getAccent } from '@twoends/core';
+import { deviceTimezone, getAccent } from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 
 import { Button, Field, TextInput } from '../components/Field.tsx';
@@ -78,10 +78,17 @@ export function Pair() {
       setError(humanise(error.message));
     } else {
       setCode(data ?? '');
-      // The couple row exists now, so onboarding's parked answers have
-      // somewhere to land.
+      /*
+        The couple row exists now, so onboarding's parked answers have somewhere
+        to land — along with this device's timezone, which decides when "today"
+        rolls over for the pair. It is taken from whoever created the couple
+        because somebody's clock has to win, and that one is stable.
+      */
       const draft = takeCoupleDraft();
-      if (draft) await supabase.from('couples').update(draft).not('id', 'is', null);
+      await supabase
+        .from('couples')
+        .update({ ...(draft ?? {}), day_timezone: deviceTimezone() })
+        .not('id', 'is', null);
     }
     setBusy(false);
   }

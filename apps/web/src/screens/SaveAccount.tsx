@@ -4,26 +4,8 @@ import { getAccent } from '@twoends/core';
 
 import { Button, Field, TextInput } from '../components/Field.tsx';
 import { supabase } from '../lib/supabase.ts';
+import { markEmailOffered } from '../state/emailOffer.ts';
 import { useSession } from '../state/session.ts';
-
-const KEY = 'twoends.email-offered';
-
-/** Whether this device has already been offered the fire escape. */
-export function emailOffered(): boolean {
-  try {
-    return localStorage.getItem(KEY) === 'yes';
-  } catch {
-    return true;
-  }
-}
-
-export function markEmailOffered(): void {
-  try {
-    localStorage.setItem(KEY, 'yes');
-  } catch {
-    // Private browsing. Being asked twice is a smaller failure than crashing.
-  }
-}
 
 /**
  * Asked once, after pairing, and never again.

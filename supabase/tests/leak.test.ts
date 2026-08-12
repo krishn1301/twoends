@@ -97,6 +97,21 @@ beforeAll(async () => {
   if (answer.error) throw new Error(`seed answer: ${answer.error.message}`);
   answerId = answer.data.id;
 
+  /*
+    Bob answers too, so this suite tests *couple isolation* rather than
+    accidentally re-testing the reveal. Since the daily loop landed, a partner
+    who has not replied cannot see the other's answer either — that rule has its
+    own suite in reveal.test.ts, and leaving Bob silent here would make the
+    positive controls below fail for the wrong reason.
+  */
+  const bobAnswer = await db.from('answers').insert({
+    couple_id: coupleA,
+    prompt_day_id: promptDayId,
+    author_id: bob.id,
+    body: 'Mine, so the reveal opens.',
+  });
+  if (bobAnswer.error) throw new Error(`seed bob answer: ${bobAnswer.error.message}`);
+
   // One row in every remaining couple-scoped table, so the sweep below has
   // something real to fail to read.
   const seeds: Array<[CoupleTable, Record<string, unknown>]> = [

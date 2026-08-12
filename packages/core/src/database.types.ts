@@ -186,6 +186,7 @@ export type Database = {
         Row: {
           adult_packs_enabled: boolean
           created_at: string
+          day_timezone: string
           id: string
           member_a: string
           member_b: string | null
@@ -199,6 +200,7 @@ export type Database = {
         Insert: {
           adult_packs_enabled?: boolean
           created_at?: string
+          day_timezone?: string
           id?: string
           member_a: string
           member_b?: string | null
@@ -212,6 +214,7 @@ export type Database = {
         Update: {
           adult_packs_enabled?: boolean
           created_at?: string
+          day_timezone?: string
           id?: string
           member_a?: string
           member_b?: string | null
@@ -527,6 +530,7 @@ export type Database = {
           is_adult: boolean
           kind: string
           pack: string
+          sort_order: number
         }
         Insert: {
           body: string
@@ -534,6 +538,7 @@ export type Database = {
           is_adult?: boolean
           kind?: string
           pack?: string
+          sort_order?: number
         }
         Update: {
           body?: string
@@ -541,6 +546,7 @@ export type Database = {
           is_adult?: boolean
           kind?: string
           pack?: string
+          sort_order?: number
         }
         Relationships: []
       }
@@ -620,7 +626,12 @@ export type Database = {
       confirm_unpair: { Args: never; Returns: undefined }
       create_invite: { Args: { p_ttl?: string }; Returns: string }
       generate_invite_code: { Args: never; Returns: string }
+      i_have_answered: { Args: { p_prompt_day_id: string }; Returns: boolean }
       is_member_of: { Args: { c: string }; Returns: boolean }
+      partner_has_answered: {
+        Args: { p_prompt_day_id: string }
+        Returns: boolean
+      }
       redeem_invite: { Args: { p_code: string }; Returns: string }
       request_unpair: { Args: never; Returns: undefined }
     }

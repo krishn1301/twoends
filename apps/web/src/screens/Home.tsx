@@ -1,5 +1,6 @@
 import { Avatar, Faces, Pill, Rail, Scribble, Section, Snapshot, Tile } from '@twoends/ui';
 
+import { DailyCard } from '../components/DailyCard.tsx';
 import { Flame, Lock } from '../components/icons.tsx';
 import { WEEK_LABELS, pad, useDesignModel } from '../design/model.ts';
 
@@ -64,29 +65,9 @@ export function Home() {
           />
         </div>
 
-        {/* The one thing the screen is asking for. */}
+        {/* The one thing the screen is asking for — real data, not a fixture. */}
         <div className="rise mb-9 px-5" style={{ animationDelay: '60ms' }}>
-          <div
-            className="rounded-[28px] p-5"
-            style={{ background: `color-mix(in oklab, ${theirs} 20%, #15120F)` }}
-          >
-            <div className="mb-3 flex items-center gap-2">
-              <Avatar name={m.theirName} accent={theirs} size={24} />
-              <span className="text-ash text-sm">{m.theirName} answered</span>
-            </div>
-            <p className="font-display text-[1.45rem] leading-[1.22] font-semibold tracking-[-0.01em]">
-              {m.question}
-            </p>
-            <button
-              className="text-void mt-5 w-full rounded-full py-3.5 text-[1.02rem] font-semibold"
-              style={{ background: mine }}
-            >
-              Write yours
-            </button>
-            <p className="text-ash mt-2.5 text-center text-[0.85rem]">
-              Yours unlocks theirs. Neither of you sees the other first.
-            </p>
-          </div>
+          <DailyCard />
         </div>
 
         <div className="flex flex-col gap-9">

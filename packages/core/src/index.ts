@@ -19,4 +19,7 @@ export * from './togetherness.ts';
 export * from './seam.ts';
 export * from './streak.ts';
 export * from './sync.ts';
+export * from './daily.ts';
+export * from './streakMath.ts';
+export * from './prompts.ts';
 export * from './fixtures/sampleCouple.ts';

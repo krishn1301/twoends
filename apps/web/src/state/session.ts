@@ -35,6 +35,7 @@ export interface Couple {
   member_b: string | null;
   started_on: string | null;
   relationship_type: RelationshipType | null;
+  day_timezone: string | null;
   unpair_requested_by: string | null;
 }
 
@@ -135,7 +136,9 @@ export const useSession = create<SessionState>((set, get) => ({
         .maybeSingle(),
       supabase
         .from('couples')
-        .select('id, member_a, member_b, started_on, relationship_type, unpair_requested_by')
+        .select(
+          'id, member_a, member_b, started_on, relationship_type, day_timezone, unpair_requested_by',
+        )
         .maybeSingle(),
     ]);
 

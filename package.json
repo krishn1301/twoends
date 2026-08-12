@@ -23,7 +23,8 @@
     "verify": "pnpm check && pnpm test:rls",
     "devlink": "node scripts/devlink.mjs",
     "icons": "node scripts/icons.mjs",
-    "deploy": "node scripts/deploy.mjs"
+    "deploy": "node scripts/deploy.mjs",
+    "db:seed": "node scripts/seed-prompts.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

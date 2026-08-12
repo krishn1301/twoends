@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { ACCENTS, ACCENT_KEYS, getAccent, isAccentKey } from './accents.ts';
 import { daysUntil, elapsedBetween, localMidnight, timeTogether } from './togetherness.ts';
 import { seamPosition, turnFor, turnLabel } from './seam.ts';
-import { GRACE_PER_MONTH, graceRemaining, isQuiet, streakLabel } from './streak.ts';
+import { graceRemaining, isQuiet, streakLabel } from './streak.ts';
+import { GRACE_PER_MONTH } from './streakMath.ts';
 import type { PromptDay, StreakState } from './types.ts';
 
 /** WCAG relative luminance and contrast, so the palette claim is tested, not asserted. */

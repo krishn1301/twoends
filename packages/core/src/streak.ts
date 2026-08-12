@@ -1,3 +1,4 @@
+import { GRACE_PER_MONTH } from './streakMath.ts';
 import type { DayMark, StreakState } from './types.ts';
 
 /**
@@ -8,8 +9,6 @@ import type { DayMark, StreakState } from './types.ts';
  * Quiet mode (N6) is stronger still: while it is on, days are neither counted
  * nor forgiven — they simply do not participate.
  */
-export const GRACE_PER_MONTH = 2;
-
 export function graceRemaining(streak: StreakState): number {
   return Math.max(0, GRACE_PER_MONTH - streak.graceUsedThisMonth);
 }
