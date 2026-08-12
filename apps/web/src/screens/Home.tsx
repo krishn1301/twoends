@@ -32,7 +32,7 @@ import { useShared } from '../state/shared.ts';
  * 3. The distance badge reads locked until both partners opt in, and shows
  *    distance only, never position. See docs/PRIVACY.md.
  */
-export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap') => void }) {
+export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap' | 'ask') => void }) {
   const m = useDesignModel();
   const couple = useSession((s) => s.couple);
   const profile = useSession((s) => s.profile);
@@ -102,7 +102,7 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap') => void }) {
 
         {/* The one thing the screen is asking for — real data, not a fixture. */}
         <div className="rise mb-9 px-5" style={{ animationDelay: '60ms' }}>
-          <DailyCard />
+          <DailyCard onAsk={() => onOpen?.('ask')} />
         </div>
 
         <div className="flex flex-col gap-9">

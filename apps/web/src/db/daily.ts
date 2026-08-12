@@ -29,6 +29,8 @@ export interface Today {
   promptDayId: string;
   localDate: string;
   prompt: Prompt | null;
+  /** True when one of you wrote today's question rather than the app. */
+  isCustom: boolean;
   myAnswer: string | null;
   theirAnswer: string | null;
   theyHaveAnswered: boolean;
@@ -66,9 +68,19 @@ export async function loadToday(
 ): Promise<Today> {
   const { prompt, localDate, promptDayId } = todaysPrompt(couple, adultEnabled);
 
-  const [answersRes, partnerRes] = await Promise.all([
+  const [answersRes, partnerRes, dayRes] = await Promise.all([
     supabase.from('answers').select('author_id, body').eq('prompt_day_id', promptDayId),
     supabase.rpc('partner_has_answered', { p_prompt_day_id: promptDayId }),
+    /*
+      If a row exists for today it wins over the derived pack question — that is
+      how a question one of you wrote replaces the app's own. The derivation is
+      the default, not the authority.
+    */
+    supabase
+      .from('prompt_days')
+      .select('prompt_id, prompts(id, body, pack, is_adult)')
+      .eq('id', promptDayId)
+      .maybeSingle(),
   ]);
 
   const rows = answersRes.data ?? [];
@@ -82,10 +94,16 @@ export async function loadToday(
   */
   const theyHaveAnswered = partnerRes.data === true;
 
+  const asked = dayRes.data?.prompts as
+    { id: string; body: string; pack: string; is_adult: boolean } | null | undefined;
+
   return {
     promptDayId,
     localDate,
-    prompt,
+    prompt: asked
+      ? { id: asked.id, body: asked.body, pack: asked.pack, isAdult: asked.is_adult }
+      : prompt,
+    isCustom: asked ? asked.pack === 'ours' : false,
     myAnswer: mine,
     theirAnswer: theirs,
     theyHaveAnswered,
@@ -108,7 +126,17 @@ export async function submitAnswer(
   body: string,
   adultEnabled = false,
 ): Promise<{ error: string | null }> {
-  const { prompt, localDate, promptDayId } = todaysPrompt(couple, adultEnabled);
+  const { prompt: derived, localDate, promptDayId } = todaysPrompt(couple, adultEnabled);
+
+  // An existing row means someone asked their own question today; do not
+  // overwrite it with the pack's.
+  const existing = await supabase
+    .from('prompt_days')
+    .select('prompt_id')
+    .eq('id', promptDayId)
+    .maybeSingle();
+
+  const prompt = existing.data ? { id: existing.data.prompt_id } : derived;
   if (!prompt) return { error: 'No question today.' };
 
   // Idempotent: whoever answers first creates the row, and the second person's

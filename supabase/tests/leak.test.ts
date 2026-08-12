@@ -129,8 +129,14 @@ beforeAll(async () => {
       {
         couple_id: coupleA,
         author_id: alice.id,
-        body: 'Open in a year.',
-        deliver_at: '2027-08-10T00:00:00Z',
+        body: 'Already delivered.',
+        /*
+          Deliberately in the past. This suite asks whether one couple can read
+          another's rows; a sealed capsule is invisible to its own couple too,
+          which would make the positive control fail for the wrong reason. The
+          seal has its own suite.
+        */
+        deliver_at: '2020-01-01T00:00:00Z',
       },
     ],
   ];

@@ -116,6 +116,7 @@ export type Database = {
           deliver_at: string
           delivered_at: string | null
           id: string
+          title: string | null
         }
         Insert: {
           author_id: string
@@ -124,6 +125,7 @@ export type Database = {
           deliver_at: string
           delivered_at?: string | null
           id?: string
+          title?: string | null
         }
         Update: {
           author_id?: string
@@ -132,6 +134,7 @@ export type Database = {
           deliver_at?: string
           delivered_at?: string | null
           id?: string
+          title?: string | null
         }
         Relationships: [
           {
@@ -528,7 +531,9 @@ export type Database = {
       }
       prompts: {
         Row: {
+          author_id: string | null
           body: string
+          couple_id: string | null
           id: string
           is_adult: boolean
           kind: string
@@ -536,7 +541,9 @@ export type Database = {
           sort_order: number
         }
         Insert: {
+          author_id?: string | null
           body: string
+          couple_id?: string | null
           id?: string
           is_adult?: boolean
           kind?: string
@@ -544,14 +551,31 @@ export type Database = {
           sort_order?: number
         }
         Update: {
+          author_id?: string | null
           body?: string
+          couple_id?: string | null
           id?: string
           is_adult?: boolean
           kind?: string
           pack?: string
           sort_order?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "prompts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prompts_couple_id_fkey"
+            columns: ["couple_id"]
+            isOneToOne: false
+            referencedRelation: "couples"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_tokens: {
         Row: {
@@ -637,6 +661,14 @@ export type Database = {
       }
       redeem_invite: { Args: { p_code: string }; Returns: string }
       request_unpair: { Args: never; Returns: undefined }
+      sealed_capsules: {
+        Args: never
+        Returns: {
+          author_id: string
+          deliver_at: string
+          title: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

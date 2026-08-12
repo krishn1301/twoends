@@ -5,6 +5,7 @@ import { Avatar } from '@twoends/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 import { Button, Field, TextInput } from '../components/Field.tsx';
+import { Capsules } from './Capsules.tsx';
 import { addEntry, deleteEntry, type JournalEntry } from '../db/journal.ts';
 import { addCountdown, removeCountdown } from '../db/repository.ts';
 import { db } from '../db/schema.ts';
@@ -33,7 +34,7 @@ export function Dates() {
   const { pending } = useOutbox();
   const urls = useAvatars((s) => s.urls);
 
-  const [view, setView] = useState<'ahead' | 'behind'>('ahead');
+  const [view, setView] = useState<'ahead' | 'behind' | 'sealed'>('ahead');
   const entries = useShared((s) => s.entries);
   const load = useShared((s) => s.load);
 
@@ -73,6 +74,7 @@ export function Dates() {
             [
               ['ahead', 'Coming up'],
               ['behind', 'Memories'],
+              ['sealed', 'Capsules'],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -80,7 +82,7 @@ export function Dates() {
               type="button"
               onClick={() => setView(key)}
               aria-pressed={view === key}
-              className={`h-10 flex-1 rounded-full text-sm font-medium transition-colors ${
+              className={`h-10 flex-1 rounded-full text-[0.82rem] font-medium transition-colors ${
                 view === key ? 'text-void' : 'text-ash'
               }`}
               style={view === key ? { background: mine } : undefined}
@@ -90,9 +92,13 @@ export function Dates() {
           ))}
         </div>
 
-        {view === 'ahead' ? (
+        {view === 'sealed' && <Capsules />}
+
+        {view === 'ahead' && (
           <Ahead coupleId={couple?.id} tint={mine} now={now} rows={countdowns ?? []} />
-        ) : (
+        )}
+
+        {view === 'behind' && (
           <Behind
             coupleId={couple?.id}
             authorId={profile?.id}

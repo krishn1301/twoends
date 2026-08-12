@@ -4,6 +4,7 @@ import { Sheet } from './components/Sheet.tsx';
 import { TabBar, type TabId } from './components/TabBar.tsx';
 import { watchConnectivity } from './db/outbox.ts';
 import { pull, subscribe } from './db/repository.ts';
+import { Ask } from './screens/Ask.tsx';
 import { Dates } from './screens/Dates.tsx';
 import { Draw } from './screens/Draw.tsx';
 import { Home } from './screens/Home.tsx';
@@ -30,7 +31,7 @@ export function App() {
   const bootstrap = useSession((s) => s.bootstrap);
 
   const [tab, setTab] = useState<TabId>('home');
-  const [sheet, setSheet] = useState<'draw' | 'snap' | null>(null);
+  const [sheet, setSheet] = useState<'draw' | 'snap' | 'ask' | null>(null);
   const [offerDismissed, setOfferDismissed] = useState(() => emailOffered());
 
   useEffect(() => bootstrap(), [bootstrap]);
@@ -79,7 +80,9 @@ export function App() {
           {tab === 'us' && <Us />}
           {sheet && (
             <Sheet
-              title={sheet === 'draw' ? 'Your canvas' : 'Snaps'}
+              title={
+                sheet === 'draw' ? 'Your canvas' : sheet === 'ask' ? 'Ask them something' : 'Snaps'
+              }
               onClose={() => setSheet(null)}
             >
               {/*
@@ -87,7 +90,9 @@ export function App() {
                 drawing, and after sending a snap the natural next thing is to
                 look at the pile it just joined.
               */}
-              {sheet === 'draw' ? <Draw /> : <Snaps />}
+              {sheet === 'draw' && <Draw />}
+              {sheet === 'snap' && <Snaps />}
+              {sheet === 'ask' && <Ask onAsked={() => setSheet(null)} />}
             </Sheet>
           )}
           <TabBar current={tab} onSelect={setTab} />

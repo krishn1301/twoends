@@ -17,7 +17,7 @@ import { useToday } from '../state/today.ts';
  * The question itself needs no network: the pack ships in the bundle and both
  * devices derive the same prompt from the couple id and the local date.
  */
-export function DailyCard() {
+export function DailyCard({ onAsk }: { onAsk?: () => void }) {
   const couple = useSession((s) => s.couple);
   const profile = useSession((s) => s.profile);
   const partner = useSession((s) => s.partner);
@@ -78,7 +78,24 @@ export function DailyCard() {
     >
       <div className="mb-3 flex items-center gap-2">
         {state === 'your-move' && <Avatar name={theirName} accent={theirs} size={24} />}
-        <span className="text-ash text-sm">{dayLabel(state, theirName)}</span>
+        <span className="text-ash text-sm">
+          {today.isCustom ? 'One of you asked this' : dayLabel(state, theirName)}
+        </span>
+
+        {/*
+          Only offered before anyone has answered. Swapping the question out
+          from under someone who has already written a reply would throw their
+          words away.
+        */}
+        {onAsk && state === 'open' && (
+          <button
+            type="button"
+            onClick={onAsk}
+            className="text-ash ml-auto h-9 text-sm underline underline-offset-4"
+          >
+            Ask your own
+          </button>
+        )}
       </div>
 
       <p className="font-display text-[1.45rem] leading-[1.22] font-semibold tracking-[-0.01em]">
