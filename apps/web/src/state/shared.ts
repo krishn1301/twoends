@@ -3,6 +3,7 @@ import { create } from 'zustand';
 
 import { loadCanvas, type SharedCanvas } from '../db/canvas.ts';
 import { completedDays } from '../db/daily.ts';
+import { recentEntries, type JournalEntry } from '../db/journal.ts';
 import { recentSnaps, signedUrls, type Snap } from '../db/photos.ts';
 import type { Couple } from './session.ts';
 
@@ -21,6 +22,7 @@ interface SharedState {
   snaps: Snap[];
   urls: Map<string, string>;
   canvas: SharedCanvas | null;
+  entries: JournalEntry[];
   streak: { current: number; longest: number };
   week: DayMark[];
   loaded: boolean;
@@ -37,15 +39,17 @@ export const useShared = create<SharedState>((set) => ({
   snaps: [],
   urls: new Map(),
   canvas: null,
+  entries: [],
   streak: { current: 0, longest: 0 },
   week: ['future', 'future', 'future', 'future', 'future', 'future', 'future'],
   loaded: false,
 
   load: async (couple) => {
-    const [snaps, canvas, days] = await Promise.all([
+    const [snaps, canvas, days, entries] = await Promise.all([
       recentSnaps(couple.id),
       loadCanvas(couple.id),
       completedDays(couple.id),
+      recentEntries(couple.id),
     ]);
 
     const urls = await signedUrls(snaps.map((s) => s.storage_path));
@@ -59,6 +63,7 @@ export const useShared = create<SharedState>((set) => ({
       snaps,
       urls,
       canvas,
+      entries,
       streak: { current: streak.current, longest: streak.longest },
       week: weekMarks(days, today),
       loaded: true,
@@ -72,5 +77,5 @@ export const useShared = create<SharedState>((set) => ({
 
   dropSnap: (id) => set((state) => ({ snaps: state.snaps.filter((s) => s.id !== id) })),
 
-  clear: () => set({ snaps: [], urls: new Map(), canvas: null, loaded: false }),
+  clear: () => set({ snaps: [], urls: new Map(), canvas: null, entries: [], loaded: false }),
 }));

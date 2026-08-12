@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { DailyCard } from '../components/DailyCard.tsx';
 import { Flame, Lock } from '../components/icons.tsx';
 import { WEEK_LABELS, pad, useDesignModel } from '../design/model.ts';
+import { useAvatars } from '../state/avatars.ts';
 import { useSession } from '../state/session.ts';
 import { useShared } from '../state/shared.ts';
 
@@ -34,12 +35,17 @@ import { useShared } from '../state/shared.ts';
 export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap') => void }) {
   const m = useDesignModel();
   const couple = useSession((s) => s.couple);
+  const profile = useSession((s) => s.profile);
+  const partner = useSession((s) => s.partner);
+  const avatarUrls = useAvatars((s) => s.urls);
+  const loadAvatars = useAvatars((s) => s.load);
   const { snaps, urls, canvas, streak, week, load } = useShared();
 
   useEffect(() => {
     if (!couple) return;
     const refresh = () => void load(couple);
     refresh();
+    void loadAvatars([profile?.avatar_path, partner?.avatar_path]);
 
     // A partner sending a snap or a drawing while the phone was asleep is the
     // normal case, not the exception.
@@ -48,7 +54,7 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap') => void }) {
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [couple, load]);
+  }, [couple, load, loadAvatars, profile?.avatar_path, partner?.avatar_path]);
 
   const latestSnap = snaps[0];
   const latestSnapUrl = latestSnap ? urls.get(latestSnap.storage_path) : undefined;
@@ -80,8 +86,10 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap') => void }) {
           <Faces
             myName={m.myName}
             myAccent={mine}
+            mySrc={profile?.avatar_path ? avatarUrls.get(profile.avatar_path) : null}
             theirName={m.theirName}
             theirAccent={theirs}
+            theirSrc={partner?.avatar_path ? avatarUrls.get(partner.avatar_path) : null}
             lineColor="#3A322D"
             middle={
               <span className="bg-surface-2 text-ash relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm">

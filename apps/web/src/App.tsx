@@ -4,7 +4,7 @@ import { Sheet } from './components/Sheet.tsx';
 import { TabBar, type TabId } from './components/TabBar.tsx';
 import { watchConnectivity } from './db/outbox.ts';
 import { pull, subscribe } from './db/repository.ts';
-import { Countdowns } from './screens/Countdowns.tsx';
+import { Dates } from './screens/Dates.tsx';
 import { Draw } from './screens/Draw.tsx';
 import { Home } from './screens/Home.tsx';
 import { Onboarding } from './screens/Onboarding.tsx';
@@ -12,6 +12,7 @@ import { Pair } from './screens/Pair.tsx';
 import { SaveAccount } from './screens/SaveAccount.tsx';
 import { Snaps } from './screens/Snaps.tsx';
 import { SignIn } from './screens/SignIn.tsx';
+import { Us } from './screens/Us.tsx';
 import { emailOffered } from './state/emailOffer.ts';
 import { useSession } from './state/session.ts';
 
@@ -73,7 +74,9 @@ export function App() {
 
       return (
         <>
-          {tab === 'home' ? <Home onOpen={setSheet} /> : <Countdowns />}
+          {tab === 'home' && <Home onOpen={setSheet} />}
+          {tab === 'dates' && <Dates />}
+          {tab === 'us' && <Us />}
           {sheet && (
             <Sheet
               title={sheet === 'draw' ? 'Your canvas' : 'Snaps'}

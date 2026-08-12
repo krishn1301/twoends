@@ -57,17 +57,26 @@ export function Snapshot({
   );
 }
 
-/** A face that does not exist yet: their initial, on their own accent. */
+/**
+ * A face.
+ *
+ * Falls back to the initial on their accent when there is no photograph, which
+ * is most of the time at first and is never treated as a broken state — a
+ * coloured circle with a letter in it is a perfectly good way to be recognised.
+ */
 export function Avatar({
   name,
   accent,
   size = 56,
   ring,
+  src,
 }: {
   name: string;
   accent: string;
   size?: number;
   ring?: string;
+  /** A signed URL. Absent until they upload one. */
+  src?: string | null;
 }) {
   return (
     <span
@@ -81,6 +90,16 @@ export function Avatar({
       }}
       aria-label={name}
     >
+      {src && (
+        <img
+          src={src}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          // The accent circle stays underneath, so a slow or failed load shows
+          // their colour rather than a grey hole.
+          loading="lazy"
+        />
+      )}
       {/*
         No grain layer here, deliberately. `mix-blend-overlay` promotes the child
         to its own stacking context, which escapes the parent's rounded clip in
@@ -107,23 +126,27 @@ export function Avatar({
 export function Faces({
   myName,
   myAccent,
+  mySrc,
   theirName,
   theirAccent,
+  theirSrc,
   middle,
   size = 62,
   lineColor,
 }: {
   myName: string;
   myAccent: string;
+  mySrc?: string | null;
   theirName: string;
   theirAccent: string;
+  theirSrc?: string | null;
   middle?: ReactNode;
   size?: number;
   lineColor: string;
 }) {
   return (
     <div className="flex items-center gap-3">
-      <Avatar name={myName} accent={myAccent} size={size} />
+      <Avatar name={myName} accent={myAccent} size={size} src={mySrc} />
       <div className="relative flex flex-1 items-center justify-center">
         <span
           className="absolute inset-x-0 top-1/2 border-t border-dashed"
@@ -132,7 +155,7 @@ export function Faces({
         />
         {middle}
       </div>
-      <Avatar name={theirName} accent={theirAccent} size={size} />
+      <Avatar name={theirName} accent={theirAccent} size={size} src={theirSrc} />
     </div>
   );
 }

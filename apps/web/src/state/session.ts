@@ -27,6 +27,7 @@ export interface Profile {
   display_name: string;
   accent_key: AccentKey | null;
   birthday: string | null;
+  avatar_path: string | null;
 }
 
 export interface Couple {
@@ -153,7 +154,7 @@ export const useSession = create<SessionState>((set, get) => ({
     const [profileRes, coupleRes] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, display_name, accent_key, birthday')
+        .select('id, display_name, accent_key, birthday, avatar_path')
         .eq('id', session.user.id)
         .maybeSingle(),
       supabase
@@ -172,7 +173,7 @@ export const useSession = create<SessionState>((set, get) => ({
       const partnerId = couple.member_a === session.user.id ? couple.member_b : couple.member_a;
       const { data } = await supabase
         .from('profiles')
-        .select('id, display_name, accent_key, birthday')
+        .select('id, display_name, accent_key, birthday, avatar_path')
         .eq('id', partnerId)
         .maybeSingle();
       partner = (data as Profile | null) ?? null;
