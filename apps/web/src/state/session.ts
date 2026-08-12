@@ -90,6 +90,28 @@ export const useSession = create<SessionState>((set, get) => ({
     void (async () => {
       const { data } = await supabase.auth.getSession();
 
+      /*
+        `getSession` only reads local storage, so it happily returns a token for
+        a user who no longer exists — after the account was deleted server-side,
+        or the project was reset. The app then looks signed in and fails at the
+        first write with a foreign-key violation against auth.users, which is a
+        baffling thing to show someone on the birthday question.
+
+        `getUser` asks the server, so the session is verified rather than
+        assumed. One extra round trip at startup buys a class of bug that is
+        otherwise very hard to diagnose from the outside.
+      */
+      if (data.session) {
+        const { error: staleError } = await supabase.auth.getUser();
+        if (staleError) {
+          await supabase.auth.signOut();
+          await wipeLocal();
+          await supabase.auth.signInAnonymously();
+          await get().refresh();
+          return;
+        }
+      }
+
       if (!data.session) {
         /*
           No session: make one, silently, and let them straight in. If anonymous
@@ -191,6 +213,19 @@ export const useSession = create<SessionState>((set, get) => ({
     await get().refresh();
   },
 }));
+
+/**
+ * Throws away a session whose user no longer exists and starts a clean one.
+ *
+ * Exported so a write that trips over the same problem can recover in place
+ * rather than dead-ending someone mid-form.
+ */
+export async function recoverSession(): Promise<void> {
+  await supabase.auth.signOut();
+  await wipeLocal();
+  await supabase.auth.signInAnonymously();
+  await useSession.getState().refresh();
+}
 
 /** `?invite=ABC123` from a shared link, so the code is prefilled rather than retyped. */
 export function inviteCodeFromUrl(): string | null {

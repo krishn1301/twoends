@@ -5,7 +5,7 @@ import { ACCENTS, ACCENT_KEYS, type AccentKey } from '@twoends/core';
 import { BackButton, Button, Field, Progress, TextInput } from '../components/Field.tsx';
 import { supabase } from '../lib/supabase.ts';
 import { stashCoupleDraft } from '../state/coupleDraft.ts';
-import { useSession, type RelationshipType } from '../state/session.ts';
+import { recoverSession, useSession, type RelationshipType } from '../state/session.ts';
 
 /**
  * Five questions, one of which is required.
@@ -63,7 +63,21 @@ export function Onboarding() {
 
     if (profileError) {
       setBusy(false);
-      setError(profileError.message);
+
+      /*
+        The account this device holds a token for no longer exists — deleted
+        server-side, or the project was reset. Recover rather than explain:
+        start a fresh anonymous session and let them press Done again. Showing
+        "violates foreign key constraint profiles_id_fkey" to someone filling in
+        their birthday is a failure of nerve as much as of engineering.
+      */
+      if (profileError.message.includes('profiles_id_fkey')) {
+        await recoverSession();
+        setError('That took a moment — tap Done once more.');
+        return;
+      }
+
+      setError('Could not save that. Check your connection and try again.');
       return;
     }
 
