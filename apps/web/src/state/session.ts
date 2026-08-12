@@ -104,13 +104,29 @@ export const useSession = create<SessionState>((set, get) => ({
       */
       if (data.session) {
         const { error: staleError } = await supabase.auth.getUser();
-        if (staleError) {
+
+        /*
+          Only a definitive rejection counts. The first version treated *any*
+          error as "this account is gone" and threw the session away — so a
+          single flaky moment on mobile data silently discarded a real account
+          and started a fresh anonymous one, orphaning everything behind it.
+
+          A network failure has no status at all. Being signed out for it is the
+          worst possible response: the account is fine, and the app has just
+          deleted the only way back to it.
+        */
+        const status = (staleError as { status?: number } | null)?.status;
+        const definitelyGone = status === 401 || status === 403 || status === 404;
+
+        if (definitelyGone) {
           await supabase.auth.signOut();
           await wipeLocal();
           await supabase.auth.signInAnonymously();
           await get().refresh();
           return;
         }
+        // Anything else — offline, a timeout, a five-hundred — is temporary.
+        // Carry on with the session we have; the next call will retry.
       }
 
       if (!data.session) {

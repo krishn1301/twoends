@@ -1,0 +1,41 @@
+<!--
+  The sign-in email.
+
+  The code comes first and the link second, deliberately. Supabase's default
+  template contains only `{{ .ConfirmationURL }}`, which is why the app kept
+  asking for a six-digit code that no email ever contained — and why the link
+  that did arrive went to whatever Site URL the project happened to have.
+
+  A code also survives things a link does not: reading it aloud, typing it into
+  a different device from the one that opened the mail, and an email client that
+  rewrites URLs for scanning.
+-->
+<h2 style="font-family: Georgia, serif; font-size: 22px; margin: 0 0 8px">Your code</h2>
+
+<p style="font-family: system-ui, sans-serif; color: #555; margin: 0 0 20px">
+  Type this into TwoEnds. It works once and expires in an hour.
+</p>
+
+<p
+  style="
+    font-family: ui-monospace, monospace;
+    font-size: 34px;
+    letter-spacing: 8px;
+    font-weight: 600;
+    margin: 0 0 28px;
+  "
+>
+  {{ .Token }}
+</p>
+
+<p style="font-family: system-ui, sans-serif; color: #555; margin: 0 0 8px">
+  Or open it on this device:
+</p>
+
+<p style="margin: 0 0 28px">
+  <a href="{{ .ConfirmationURL }}" style="font-family: system-ui, sans-serif">Sign in</a>
+</p>
+
+<p style="font-family: system-ui, sans-serif; color: #888; font-size: 13px; margin: 0">
+  If you did not ask for this, ignore it — nothing happens until the code is used.
+</p>

@@ -100,7 +100,7 @@ export function SignIn() {
           <form onSubmit={sendCode} className="flex flex-col gap-5">
             <Field
               label="Your email"
-              hint="We send a six-digit code. There is no password to forget."
+              hint="We send a sign-in link. There is no password to forget."
               error={error}
             >
               <TextInput
@@ -114,7 +114,7 @@ export function SignIn() {
               />
             </Field>
             <Button accent={ACCENT} disabled={busy || email.trim().length < 3}>
-              {busy ? 'Sending…' : 'Send me a code'}
+              {busy ? 'Sending…' : 'Email me a link'}
             </Button>
             <Button type="button" variant="quiet" accent={ACCENT} onClick={cancelSignIn}>
               Back
@@ -122,9 +122,29 @@ export function SignIn() {
           </form>
         ) : (
           <form onSubmit={verify} className="flex flex-col gap-5">
+            {/*
+              The email carries a link, not a code — custom email templates are
+              a paid feature when using Supabase's own mail service, and the
+              default template contains only `{{ .ConfirmationURL }}`. Opening
+              the link signs you in directly; `detectSessionInUrl` on the client
+              picks up the tokens it comes back with.
+
+              The code field stays because it costs nothing and is the better
+              path the moment custom SMTP is configured — and because it is how
+              `pnpm devlink` gets a tester in without any email at all.
+            */}
+            <div className="bg-surface mb-2 rounded-2xl p-4">
+              <p className="text-[0.95rem] leading-relaxed">
+                Check {sentTo} and open the link — it signs you straight in.
+              </p>
+              <p className="text-ash mt-2 text-sm leading-relaxed">
+                Open it on this device. It works once and expires in an hour.
+              </p>
+            </div>
+
             <Field
-              label="The code"
-              hint={`Sent to ${sentTo}. It expires in an hour.`}
+              label="Or paste a code, if you have one"
+              hint="Only some sign-ins send a code."
               error={error}
             >
               {/*
