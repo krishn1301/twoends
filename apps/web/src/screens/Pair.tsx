@@ -201,6 +201,16 @@ export function Pair() {
               <Button accent={tint} onClick={() => void share()} disabled={!code}>
                 {copied ? 'Copied' : 'Share the code'}
               </Button>
+              {/*
+                The escape hatch. Realtime, visibilitychange and the poll should
+                all have caught this already — but the first real pair got stuck
+                here with no way forward, and a screen whose only exits are
+                "back" and "sign out" is a trap. One tap, always available,
+                costs a single query.
+              */}
+              <Button variant="quiet" accent={tint} onClick={() => void refresh()}>
+                Already paired? Check now
+              </Button>
               <Button variant="quiet" accent={tint} onClick={() => setMode('choose')}>
                 Back
               </Button>
