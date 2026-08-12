@@ -7,6 +7,7 @@ import { Button, Field, TextInput } from '../components/Field.tsx';
 import { supabase } from '../lib/supabase.ts';
 import { takeCoupleDraft } from '../state/coupleDraft.ts';
 import { inviteCodeFromUrl, useSession } from '../state/session.ts';
+import { useWaitForPartner } from '../state/useWaitForPartner.ts';
 
 /**
  * The solo state.
@@ -54,6 +55,10 @@ export function Pair() {
 
   const accent = getAccent(profile?.accent_key ?? 'teal');
   const tint = accent.onDark;
+
+  // The inviter has nothing to do but wait, and nothing on this screen would
+  // otherwise tell them the waiting is over.
+  useWaitForPartner(mode === 'invite' && code.length > 0);
 
   /**
    * Minting a code is something the person did, not something the screen needs
@@ -173,6 +178,22 @@ export function Pair() {
             {error && (
               <p className="mt-3 text-center text-sm" style={{ color: '#e4566e' }}>
                 {error}
+              </p>
+            )}
+
+            {/*
+              Says what the screen is doing. Without this it looks identical
+              whether it is waiting, finished, or broken — which is precisely
+              how the first pair of testers got stuck here.
+            */}
+            {code && (
+              <p className="text-ash mt-6 flex items-center justify-center gap-2.5 text-sm">
+                <span
+                  className="inline-block h-2 w-2 animate-pulse rounded-full"
+                  style={{ background: tint }}
+                  aria-hidden="true"
+                />
+                Waiting for them to enter it. This screen moves on by itself.
               </p>
             )}
 
