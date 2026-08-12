@@ -34,7 +34,7 @@ import { useShared } from '../state/shared.ts';
 export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap') => void }) {
   const m = useDesignModel();
   const couple = useSession((s) => s.couple);
-  const { snaps, urls, drawings, streak, week, load } = useShared();
+  const { snaps, urls, canvas, streak, week, load } = useShared();
 
   useEffect(() => {
     if (!couple) return;
@@ -52,8 +52,8 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap') => void }) {
 
   const latestSnap = snaps[0];
   const latestSnapUrl = latestSnap ? urls.get(latestSnap.storage_path) : undefined;
-  const latestDrawing = drawings[0];
-  const theirsLatest = latestDrawing && latestDrawing.author_id !== m.myId;
+  const hasDrawing = (canvas?.drawing.strokes.length ?? 0) > 0;
+  const theirsLatest = canvas?.lastAuthorId != null && canvas.lastAuthorId !== m.myId;
 
   const mine = m.myAccent.onDark;
   const theirs = m.theirAccent.onDark;
@@ -134,17 +134,17 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap') => void }) {
                   />
                 )}
 
-                {latestDrawing ? (
+                {hasDrawing && canvas ? (
                   <Tile
                     eyebrow="canvas"
-                    headline={theirsLatest ? 'They drew you something' : 'You drew this'}
+                    headline={theirsLatest ? 'They added something' : 'Your canvas'}
                     onClick={() => onOpen?.('draw')}
                   >
                     <div className="absolute inset-x-3 top-2 bottom-16">
                       <DrawSurface
                         readOnly
                         color={theirsLatest ? theirs : mine}
-                        drawing={latestDrawing.drawing}
+                        drawing={canvas.drawing}
                         className="h-full"
                       />
                     </div>

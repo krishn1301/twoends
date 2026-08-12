@@ -1,74 +1,99 @@
-import { compact, isDrawing, isEmpty, type Drawing, type Json } from '@twoends/core';
+import { compact, isDrawing, isEmpty, mergeBatches, type Drawing, type Json } from '@twoends/core';
 
 import { supabase } from '../lib/supabase.ts';
 
 /**
- * Drawings, to and from the database.
+ * One shared canvas, built from append-only batches.
  *
- * Each one is a row rather than an edit of a shared canvas. A drawing is a thing
- * you sent, like a photograph — if the two of you shared one mutable surface,
- * whoever drew last would quietly erase the other, and the reference apps that
- * do this get complaints about exactly that.
+ * The canvas both people see is the union of every batch of strokes since the
+ * last clear. Nobody edits a shared row, so nobody can overwrite anyone: two
+ * people drawing at the same moment on two phones produce two batches that
+ * merge by time. Clearing is itself a batch — a tombstone — so it syncs and
+ * survives being offline like everything else.
  */
 
-export interface SavedDrawing {
-  id: string;
-  author_id: string;
-  drawing: Drawing;
-  created_at: string;
+export interface CanvasContributor {
+  authorId: string;
+  at: string;
 }
 
-export async function sendDrawing(
+export interface SharedCanvas {
+  drawing: Drawing;
+  /** Who last added to it, so the card can say "they drew something". */
+  lastAuthorId: string | null;
+  lastAt: string | null;
+}
+
+/** Everything on the canvas right now. */
+export async function loadCanvas(coupleId: string): Promise<SharedCanvas> {
+  const { data } = await supabase
+    .from('canvases')
+    .select('id, author_id, strokes, is_clear, created_at')
+    .eq('couple_id', coupleId)
+    .order('created_at', { ascending: true })
+    // Generous: a canvas is a few kilobytes per batch, and reading a year of
+    // them still costs less than one photograph.
+    .limit(500);
+
+  const batches = (data ?? [])
+    .filter((row) => isDrawing(row.strokes))
+    .map((row) => ({
+      drawing: row.strokes as unknown as Drawing,
+      isClear: row.is_clear,
+      authorId: row.author_id,
+      at: row.created_at,
+    }));
+
+  const drawn = batches.filter((b) => !b.isClear);
+  const last = drawn.at(-1);
+
+  return {
+    drawing: mergeBatches(batches),
+    lastAuthorId: last?.authorId ?? null,
+    lastAt: last?.at ?? null,
+  };
+}
+
+/**
+ * Adds strokes to the shared canvas.
+ *
+ * Only the new strokes travel, not the whole surface. Re-sending everything on
+ * every edit would grow quadratically and would also reintroduce the overwrite
+ * problem this design exists to avoid.
+ */
+export async function appendStrokes(
   coupleId: string,
   authorId: string,
-  drawing: Drawing,
+  added: Drawing,
 ): Promise<{ error: string | null }> {
-  if (isEmpty(drawing)) return { error: 'Nothing to send yet.' };
+  if (isEmpty(added)) return { error: 'Nothing new to send yet.' };
 
   const { error } = await supabase.from('canvases').insert({
     couple_id: coupleId,
     author_id: authorId,
-    /*
-      Simplified and rounded before it travels; see packages/core/src/strokes.ts.
-
-      The cast is because the generated `Json` type demands an index signature,
-      which a precise interface deliberately does not have. `Drawing` is plain
-      data — objects, arrays, numbers and strings — so it is valid JSON; the
-      types simply cannot see that. `isDrawing` checks the shape on the way back
-      out, which is the direction that actually needs guarding.
-    */
-    strokes: compact(drawing) as unknown as Json,
+    strokes: compact(added) as unknown as Json,
   });
 
   return { error: error?.message ?? null };
 }
 
-export async function recentDrawings(coupleId: string, limit = 12): Promise<SavedDrawing[]> {
-  const { data } = await supabase
-    .from('canvases')
-    .select('id, author_id, strokes, created_at')
-    .eq('couple_id', coupleId)
-    .order('created_at', { ascending: false })
-    .limit(limit);
+/**
+ * Wipes the shared canvas for both of you.
+ *
+ * A tombstone rather than a delete of the history, so it reaches the other
+ * device the same way a stroke does, and so it cannot race with someone drawing
+ * at that instant — their batch simply lands after the tombstone and survives.
+ */
+export async function clearCanvas(
+  coupleId: string,
+  authorId: string,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.from('canvases').insert({
+    couple_id: coupleId,
+    author_id: authorId,
+    strokes: { version: 1, strokes: [] } as unknown as Json,
+    is_clear: true,
+  });
 
-  const rows: SavedDrawing[] = [];
-  for (const row of data ?? []) {
-    /*
-      A jsonb column holds whatever it was given, including something written by
-      an older version of the app — so the shape is checked rather than assumed.
-      Skip what cannot be rendered instead of crashing the gallery.
-    */
-    if (!isDrawing(row.strokes)) continue;
-    rows.push({
-      id: row.id,
-      author_id: row.author_id,
-      created_at: row.created_at,
-      drawing: row.strokes,
-    });
-  }
-  return rows;
-}
-
-export async function deleteDrawing(id: string): Promise<void> {
-  await supabase.from('canvases').delete().eq('id', id);
+  return { error: error?.message ?? null };
 }

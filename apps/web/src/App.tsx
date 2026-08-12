@@ -10,7 +10,7 @@ import { Home } from './screens/Home.tsx';
 import { Onboarding } from './screens/Onboarding.tsx';
 import { Pair } from './screens/Pair.tsx';
 import { SaveAccount } from './screens/SaveAccount.tsx';
-import { Snap } from './screens/Snap.tsx';
+import { Snaps } from './screens/Snaps.tsx';
 import { SignIn } from './screens/SignIn.tsx';
 import { emailOffered } from './state/emailOffer.ts';
 import { useSession } from './state/session.ts';
@@ -76,14 +76,15 @@ export function App() {
           {tab === 'home' ? <Home onOpen={setSheet} /> : <Countdowns />}
           {sheet && (
             <Sheet
-              title={sheet === 'draw' ? 'Draw them something' : 'Send a snap'}
+              title={sheet === 'draw' ? 'Your canvas' : 'Snaps'}
               onClose={() => setSheet(null)}
             >
-              {sheet === 'draw' ? (
-                <Draw onSent={() => setSheet(null)} />
-              ) : (
-                <Snap onSent={() => setSheet(null)} />
-              )}
+              {/*
+                Neither closes itself on send. The canvas is a place you keep
+                drawing, and after sending a snap the natural next thing is to
+                look at the pile it just joined.
+              */}
+              {sheet === 'draw' ? <Draw /> : <Snaps />}
             </Sheet>
           )}
           <TabBar current={tab} onSelect={setTab} />

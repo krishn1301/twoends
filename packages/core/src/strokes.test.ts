@@ -7,6 +7,7 @@ import {
   estimateSize,
   isDrawing,
   isEmpty,
+  mergeBatches,
   simplify,
   type Point,
   type Stroke,
@@ -96,5 +97,47 @@ describe('guards', () => {
     expect(isDrawing({ version: 99, strokes: [] })).toBe(false);
     expect(isDrawing({ strokes: [] })).toBe(false);
     expect(isDrawing(emptyDrawing())).toBe(true);
+  });
+});
+
+describe('merging batches into one surface', () => {
+  const batch = (n: number, isClear = false) => ({
+    drawing: { version: 1 as const, strokes: Array.from({ length: n }, () => stroke(line(3))) },
+    isClear,
+  });
+
+  it('joins everything both people have drawn', () => {
+    expect(mergeBatches([batch(2), batch(3)]).strokes).toHaveLength(5);
+  });
+
+  it('starts again after a clear', () => {
+    // The tombstone is itself an append, so clearing syncs and cannot race with
+    // someone drawing at that moment.
+    expect(mergeBatches([batch(5), batch(0, true), batch(2)]).strokes).toHaveLength(2);
+  });
+
+  it('uses the most recent clear, not the first', () => {
+    const merged = mergeBatches([batch(1), batch(0, true), batch(9), batch(0, true), batch(3)]);
+    expect(merged.strokes).toHaveLength(3);
+  });
+
+  it('is empty when the last thing that happened was a clear', () => {
+    expect(mergeBatches([batch(4), batch(0, true)]).strokes).toHaveLength(0);
+  });
+
+  it('handles a canvas nobody has touched', () => {
+    expect(mergeBatches([]).strokes).toEqual([]);
+  });
+});
+
+describe('the eraser', () => {
+  it('survives compaction', () => {
+    // Losing the flag would silently turn an eraser stroke into a solid line
+    // the next time the canvas was read back.
+    const drawing = {
+      version: 1 as const,
+      strokes: [{ ...stroke(line(10)), erase: true }],
+    };
+    expect(compact(drawing).strokes[0]?.erase).toBe(true);
   });
 });

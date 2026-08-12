@@ -1,7 +1,7 @@
 import { computeStreak, localDateIn, weekMarks, type DayMark } from '@twoends/core';
 import { create } from 'zustand';
 
-import { recentDrawings, type SavedDrawing } from '../db/canvas.ts';
+import { loadCanvas, type SharedCanvas } from '../db/canvas.ts';
 import { completedDays } from '../db/daily.ts';
 import { recentSnaps, signedUrls, type Snap } from '../db/photos.ts';
 import type { Couple } from './session.ts';
@@ -20,27 +20,29 @@ import type { Couple } from './session.ts';
 interface SharedState {
   snaps: Snap[];
   urls: Map<string, string>;
-  drawings: SavedDrawing[];
+  canvas: SharedCanvas | null;
   streak: { current: number; longest: number };
   week: DayMark[];
   loaded: boolean;
 
   load: (couple: Couple) => Promise<void>;
+  /** Optimistic keep toggle; the write follows. */
+  markKept: (id: string, kept: boolean) => void;
   clear: () => void;
 }
 
 export const useShared = create<SharedState>((set) => ({
   snaps: [],
   urls: new Map(),
-  drawings: [],
+  canvas: null,
   streak: { current: 0, longest: 0 },
   week: ['future', 'future', 'future', 'future', 'future', 'future', 'future'],
   loaded: false,
 
   load: async (couple) => {
-    const [snaps, drawings, days] = await Promise.all([
+    const [snaps, canvas, days] = await Promise.all([
       recentSnaps(couple.id),
-      recentDrawings(couple.id),
+      loadCanvas(couple.id),
       completedDays(couple.id),
     ]);
 
@@ -54,12 +56,17 @@ export const useShared = create<SharedState>((set) => ({
     set({
       snaps,
       urls,
-      drawings,
+      canvas,
       streak: { current: streak.current, longest: streak.longest },
       week: weekMarks(days, today),
       loaded: true,
     });
   },
 
-  clear: () => set({ snaps: [], urls: new Map(), drawings: [], loaded: false }),
+  markKept: (id, kept) =>
+    set((state) => ({
+      snaps: state.snaps.map((s) => (s.id === id ? { ...s, kept } : s)),
+    })),
+
+  clear: () => set({ snaps: [], urls: new Map(), canvas: null, loaded: false }),
 }));

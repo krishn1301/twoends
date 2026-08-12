@@ -24,6 +24,12 @@ export interface Stroke {
   /** Fraction of the canvas width, so thickness scales with the surface too. */
   width: number;
   points: Point[];
+  /**
+   * An eraser stroke. Rendered by cutting a hole rather than painting over in
+   * the background colour, so it works on a photo, a tint, or any theme —
+   * and so it can still be undone, because it is just another stroke.
+   */
+  erase?: boolean;
 }
 
 /** What lands in the `canvases.strokes` jsonb column. */
@@ -94,6 +100,9 @@ export function compact(drawing: Drawing): Drawing {
     version: 1,
     strokes: drawing.strokes.slice(-MAX_STROKES).map((stroke) => ({
       ...stroke,
+      // Preserved explicitly: dropping it would silently turn an eraser stroke
+      // into a black line the next time the canvas was read back.
+      ...(stroke.erase ? { erase: true } : {}),
       points: simplify(stroke.points)
         .slice(0, MAX_POINTS_PER_STROKE)
         .map((point) => ({
@@ -106,6 +115,36 @@ export function compact(drawing: Drawing): Drawing {
 }
 
 const round = (n: number) => Math.round(n * 1000) / 1000;
+
+/**
+ * Joins batches of strokes into the one surface both people are drawing on.
+ *
+ * Each row is what somebody added in one sitting, so the canvas is their union
+ * in the order they were made. Append-only is the whole trick: two people
+ * drawing at the same moment on two phones produce two batches that merge by
+ * time, with nothing to overwrite and no conflict to resolve.
+ *
+ * A clear is a tombstone rather than a delete, so rendering simply starts after
+ * the most recent one — which means clearing syncs, survives being offline, and
+ * cannot race with someone drawing at that instant.
+ */
+export function mergeBatches(batches: readonly { drawing: Drawing; isClear: boolean }[]): Drawing {
+  // A reverse walk rather than `findLastIndex`, which needs a newer lib target
+  // than core deliberately compiles against.
+  let lastClear = -1;
+  for (let i = batches.length - 1; i >= 0; i--) {
+    if (batches[i]!.isClear) {
+      lastClear = i;
+      break;
+    }
+  }
+  const live = lastClear === -1 ? batches : batches.slice(lastClear + 1);
+
+  return {
+    version: 1,
+    strokes: live.flatMap((b) => b.drawing.strokes),
+  };
+}
 
 /** Rough byte cost, for deciding whether a drawing is worth sending. */
 export function estimateSize(drawing: Drawing): number {

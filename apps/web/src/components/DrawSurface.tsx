@@ -16,14 +16,24 @@ import type { Drawing, Point, Stroke } from '@twoends/core';
  */
 export function DrawSurface({
   color,
+  erasing = false,
   drawing,
-  onChange,
+  onStroke,
   readOnly = false,
   className = '',
 }: {
   color: string;
+  /** Cuts a hole instead of painting, so it works over anything. */
+  erasing?: boolean;
   drawing: Drawing;
-  onChange?: (drawing: Drawing) => void;
+  /**
+   * Fires once per finished stroke, with just that stroke.
+   *
+   * Emitting the whole drawing instead would force the caller to work out which
+   * part is new by index — and that breaks the moment a partner's strokes
+   * arrive mid-drawing and renumber everything underneath.
+   */
+  onStroke?: (stroke: Stroke) => void;
   readOnly?: boolean;
   className?: string;
 }) {
@@ -75,7 +85,13 @@ export function DrawSurface({
     // rather than hanging around waiting for a pointerup that never arrives.
     event.currentTarget.setPointerCapture(event.pointerId);
 
-    const stroke: Stroke = { color, width: 0.012, points: [positionOf(event)] };
+    const stroke: Stroke = {
+      color,
+      // A wider eraser, because erasing precisely with a fingertip is miserable.
+      width: erasing ? 0.05 : 0.012,
+      points: [positionOf(event)],
+      ...(erasing ? { erase: true } : {}),
+    };
     strokeRef.current = stroke;
     setLive(stroke);
   }
@@ -103,7 +119,7 @@ export function DrawSurface({
     setLive(null);
     if (!stroke || stroke.points.length < 2) return;
 
-    onChange?.({ version: 1, strokes: [...drawing.strokes, stroke] });
+    onStroke?.(stroke);
   }
 
   function toPoint(native: PointerEvent, react: React.PointerEvent<HTMLCanvasElement>): Point {
@@ -135,6 +151,13 @@ export function DrawSurface({
 function paint(ctx: CanvasRenderingContext2D, stroke: Stroke, width: number, height: number) {
   if (stroke.points.length < 2) return;
 
+  /*
+    `destination-out` removes what is already painted rather than covering it in
+    a background colour. That is what lets the eraser work over a tint, a photo
+    or any theme — and what keeps the canvas transparent, so the surface behind
+    it shows through instead of a grey rectangle.
+  */
+  ctx.globalCompositeOperation = stroke.erase ? 'destination-out' : 'source-over';
   ctx.strokeStyle = stroke.color;
 
   // One segment per pair so pressure can vary along the stroke. Drawing the
@@ -149,6 +172,9 @@ function paint(ctx: CanvasRenderingContext2D, stroke: Stroke, width: number, hei
     ctx.lineTo(to.x * width, to.y * height);
     ctx.stroke();
   }
+
+  // Left set, the next stroke would erase too.
+  ctx.globalCompositeOperation = 'source-over';
 }
 
 const clamp = (n: number) => Math.max(0, Math.min(1, n));

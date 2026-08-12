@@ -72,6 +72,7 @@ export type Database = {
           couple_id: string
           created_at: string
           id: string
+          is_clear: boolean
           strokes: Json
         }
         Insert: {
@@ -79,6 +80,7 @@ export type Database = {
           couple_id: string
           created_at?: string
           id?: string
+          is_clear?: boolean
           strokes: Json
         }
         Update: {
@@ -86,6 +88,7 @@ export type Database = {
           couple_id?: string
           created_at?: string
           id?: string
+          is_clear?: boolean
           strokes?: Json
         }
         Relationships: [
