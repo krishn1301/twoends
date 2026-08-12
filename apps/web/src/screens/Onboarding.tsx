@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
-import { ACCENTS, ACCENT_KEYS, type AccentKey } from '@twoends/core';
+import { accentFromId, getAccent, nearestAccent, type AccentKey } from '@twoends/core';
+import { Avatar } from '@twoends/ui';
 
 import { BackButton, Button, Field, Progress, TextInput } from '../components/Field.tsx';
+import { uploadAvatar } from '../db/avatars.ts';
+import { dominantHue } from '../lib/dominantHue.ts';
+import { shrinkForUpload } from '../lib/image.ts';
 import { supabase } from '../lib/supabase.ts';
 import { stashCoupleDraft } from '../state/coupleDraft.ts';
 import { recoverSession, useSession, type RelationshipType } from '../state/session.ts';
@@ -38,14 +42,50 @@ export function Onboarding() {
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
-  const [accent, setAccent] = useState<AccentKey>('teal');
+
+  /** Chosen from the photo, or from their id until there is one. */
+  const [accent, setAccent] = useState<AccentKey>(() =>
+    session ? accentFromId(session.user.id).key : 'teal',
+  );
+  const [photo, setPhoto] = useState<{ file: File; url: string } | null>(null);
+  const [reading, setReading] = useState(false);
   const [relationship, setRelationship] = useState<RelationshipType | null>(null);
   const [startedOn, setStartedOn] = useState('');
   const [birthday, setBirthday] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const tint = ACCENTS[accent].onDark;
+  const tint = getAccent(accent).onDark;
+  const photoRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * Reads the photo's dominant hue and snaps it to the nearest accent.
+   *
+   * The photo's own colour is never used directly — an arbitrary pixel can be
+   * near-black or a muddy brown that fails contrast everywhere in the app.
+   * Snapping to the palette keeps every guarantee while still making the choice
+   * feel like it came from them.
+   */
+  async function choosePhoto(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setReading(true);
+    try {
+      const shrunk = await shrinkForUpload(file);
+      const hue = await dominantHue(shrunk.blob);
+      if (hue !== null) setAccent(nearestAccent(hue).key);
+
+      if (photo) URL.revokeObjectURL(photo.url);
+      setPhoto({ file, url: URL.createObjectURL(shrunk.blob) });
+    } catch {
+      // A photo that cannot be read is not worth stopping onboarding over.
+    } finally {
+      setReading(false);
+    }
+  }
+
   const next = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
@@ -60,6 +100,11 @@ export function Onboarding() {
       accent_key: accent,
       birthday: birthday || null,
     });
+
+    if (!profileError && photo) {
+      // After the profile row exists, because the upload writes avatar_path to it.
+      await uploadAvatar(session.user.id, photo.file);
+    }
 
     if (profileError) {
       setBusy(false);
@@ -91,6 +136,14 @@ export function Onboarding() {
 
   return (
     <div className="bg-void text-chalk flex min-h-full flex-col px-6 pt-6 pb-10">
+      <input
+        ref={photoRef}
+        type="file"
+        accept="image/*"
+        onChange={(e) => void choosePhoto(e)}
+        className="hidden"
+      />
+
       <div className="mx-auto flex w-full max-w-sm flex-1 flex-col">
         <div className="mb-8 flex items-center gap-3">
           {step > 0 ? <BackButton onClick={back} /> : <span className="h-11 w-11" />}
@@ -117,34 +170,33 @@ export function Onboarding() {
 
           {step === 1 && (
             <Step
-              title="Pick your colour."
-              sub="Anything you make shows up in this. Anything they make shows up in theirs."
+              title="Add a photo of you."
+              sub="Your colour comes from it — and anything you make in the app shows up in that colour."
             >
-              <div className="grid grid-cols-4 gap-3">
-                {ACCENT_KEYS.map((key) => {
-                  const a = ACCENTS[key];
-                  const selected = key === accent;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setAccent(key)}
-                      aria-pressed={selected}
-                      aria-label={a.label}
-                      className="flex flex-col items-center gap-2"
-                    >
-                      <span
-                        className="h-14 w-14 rounded-full transition-transform"
-                        style={{
-                          background: a.onDark,
-                          boxShadow: selected ? '0 0 0 3px #F2EDE9' : 'none',
-                          transform: selected ? 'scale(1.06)' : 'none',
-                        }}
-                      />
-                      <span className="text-ash text-[0.7rem]">{a.label}</span>
-                    </button>
-                  );
-                })}
+              <div className="flex flex-col items-center gap-5">
+                <button
+                  type="button"
+                  onClick={() => photoRef.current?.click()}
+                  className="relative"
+                  aria-label="Choose a photo"
+                >
+                  <Avatar name={name || '?'} accent={tint} size={132} src={photo?.url} />
+                  <span
+                    className="text-void absolute right-0 bottom-0 grid h-10 w-10 place-items-center rounded-full text-xl"
+                    style={{ background: tint }}
+                    aria-hidden="true"
+                  >
+                    +
+                  </span>
+                </button>
+
+                <p className="text-ash text-center text-sm">
+                  {reading
+                    ? 'Finding your colour…'
+                    : photo
+                      ? `Your colour is ${getAccent(accent).label}, taken from this photo.`
+                      : 'Optional. Without one you get a colour of your own anyway.'}
+                </p>
               </div>
             </Step>
           )}

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { ACCENTS, ACCENT_KEYS, getAccent, isAccentKey } from './accents.ts';
+import {
+  ACCENTS,
+  ACCENT_KEYS,
+  accentFromId,
+  getAccent,
+  isAccentKey,
+  nearestAccent,
+} from './accents.ts';
 import { daysUntil, elapsedBetween, localMidnight, timeTogether } from './togetherness.ts';
 import { seamPosition, turnFor, turnLabel } from './seam.ts';
 import { graceRemaining, isQuiet, streakLabel } from './streak.ts';
@@ -49,7 +56,52 @@ describe('accents', () => {
   it('falls back rather than blanking on an unknown key', () => {
     expect(isAccentKey('teal')).toBe(true);
     expect(isAccentKey('chartreuse')).toBe(false);
-    expect(getAccent('chartreuse').key).toBe('iris');
+    expect(getAccent('chartreuse').key).toBe('teal');
+    expect(getAccent(null).key).toBe('teal');
+  });
+
+  it('also clears 4.5:1 against the card surface, where most coloured text sits', () => {
+    for (const key of ACCENT_KEYS) {
+      expect(contrast(ACCENTS[key].onDark, '#15120F'), key).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('keeps the hues far enough apart to tell apart', () => {
+    const hues = ACCENT_KEYS.map((k) => ACCENTS[k].hue).sort((a, b) => a - b);
+    for (let i = 1; i < hues.length; i++) {
+      expect(hues[i]! - hues[i - 1]!, `${hues[i - 1]} and ${hues[i]}`).toBeGreaterThanOrEqual(15);
+    }
+  });
+});
+
+describe('choosing a colour from a photo', () => {
+  it('snaps a photo hue to the closest accent', () => {
+    // Never the raw pixel colour: an arbitrary one can be near-black or a muddy
+    // brown that fails contrast on every surface in the app.
+    expect(nearestAccent(180).key).toBe('teal');
+    expect(nearestAccent(30).key).toBe('amber');
+    expect(nearestAccent(350).key).toBe('rose');
+  });
+
+  it('wraps around the colour wheel', () => {
+    // 358 is nearer rose at 350 than coral at 14, going the short way round.
+    expect(nearestAccent(358).key).toBe('rose');
+    expect(nearestAccent(-5).key).toBe('rose');
+    // 725 is 5 degrees, which really is nearer coral than rose.
+    expect(nearestAccent(725).key).toBe('coral');
+    expect(nearestAccent(710).key).toBe('rose');
+  });
+
+  it('never hands both partners the same colour', () => {
+    const mine = nearestAccent(180);
+    const theirs = nearestAccent(180, mine.key);
+    expect(theirs.key).not.toBe(mine.key);
+  });
+
+  it('gives someone without a photo a stable colour of their own', () => {
+    const id = 'a94bfd39-0000-4000-8000-000000000000';
+    expect(accentFromId(id).key).toBe(accentFromId(id).key);
+    expect(accentFromId(id, accentFromId(id).key).key).not.toBe(accentFromId(id).key);
   });
 });
 

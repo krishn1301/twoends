@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { deviceTimezone, getAccent } from '@twoends/core';
+import { deviceTimezone, getAccent, nearestAccent, type AccentKey } from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 
 import { Button, Field, TextInput } from '../components/Field.tsx';
@@ -99,10 +99,49 @@ export function Pair() {
     setError(null);
 
     const { error } = await supabase.rpc('redeem_invite', { p_code: entered });
-    setBusy(false);
 
-    if (error) setError(humanise(error.message));
-    else await refresh();
+    if (error) {
+      setBusy(false);
+      setError(humanise(error.message));
+      return;
+    }
+
+    await separateColours();
+    setBusy(false);
+    await refresh();
+  }
+
+  /**
+   * Two people whose photos happen to point at the same accent would be
+   * rendered identically everywhere — on the canvas, in the streak row, on a
+   * widget — which defeats the whole point of having colours. The one who
+   * joined moves, because the one who was already here may have been looking at
+   * their colour for a week.
+   */
+  async function separateColours() {
+    const [me, them] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, accent_key')
+        .eq('id', profile?.id ?? '')
+        .maybeSingle(),
+      supabase
+        .from('profiles')
+        .select('id, accent_key')
+        .neq('id', profile?.id ?? '')
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const mineKey = me.data?.accent_key;
+    const theirsKey = them.data?.accent_key;
+    if (!mineKey || mineKey !== theirsKey) return;
+
+    const moved = nearestAccent(getAccent(mineKey).hue, mineKey as AccentKey);
+    await supabase
+      .from('profiles')
+      .update({ accent_key: moved.key })
+      .eq('id', profile?.id ?? '');
   }
 
   const link = code ? `${window.location.origin}/?invite=${code}` : '';

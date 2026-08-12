@@ -174,7 +174,10 @@ export function Us() {
           )}
 
           <div className="px-4 py-3.5">
-            <p className="mb-3 text-sm font-medium">Your colour</p>
+            <p className="text-sm font-medium">Your colour</p>
+            <p className="text-ash mt-1 mb-3 text-sm">
+              Taken from your photo. Change it if you disagree.
+            </p>
             <div className="flex flex-wrap gap-2.5">
               {ACCENT_KEYS.map((key) => {
                 const selected = key === profile?.accent_key;
