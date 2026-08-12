@@ -1,0 +1,65 @@
+import { computeStreak, localDateIn, weekMarks, type DayMark } from '@twoends/core';
+import { create } from 'zustand';
+
+import { recentDrawings, type SavedDrawing } from '../db/canvas.ts';
+import { completedDays } from '../db/daily.ts';
+import { recentSnaps, signedUrls, type Snap } from '../db/photos.ts';
+import type { Couple } from './session.ts';
+
+/**
+ * The shared surfaces: the latest snap, the latest drawing, and the streak.
+ *
+ * One store because Home renders all three at once and they are all invalidated
+ * by the same events — a partner sending something, or the app coming back to
+ * the foreground.
+ *
+ * Signed URLs are held here too. The buckets are private, so every image needs
+ * one, and fetching them per-component would mean the same photo asking for
+ * three different links.
+ */
+interface SharedState {
+  snaps: Snap[];
+  urls: Map<string, string>;
+  drawings: SavedDrawing[];
+  streak: { current: number; longest: number };
+  week: DayMark[];
+  loaded: boolean;
+
+  load: (couple: Couple) => Promise<void>;
+  clear: () => void;
+}
+
+export const useShared = create<SharedState>((set) => ({
+  snaps: [],
+  urls: new Map(),
+  drawings: [],
+  streak: { current: 0, longest: 0 },
+  week: ['future', 'future', 'future', 'future', 'future', 'future', 'future'],
+  loaded: false,
+
+  load: async (couple) => {
+    const [snaps, drawings, days] = await Promise.all([
+      recentSnaps(couple.id),
+      recentDrawings(couple.id),
+      completedDays(couple.id),
+    ]);
+
+    const urls = await signedUrls(snaps.map((s) => s.storage_path));
+
+    // The couple's day, not this device's — the streak has to agree on both
+    // phones even when they are in different timezones.
+    const today = localDateIn(couple.day_timezone ?? 'UTC');
+    const streak = computeStreak(days, today);
+
+    set({
+      snaps,
+      urls,
+      drawings,
+      streak: { current: streak.current, longest: streak.longest },
+      week: weekMarks(days, today),
+      loaded: true,
+    });
+  },
+
+  clear: () => set({ snaps: [], urls: new Map(), drawings: [], loaded: false }),
+}));

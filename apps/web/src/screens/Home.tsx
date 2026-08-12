@@ -1,8 +1,14 @@
 import { Avatar, Faces, Pill, Rail, Scribble, Section, Snapshot, Tile } from '@twoends/ui';
 
+import { DrawSurface } from '../components/DrawSurface.tsx';
+
+import { useEffect } from 'react';
+
 import { DailyCard } from '../components/DailyCard.tsx';
 import { Flame, Lock } from '../components/icons.tsx';
 import { WEEK_LABELS, pad, useDesignModel } from '../design/model.ts';
+import { useSession } from '../state/session.ts';
+import { useShared } from '../state/shared.ts';
 
 /**
  * Home.
@@ -25,8 +31,29 @@ import { WEEK_LABELS, pad, useDesignModel } from '../design/model.ts';
  * 3. The distance badge reads locked until both partners opt in, and shows
  *    distance only, never position. See docs/PRIVACY.md.
  */
-export function Home() {
+export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap') => void }) {
   const m = useDesignModel();
+  const couple = useSession((s) => s.couple);
+  const { snaps, urls, drawings, streak, week, load } = useShared();
+
+  useEffect(() => {
+    if (!couple) return;
+    const refresh = () => void load(couple);
+    refresh();
+
+    // A partner sending a snap or a drawing while the phone was asleep is the
+    // normal case, not the exception.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [couple, load]);
+
+  const latestSnap = snaps[0];
+  const latestSnapUrl = latestSnap ? urls.get(latestSnap.storage_path) : undefined;
+  const latestDrawing = drawings[0];
+  const theirsLatest = latestDrawing && latestDrawing.author_id !== m.myId;
 
   const mine = m.myAccent.onDark;
   const theirs = m.theirAccent.onDark;
@@ -41,10 +68,10 @@ export function Home() {
           </span>
           <span
             className="bg-surface-2 counter flex items-center gap-1.5 rounded-full px-3 py-2 text-sm"
-            title="11 day streak — two missed days a month are forgiven"
+            title={`${streak.current} day streak — two missed days a month are forgiven`}
           >
             <Flame color={mine} />
-            11
+            {streak.current}
           </span>
         </header>
 
@@ -74,41 +101,73 @@ export function Home() {
           <div className="rise" style={{ animationDelay: '120ms' }}>
             <Section title="Today" action="All">
               <Rail>
-                <Tile eyebrow="daily photo" headline="Waiting for the bus">
-                  <Snapshot seed={0} className="h-full w-full" />
-                  <span
-                    className="absolute inset-x-0 bottom-0 h-3/5"
-                    style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.82), transparent)' }}
-                    aria-hidden="true"
+                {latestSnapUrl ? (
+                  <Tile
+                    eyebrow="snap"
+                    headline={latestSnap?.caption ?? 'Right now'}
+                    onClick={() => onOpen?.('snap')}
+                  >
+                    <img
+                      src={latestSnapUrl}
+                      alt={latestSnap?.caption ?? 'A photo they sent'}
+                      className="h-full w-full object-cover"
+                    />
+                    <span
+                      className="absolute inset-x-0 bottom-0 h-3/5"
+                      style={{
+                        background: 'linear-gradient(to top, rgba(0,0,0,0.82), transparent)',
+                      }}
+                      aria-hidden="true"
+                    />
+                    {latestSnap && latestSnap.author_id !== m.myId && (
+                      <div className="absolute top-3.5 right-3.5">
+                        <Avatar name={m.theirName} accent={theirs} size={26} />
+                      </div>
+                    )}
+                  </Tile>
+                ) : (
+                  <Tile
+                    ground={`color-mix(in oklab, ${mine} 18%, #15120F)`}
+                    eyebrow="snap"
+                    headline="Send a photo of right now"
+                    onClick={() => onOpen?.('snap')}
                   />
-                  <div className="absolute top-3.5 right-3.5">
-                    <Avatar name={m.theirName} accent={theirs} size={26} />
-                  </div>
-                </Tile>
+                )}
 
-                <Tile eyebrow="canvas" headline="They drew you something">
-                  <div className="absolute inset-x-4 top-3 bottom-16">
-                    <Scribble color={theirs} className="h-full w-full" />
-                  </div>
-                </Tile>
+                {latestDrawing ? (
+                  <Tile
+                    eyebrow="canvas"
+                    headline={theirsLatest ? 'They drew you something' : 'You drew this'}
+                    onClick={() => onOpen?.('draw')}
+                  >
+                    <div className="absolute inset-x-3 top-2 bottom-16">
+                      <DrawSurface
+                        readOnly
+                        color={theirsLatest ? theirs : mine}
+                        drawing={latestDrawing.drawing}
+                        className="h-full"
+                      />
+                    </div>
+                  </Tile>
+                ) : (
+                  <Tile
+                    eyebrow="canvas"
+                    headline="Draw them something"
+                    onClick={() => onOpen?.('draw')}
+                  >
+                    <div className="absolute inset-x-4 top-3 bottom-16">
+                      <Scribble color={mine} className="h-full w-full" />
+                    </div>
+                  </Tile>
+                )}
 
                 <Tile
                   ground={`color-mix(in oklab, ${mine} 18%, #15120F)`}
                   eyebrow="your turn"
-                  headline="Send a snap back"
+                  headline="Send one back"
                   badge={<Pill>you</Pill>}
+                  onClick={() => onOpen?.('snap')}
                 />
-
-                <Tile eyebrow="journal" headline="Add a memory">
-                  <Snapshot seed={2} className="h-full w-full opacity-70" />
-                  <span
-                    className="absolute inset-0"
-                    style={{
-                      background: 'linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.2))',
-                    }}
-                    aria-hidden="true"
-                  />
-                </Tile>
               </Rail>
             </Section>
           </div>
@@ -150,9 +209,12 @@ export function Home() {
                   </p>
                 </Tile>
 
-                <Tile eyebrow="this week" headline={m.streakLine}>
+                <Tile
+                  eyebrow="this week"
+                  headline={streak.current === 0 ? 'No streak yet' : `${streak.current} days`}
+                >
                   <div className="absolute inset-x-3.5 top-4 grid grid-cols-4 gap-1.5">
-                    {m.week.map((mark, i) => (
+                    {week.map((mark, i) => (
                       <span
                         key={WEEK_LABELS[i]}
                         className="grid h-7 w-7 place-items-center rounded-full text-[0.6rem]"

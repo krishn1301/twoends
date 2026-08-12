@@ -78,6 +78,7 @@ export function Tile({
   badge,
   wide,
   onDark = true,
+  onClick,
   children,
   style,
 }: {
@@ -89,6 +90,8 @@ export function Tile({
   wide?: boolean;
   /** False when the ground is light enough to need dark text. */
   onDark?: boolean;
+  /** Makes the whole card a button. Cards that do nothing take no handler. */
+  onClick?: () => void;
   children?: ReactNode;
   style?: CSSProperties;
 }) {
@@ -99,9 +102,18 @@ export function Tile({
     rounded corners. A fixed height plus an absolutely positioned footer means a
     rail always reads as one straight row, whatever the copy does.
   */
+  /*
+    A real <button> when it does something, so it is reachable by keyboard and
+    announced as actionable. `text-left` because a button centres its content by
+    default and these are cards, not labels.
+  */
+  const Element = onClick ? 'button' : 'article';
+
   return (
-    <article
-      className={`relative h-44 shrink-0 snap-start overflow-hidden rounded-[28px] ${wide ? 'w-[76vw] max-w-[19rem]' : 'w-[44vw] max-w-[10.5rem]'}`}
+    <Element
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`relative h-44 shrink-0 snap-start overflow-hidden rounded-[28px] text-left ${wide ? 'w-[76vw] max-w-[19rem]' : 'w-[44vw] max-w-[10.5rem]'}`}
       style={{ background: ground ?? 'var(--color-surface)', ...style }}
     >
       <div className="absolute inset-0">{children}</div>
@@ -128,7 +140,7 @@ export function Tile({
           )}
         </div>
       )}
-    </article>
+    </Element>
   );
 }
 

@@ -25,6 +25,7 @@ import { useNow } from '../state/useNow.ts';
  */
 
 export interface DesignModel {
+  myId: string;
   myName: string;
   theirName: string;
   myAccent: Accent;
@@ -63,6 +64,7 @@ export function useDesignModel(): DesignModel {
   const theirName = partner?.display_name ?? them?.displayName ?? 'them';
 
   return {
+    myId: profile?.id ?? '',
     myName: profile?.display_name ?? SAMPLE_COUPLE.me.displayName,
     theirName,
     myAccent: getAccent(profile?.accent_key ?? SAMPLE_COUPLE.me.accentKey),
