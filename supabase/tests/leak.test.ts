@@ -42,6 +42,15 @@ let coupleB: string;
 let promptDayId: string;
 let answerId: string;
 
+/*
+  Card ids are hashes of the card's own words, generated in `packages/core`.
+  Two literals are used here rather than importing the deck, because the point
+  of these tests is the policy — and a suite that reshuffles when someone edits
+  a card's wording would be testing the content file instead.
+*/
+const SHARED_CARD = '11111111-1111-4111-8111-111111111111';
+const SOLO_CARD = '22222222-2222-4222-8222-222222222222';
+
 const admin = () => adminClient();
 
 beforeAll(async () => {
@@ -147,6 +156,22 @@ beforeAll(async () => {
     if (error) throw new Error(`seed ${table}: ${error.message}`);
   }
 
+  /*
+    `game_picks` is seeded outside the loop because it needs *both* people.
+
+    The reveal policy hides a partner's pick until you have made your own, so a
+    row from Alice alone would be invisible to Bob — and the positive control
+    "Bob, who is a member, sees rows" would fail for the right reason and the
+    wrong one, exactly as a sealed capsule would. Both pick the shared card; the
+    reveal itself is tested on `soloCardId` below, where only Alice has.
+  */
+  const picks = await db.from('game_picks').insert([
+    { couple_id: coupleA, card_id: SHARED_CARD, profile_id: alice.id, choice: 0 },
+    { couple_id: coupleA, card_id: SHARED_CARD, profile_id: bob.id, choice: 1 },
+    { couple_id: coupleA, card_id: SOLO_CARD, profile_id: alice.id, choice: 1 },
+  ]);
+  if (picks.error) throw new Error(`seed game_picks: ${picks.error.message}`);
+
   // `sharing` matters: since migration 13 the partner-read policy stops matching
   // when it is false, so a seed without it would make the positive controls
   // below fail for the right reason and the wrong one.
@@ -240,6 +265,9 @@ describe('a stranger writes nothing', () => {
         body: 'x',
         deliver_at: '2027-01-01T00:00:00Z',
       });
+    }
+    if (table === 'game_picks') {
+      Object.assign(row, { card_id: SHARED_CARD, profile_id: mallory.id, choice: 0 });
     }
 
     const { error } = await mallory.db.from(table).insert(row);
@@ -429,6 +457,109 @@ describe('every accent the app offers is one the database accepts', () => {
       .update({ accent_key: 'burgundy' })
       .eq('id', alice.id);
     expect(error).not.toBeNull();
+  });
+});
+
+/*
+  The game's one rule.
+
+  "Nothing reveals until both of you have moved" is the mechanic the whole app
+  is built on, and in the game it is the entire feature — a this-or-that where
+  you can see their pick first is a quiz you take alone. It has to be a policy
+  for the same reason the daily reveal is one: a client that receives the row
+  and declines to render it has drawn a curtain, and anyone with dev tools can
+  walk round a curtain.
+*/
+describe('a pick stays hidden until you have picked too', () => {
+  it('shows Bob his own pick on a card Alice answered alone', async () => {
+    const { data } = await bob.db
+      .from('game_picks')
+      .select('profile_id, choice')
+      .eq('card_id', SOLO_CARD);
+
+    // Bob has not played this card, so there is nothing here at all — not even
+    // the fact that Alice has. Knowing she answered is itself a nudge.
+    expect(data).toEqual([]);
+  });
+
+  it('shows Alice her own pick on that card, because it is hers', async () => {
+    const { data } = await alice.db
+      .from('game_picks')
+      .select('choice')
+      .eq('card_id', SOLO_CARD);
+    expect(data).toHaveLength(1);
+  });
+
+  it('shows both picks once both have played', async () => {
+    const { data } = await bob.db
+      .from('game_picks')
+      .select('profile_id, choice')
+      .eq('card_id', SHARED_CARD);
+
+    expect(data).toHaveLength(2);
+    expect(new Set((data ?? []).map((r) => r.profile_id))).toEqual(new Set([alice.id, bob.id]));
+  });
+
+  it('opens the card the moment the second person picks, with no other action', async () => {
+    const card = '33333333-3333-4333-8333-333333333333';
+
+    await admin()
+      .from('game_picks')
+      .insert({ couple_id: coupleA, card_id: card, profile_id: alice.id, choice: 0 });
+
+    const before = await bob.db.from('game_picks').select('choice').eq('card_id', card);
+    expect(before.data).toEqual([]);
+
+    const played = await bob.db
+      .from('game_picks')
+      .insert({ couple_id: coupleA, card_id: card, profile_id: bob.id, choice: 0 });
+    expect(played.error).toBeNull();
+
+    const after = await bob.db.from('game_picks').select('choice').eq('card_id', card);
+    expect(after.data).toHaveLength(2);
+  });
+
+  it('will not let one partner pick on the other’s behalf', async () => {
+    // "members insert" alone would allow this — the restrictive policy is what
+    // stops one of you making the tally agree.
+    const { error } = await bob.db.from('game_picks').insert({
+      couple_id: coupleA,
+      card_id: '44444444-4444-4444-8444-444444444444',
+      profile_id: alice.id,
+      choice: 1,
+    });
+    expect(error).not.toBeNull();
+  });
+
+  it('will not let one partner rewrite what the other chose', async () => {
+    const { error } = await bob.db
+      .from('game_picks')
+      .update({ choice: 1 })
+      .eq('card_id', SHARED_CARD)
+      .eq('profile_id', alice.id);
+
+    // Either a refusal or a no-op is correct; what matters is that her stored
+    // choice is untouched afterwards.
+    const { data } = await admin()
+      .from('game_picks')
+      .select('choice')
+      .eq('card_id', SHARED_CARD)
+      .eq('profile_id', alice.id)
+      .single();
+
+    expect(error === null || error !== null).toBe(true);
+    expect(data?.choice).toBe(0);
+  });
+
+  it('counts the tally without showing Mallory anything', async () => {
+    const mine = await alice.db.rpc('game_tally', { p_couple_id: coupleA });
+    expect(mine.error).toBeNull();
+    expect((mine.data as { played: number }[])[0]?.played).toBeGreaterThan(0);
+
+    // The function is security-definer, so it must check membership itself —
+    // otherwise it is a hole straight through every policy above it.
+    const theirs = await mallory.db.rpc('game_tally', { p_couple_id: coupleA });
+    expect((theirs.data as { played: number }[] | null)?.[0]?.played ?? 0).toBe(0);
   });
 });
 

@@ -72,6 +72,21 @@ body {
   color: var(--color-chalk);
   /* Prevents iOS Safari inflating text in landscape without disabling zoom. */
   -webkit-text-size-adjust: 100%;
+
+  /*
+    The other half of the no-zoom rule in index.html.
+
+    The viewport meta stops pinch-zoom; this stops the *double-tap* zoom, which
+    the meta tag does not cover on Android and which fired constantly here —
+    every card in a rail is a button, and a quick second tap on one zoomed the
+    page instead of opening it. `manipulation` keeps panning and pinch-to-scroll
+    and drops only double-tap, and as a side effect removes the 300ms click
+    delay a tile used to wait out before it responded.
+
+    Not on the drawing surface: see DrawSurface, which sets its own touch-action
+    so a stroke is never mistaken for a scroll.
+  */
+  touch-action: manipulation;
 }
 
 /* Quality floor from the build plan, applied globally rather than per component. */

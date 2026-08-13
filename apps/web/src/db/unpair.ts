@@ -90,6 +90,7 @@ async function leftovers(coupleId: string): Promise<string[]> {
     'capsules',
     'prompt_days',
     'streaks',
+    'game_picks',
   ] as const;
 
   const found: string[] = [];

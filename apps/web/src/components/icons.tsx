@@ -90,3 +90,32 @@ export function PairIcon() {
     </svg>
   );
 }
+
+export function PlayIcon() {
+  return (
+    /*
+      Two cards, offset, rather than a controller or a die.
+
+      A controller says video game, and a die says chance — neither is what this
+      is. The deck is the honest picture: a stack of cards you turn over one at
+      a time, which is exactly the interaction.
+    */
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect
+        x="3.2"
+        y="6.4"
+        width="10.4"
+        height="13.4"
+        rx="2.6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M8.4 4.2h7.2A3.2 3.2 0 0 1 18.8 7.4v9.4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}

@@ -151,7 +151,21 @@ private fun StreakContent(snapshot: WidgetStore.Snapshot) {
     val accent = Color(snapshot.myAccent)
 
     Shell {
-        Column(modifier = GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.Bottom) {
+        /*
+          Centred, unlike its siblings, and only because of the shape.
+
+          The other three are 2x1 strips where bottom-aligning the block sits it
+          exactly where the eye expects — the same anatomy the app's cards use.
+          This one asks for 2x2, and on a real launcher that turned into a tall
+          black tile with an empty top half and everything crammed against the
+          bottom edge. It read as a rendering fault rather than a decision. That
+          is not something the emulator or a screenshot of the app could have
+          shown; it took placing the thing on a home screen.
+        */
+        Column(
+            modifier = GlanceModifier.fillMaxSize(),
+            verticalAlignment = Alignment.Vertical.CenterVertically,
+        ) {
             Eyebrow(if (snapshot.quiet) "quiet" else "streak", accent)
 
             Image(

@@ -2,14 +2,27 @@ import { Avatar, Faces, Pill, Rail, Scribble, Section, Snapshot, Tile } from '@t
 
 import { DrawSurface } from '../components/DrawSurface.tsx';
 
-import { useEffect } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+
+import { daysUntil } from '@twoends/core';
+import { useLiveQuery } from 'dexie-react-hooks';
 
 import { DailyCard } from '../components/DailyCard.tsx';
 import { Flame, Lock } from '../components/icons.tsx';
+import type { TabId } from '../components/TabBar.tsx';
 import { WEEK_LABELS, pad, useDesignModel } from '../design/model.ts';
-import { widgetsSupported } from '../lib/widgets.ts';
+import { soonestCountdown } from '../db/repository.ts';
+import { db } from '../db/schema.ts';
+import {
+  WIDGETS,
+  canPinWidgets,
+  pinWidget,
+  widgetsSupported,
+  type WidgetId,
+} from '../lib/widgets.ts';
 import { useAvatars } from '../state/avatars.ts';
 import { useDistanceReading, useLocation } from '../state/location.ts';
+import { useNow } from '../state/useNow.ts';
 import { useSession } from '../state/session.ts';
 import { useShared } from '../state/shared.ts';
 
@@ -34,7 +47,19 @@ import { useShared } from '../state/shared.ts';
  * 3. The distance badge reads locked until both partners opt in, and shows
  *    distance only, never position. See docs/PRIVACY.md.
  */
-export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap' | 'ask') => void }) {
+export function Home({
+  onOpen,
+  onGo,
+}: {
+  onOpen?: (what: 'draw' | 'snap' | 'ask') => void;
+  /**
+   * Leaves Home for another tab. Every "All ›" and every card that stands for
+   * something with a screen of its own goes through this — a card that shows a
+   * number and does nothing when you press it reads as broken, and the
+   * countdown one was reported as exactly that.
+   */
+  onGo?: (tab: TabId) => void;
+}) {
   const m = useDesignModel();
   const couple = useSession((s) => s.couple);
   const profile = useSession((s) => s.profile);
@@ -66,6 +91,29 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap' | 'ask') => v
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [couple, load, loadAvatars, loadLocation, myId, profile?.avatar_path, partner?.avatar_path]);
+
+  /*
+    The next countdown, from Dexie — the same rows the Dates screen writes, and
+    chosen by the same rule the widget uses.
+
+    Until now this tile read `SAMPLE_COUNTDOWN` from the design fixtures, so it
+    showed an invented trip and an invented number of days regardless of what
+    the couple had actually entered. It looked like real data, which is the
+    worst way for a placeholder to fail: nothing about it said "sample", so the
+    only way to notice was to know what you had typed.
+  */
+  const nowMs = useNow(60_000).getTime();
+  const countdown = useLiveQuery(
+    async () =>
+      soonestCountdown(
+        await db.countdowns
+          .where('couple_id')
+          .equals(couple?.id ?? '')
+          .toArray(),
+      ) ?? null,
+    [couple?.id],
+  );
+  const countdownDays = countdown ? daysUntil(Date.parse(countdown.target_at), nowMs) : null;
 
   const latestSnap = snaps[0];
   const latestSnapUrl = latestSnap ? urls.get(latestSnap.storage_path) : undefined;
@@ -143,7 +191,7 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap' | 'ask') => v
 
         <div className="flex flex-col gap-9">
           <div className="rise" style={{ animationDelay: '120ms' }}>
-            <Section title="Today" action="All">
+            <Section title="Today" action="All" onAction={() => onOpen?.('snap')}>
               <Rail>
                 {latestSnapUrl ? (
                   <Tile
@@ -217,7 +265,7 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap' | 'ask') => v
           </div>
 
           <div className="rise" style={{ animationDelay: '180ms' }}>
-            <Section title="Together" action="All">
+            <Section title="Together" action="All" onAction={() => onGo?.('dates')}>
               <Rail>
                 <Tile wide ground={shared} eyebrow="anniversary">
                   <div className="absolute inset-x-4 top-1/2 -translate-y-[60%]">
@@ -239,19 +287,44 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap' | 'ask') => v
                   </div>
                 </Tile>
 
-                <Tile eyebrow="countdown" headline={m.countdownTitle}>
-                  <Snapshot seed={3} className="h-full w-full" />
-                  <span
-                    className="absolute inset-0"
-                    style={{
-                      background: 'linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.1))',
-                    }}
-                    aria-hidden="true"
-                  />
-                  <p className="counter absolute top-3.5 right-4 text-[2.2rem] leading-none font-medium text-white">
-                    {m.countdownDays}
-                  </p>
-                </Tile>
+                {/*
+                  Tappable, because it is a real thing with a real screen. The
+                  ground is the couple's own colour rather than a stock photo —
+                  the old placeholder gradient was doing a convincing impression
+                  of a picture of a holiday nobody had booked.
+                */}
+                {countdown ? (
+                  <Tile
+                    ground={`color-mix(in oklab, ${theirs} 20%, #15120F)`}
+                    eyebrow="countdown"
+                    headline={countdown.title}
+                    footnote={whenLabel(countdown.target_at)}
+                    onClick={() => onGo?.('dates')}
+                  >
+                    <p
+                      className="counter absolute top-3.5 right-4 text-[2.2rem] leading-none font-medium"
+                      style={{ color: theirs }}
+                    >
+                      {countdownDays}
+                    </p>
+                    <p className="absolute top-[3.1rem] right-4 text-[0.6rem] tracking-[0.2em] text-white/55 uppercase">
+                      {countdownDays === 1 ? 'day' : 'days'}
+                    </p>
+                  </Tile>
+                ) : (
+                  <Tile
+                    eyebrow="countdown"
+                    headline="Something to look forward to"
+                    footnote="a trip, a birthday, the next room you share"
+                    onClick={() => onGo?.('dates')}
+                  >
+                    <div className="absolute inset-x-4 top-5 flex items-baseline gap-1">
+                      <span className="counter text-[2.2rem] leading-none font-medium text-white/25">
+                        00
+                      </span>
+                    </div>
+                  </Tile>
+                )}
 
                 <Tile
                   eyebrow="this week"
@@ -286,6 +359,7 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap' | 'ask') => v
                   eyebrow={distance.kind === 'apart' ? 'apart' : 'distance'}
                   headline={distance.note}
                   footnote={distance.since ? `as of ${distance.since}` : undefined}
+                  onClick={() => onGo?.('us')}
                 >
                   <div className="absolute inset-x-4 top-4 flex items-center">
                     <Avatar name={m.myName} accent={mine} size={28} />
@@ -333,34 +407,7 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap' | 'ask') => v
 
           {hasWidgets && (
             <div className="rise" style={{ animationDelay: '240ms' }}>
-              <Section title="Widgets" action="All">
-                <Rail>
-                <Tile eyebrow="daily photo" headline="Live pics on their home screen">
-                  <Snapshot seed={1} className="h-full w-full" />
-                  <span
-                    className="absolute inset-x-0 bottom-0 h-3/5"
-                    style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85), transparent)' }}
-                    aria-hidden="true"
-                  />
-                </Tile>
-
-                <Tile eyebrow="canvas" headline="Draw them something">
-                  <div className="absolute inset-x-4 top-3 bottom-16">
-                    <Scribble color={mine} className="h-full w-full" />
-                  </div>
-                </Tile>
-
-                <Tile eyebrow="distance apart" headline="How far, never where">
-                  <div className="absolute inset-x-4 top-8 flex items-center">
-                    <Avatar name={m.myName} accent={mine} size={30} />
-                    <span className="mx-1.5 flex-1 border-t border-dashed border-white/25" />
-                    <Avatar name={m.theirName} accent={theirs} size={30} />
-                  </div>
-                </Tile>
-
-                <Tile ground={shared} eyebrow="anniversary" headline="Time together, ticking" />
-                </Rail>
-              </Section>
+              <WidgetsRail mine={mine} theirs={theirs} shared={shared} m={m} />
             </div>
           )}
 
@@ -380,4 +427,138 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap' | 'ask') => v
       </div>
     </div>
   );
+}
+
+/**
+ * The widgets, and a way to actually get one.
+ *
+ * This rail used to be four pictures of widgets with nothing behind them —
+ * pretty, and completely inert. The widgets were registered, installed and
+ * working, and were still reported as "I am not getting any options to add
+ * widgets", because the only route to them was: long-press an empty part of the
+ * home screen, find Widgets, scroll to TwoEnds, press and hold, drag. Nobody
+ * does that for an app they installed ten minutes ago.
+ *
+ * Now each card asks the launcher to place it. The launcher shows its own
+ * confirmation — an app that could put things on your home screen silently
+ * would be a worse thing to install — so the honest state after a tap is
+ * "asked", never "added".
+ */
+function WidgetsRail({
+  mine,
+  theirs,
+  shared,
+  m,
+}: {
+  mine: string;
+  theirs: string;
+  shared: string;
+  m: { myName: string; theirName: string };
+}) {
+  const [canPin, setCanPin] = useState(false);
+  const [asked, setAsked] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void canPinWidgets().then((ok) => {
+      if (alive) setCanPin(ok);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  /** The face of each card. Everything else about them is identical. */
+  const art: Record<WidgetId, ReactNode> = {
+    snaps: (
+      <>
+        <Snapshot seed={1} className="h-full w-full" />
+        <span
+          className="absolute inset-x-0 bottom-0 h-3/5"
+          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85), transparent)' }}
+          aria-hidden="true"
+        />
+      </>
+    ),
+    canvas: (
+      <div className="absolute inset-x-4 top-3 bottom-16">
+        <Scribble color={mine} className="h-full w-full" />
+      </div>
+    ),
+    anniversary: null,
+    countdown: (
+      <p className="counter absolute top-4 right-4 text-[1.8rem] leading-none font-medium text-white/30">
+        12
+      </p>
+    ),
+    streak: (
+      <div className="absolute inset-x-4 top-5 flex gap-1.5">
+        {[0, 1, 2, 3].map((i) => (
+          <span
+            key={i}
+            className="h-6 w-6 rounded-full"
+            style={{ background: i < 3 ? mine : 'rgba(255,255,255,0.08)' }}
+          />
+        ))}
+      </div>
+    ),
+    distance: (
+      <div className="absolute inset-x-4 top-8 flex items-center">
+        <Avatar name={m.myName} accent={mine} size={30} />
+        <span className="mx-1.5 flex-1 border-t border-dashed border-white/25" />
+        <Avatar name={m.theirName} accent={theirs} size={30} />
+      </div>
+    ),
+  };
+
+  return (
+    <Section title="Widgets">
+      <Rail>
+        {WIDGETS.map((widget) => (
+          <Tile
+            key={widget.id}
+            ground={widget.id === 'anniversary' ? shared : undefined}
+            eyebrow={widget.name.toLowerCase()}
+            headline={widget.note}
+            footnote={asked === widget.id ? 'asked your launcher' : undefined}
+            badge={canPin ? <Pill>{asked === widget.id ? 'sent' : 'add'}</Pill> : undefined}
+            onClick={
+              canPin
+                ? () => {
+                    setAsked(widget.id);
+                    void pinWidget(widget.id);
+                  }
+                : undefined
+            }
+          >
+            {art[widget.id]}
+          </Tile>
+        ))}
+      </Rail>
+
+      {!canPin && (
+        <p className="text-ash px-5 text-sm leading-relaxed">
+          This launcher will not let an app place a widget for you. Long-press an empty part
+          of your home screen, tap Widgets, and look for TwoEnds.
+        </p>
+      )}
+    </Section>
+  );
+}
+
+/**
+ * The date under a countdown title, as a person would say it.
+ *
+ * The big number already says how many days; this says which day, because "12"
+ * on its own is a fact you cannot check. Deliberately without the year unless
+ * it is not this one — "3 Sep" is how you would answer if someone asked.
+ */
+function whenLabel(targetAt: string): string {
+  const date = new Date(targetAt);
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: sameYear ? undefined : 'numeric',
+  });
 }

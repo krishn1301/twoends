@@ -6,8 +6,22 @@
       `viewport-fit=cover` lets the page reach under the notch and home
       indicator; the safe-area insets in the CSS keep content clear of both.
       Without it an installed PWA renders with black bars on an iPhone.
+
+      `user-scalable=no` is here because pinch-zoom is what made the APK feel
+      like a website — and worse, it broke the layout: the rails are sized in
+      `vw`, so a zoomed viewport re-lays them out at the wrong width and cards
+      end up clipped. Native apps do not do this and neither should this one.
+
+      It is a smaller hammer than it looks. Android's WebView honours it, which
+      is the case that mattered. iOS Safari has ignored it since iOS 10, so
+      iPhone users — most of the people this app is for — keep their
+      accessibility zoom regardless. Text still scales with the system font
+      size on both, because nothing here is sized in `px`.
     -->
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
     <meta name="color-scheme" content="dark" />
     <title>TwoEnds</title>
     <meta name="description" content="A small shared space for two people. Free, permanently." />

@@ -1,16 +1,20 @@
-import { ChatIcon, HomeIcon, PairIcon } from './icons.tsx';
+import { ChatIcon, HomeIcon, PairIcon, PlayIcon } from './icons.tsx';
 
 /**
  * A floating translucent bar, the way both reference apps do it — it keeps the
  * black reaching the bottom bezel instead of ending in a grey slab, which on an
  * OLED panel is most of why they look like they do.
  *
- * Three destinations, not five. The build plan caps it at five; we only have
- * three things that are genuinely places rather than actions.
+ * Four destinations, not five. The build plan caps it at five, and Play earned
+ * the fourth slot rather than being given it: it is somewhere you go, it has
+ * state of its own that persists between visits, and it is the answer to the
+ * evening when neither of you has anything to report. The label only appears on
+ * the active tab, so four still fits comfortably on a 360dp phone.
  */
 const TABS = [
   { id: 'home', label: 'Home', Icon: HomeIcon },
   { id: 'dates', label: 'Dates', Icon: ChatIcon },
+  { id: 'play', label: 'Play', Icon: PlayIcon },
   { id: 'us', label: 'Us', Icon: PairIcon },
 ] as const;
 
@@ -42,8 +46,8 @@ export function TabBar({
               onClick={() => onSelect?.(id)}
               aria-current={active ? 'page' : undefined}
               aria-label={label}
-              className={`flex items-center gap-2 rounded-full px-5 transition-colors ${
-                active ? 'text-chalk bg-white/12' : 'text-ash'
+              className={`flex items-center gap-2 rounded-full transition-colors ${
+                active ? 'text-chalk bg-white/12 px-5' : 'text-ash px-4'
               }`}
             >
               <Icon />

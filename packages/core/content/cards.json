@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "thisOrThat": [
+    { "a": "Beach at sunrise", "b": "Mountains at midnight" },
+    { "a": "Texting all day", "b": "One long call at night" },
+    { "a": "Plan the whole trip", "b": "Book the flight, figure it out there" },
+    { "a": "Cook together badly", "b": "Order in, eat on the floor" },
+    { "a": "A big loud wedding", "b": "Two witnesses and a courthouse" },
+    { "a": "Live where we met", "b": "Somewhere neither of us has been" },
+    { "a": "Know the surprise early", "b": "Find out as it happens" },
+    { "a": "Say it now, badly", "b": "Wait and say it properly" },
+    { "a": "Both morning people", "b": "Both awake at 2am" },
+    { "a": "One speaker, same songs", "b": "Separate headphones, same sofa" },
+    { "a": "A letter in the post", "b": "A voice note at midnight" },
+    { "a": "A tattoo we both get", "b": "A song that is only ours" },
+    { "a": "Meet the whole family at once", "b": "One relative at a time, for a year" },
+    { "a": "Same city, ordinary jobs", "b": "Different cities, work we love" },
+    { "a": "Watch the finale without me", "b": "Wait however long it takes" },
+    { "a": "Argue it out tonight", "b": "Sleep on it" },
+    { "a": "A surprise party", "b": "A quiet dinner, just us" },
+    { "a": "Ten small holidays", "b": "One enormous one" },
+    { "a": "You pick the film", "b": "I pick the film" },
+    { "a": "Front row, too loud", "b": "Back row, can hear each other" },
+    { "a": "Split everything exactly", "b": "Whoever has it, pays" },
+    { "a": "Live above a bakery", "b": "Live above a bookshop" },
+    { "a": "A house with a garden", "b": "A flat with a view" },
+    { "a": "Photos printed and boxed", "b": "All of it in the cloud" },
+    { "a": "Tell each other everything", "b": "Keep one small thing" },
+    { "a": "Learn each other's language", "b": "Invent one of our own" },
+    { "a": "Same bedtime", "b": "Same alarm" },
+    { "a": "Road trip, phones off", "b": "Long flight, every film" },
+    { "a": "Rainy Sunday indoors", "b": "Cold walk, hot chocolate" },
+    { "a": "A dog we both spoil", "b": "A cat that picks a favourite" },
+    { "a": "Grow old in one place", "b": "Move every five years" },
+    { "a": "Breakfast in bed", "b": "Breakfast at the place round the corner" }
+  ],
+  "topics": {
+    "light": {
+      "label": "Light",
+      "isAdult": false,
+      "topics": [
+        "The best meal you have ever eaten, and who you were with.",
+        "A song that has started meaning me.",
+        "What you wanted to be when you were seven.",
+        "The last thing that made you laugh out loud on your own.",
+        "The place you go in your head when you cannot sleep.",
+        "The worst haircut you have ever had.",
+        "Something you are quietly very good at.",
+        "The most useless thing you own and refuse to throw out.",
+        "A film you would happily watch every year for the rest of your life.",
+        "Your ideal Saturday, hour by hour.",
+        "The nickname you had at school and how you feel about it now.",
+        "A smell that puts you somewhere else immediately.",
+        "Something you have changed your mind about this year.",
+        "The thing you order everywhere, in every restaurant."
+      ]
+    },
+    "deeper": {
+      "label": "Deeper",
+      "isAdult": false,
+      "topics": [
+        "What you were like at fifteen, and what you would tell them.",
+        "The kind of tired you have been lately.",
+        "Something you think I do not know about you yet.",
+        "A time you were braver than you felt.",
+        "What home means to you now, and what it meant growing up.",
+        "An apology you are still waiting for, or still owe.",
+        "What you would do with a year and no obligations.",
+        "Which of your parents you are more like, and how you feel about that.",
+        "The friendship you miss.",
+        "Something you are afraid of asking me.",
+        "A decision you made in a minute that turned out to matter.",
+        "What you want to be different in five years.",
+        "The thing you are proudest of and never mention.",
+        "How you know, in your body, when you are loved."
+      ]
+    },
+    "apart": {
+      "label": "Apart",
+      "isAdult": false,
+      "topics": [
+        "Which hour of the day is hardest, and what you do with it.",
+        "The first thing you want to do when we are in the same room.",
+        "Something you have stopped telling me because it felt too small.",
+        "A thing about your city I would love, that you have never described.",
+        "What you want the next visit to be like, in detail.",
+        "How you would like me to reach you on a bad day.",
+        "The date this stops being long distance, if we picked one tonight.",
+        "What you do in the hour after we hang up.",
+        "Something of mine you wish you had there.",
+        "The version of us you picture when you picture us."
+      ]
+    },
+    "just_us": {
+      "label": "Just us",
+      "isAdult": true,
+      "topics": [
+        "Something you think about and have never said out loud.",
+        "Where you like to be touched that I might not know about.",
+        "Something you would like to try.",
+        "What makes you feel most wanted.",
+        "A time you wanted me and did not say so.",
+        "What you would like more of.",
+        "The thing you would never ask for, and want.",
+        "What you want the first hour together to be."
+      ]
+    }
+  }
+}

@@ -1,16 +1,26 @@
 package com.twoends.app
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import android.os.Build
 import android.util.Base64
 import androidx.glance.appwidget.updateAll
+import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
+import com.twoends.app.widget.AnniversaryReceiver
 import com.twoends.app.widget.AnniversaryWidget
+import com.twoends.app.widget.CanvasReceiver
 import com.twoends.app.widget.CanvasWidget
+import com.twoends.app.widget.CountdownReceiver
 import com.twoends.app.widget.CountdownWidget
+import com.twoends.app.widget.DistanceReceiver
 import com.twoends.app.widget.DistanceWidget
+import com.twoends.app.widget.SnapsReceiver
 import com.twoends.app.widget.SnapsWidget
+import com.twoends.app.widget.StreakReceiver
 import com.twoends.app.widget.StreakWidget
 import com.twoends.app.widget.WidgetStore
 import kotlinx.coroutines.CoroutineScope
@@ -98,6 +108,63 @@ class WidgetsPlugin : Plugin() {
     }
 
     /**
+     * Whether this launcher will let the app offer to place a widget.
+     *
+     * `isRequestPinAppWidgetSupported` is the honest question and the answer is
+     * genuinely no on some launchers — a button that silently does nothing is
+     * worse than one that is not there, so the app asks before drawing it.
+     */
+    @PluginMethod
+    fun canPin(call: PluginCall) {
+        call.resolve(JSObject().put("value", pinSupported()))
+    }
+
+    /**
+     * Asks the launcher to add one widget to the home screen.
+     *
+     * This exists because the alternative is a sentence of instructions:
+     * "long-press an empty part of your home screen, tap Widgets, scroll to
+     * TwoEnds, press and hold, drag". Every step is a place to give up, and the
+     * widgets are the entire reason this app has an APK at all — the one
+     * feature nobody discovers is the one the whole project rests on.
+     *
+     * The launcher still shows its own confirmation, which is exactly right:
+     * an app that could silently put things on your home screen would be a
+     * worse thing to install.
+     */
+    @PluginMethod
+    fun pin(call: PluginCall) {
+        val name = call.getString("name")
+        val provider = PROVIDERS[name]
+
+        if (provider == null) {
+            call.reject("Unknown widget.")
+            return
+        }
+
+        if (!pinSupported()) {
+            call.reject("This launcher cannot add widgets for you.")
+            return
+        }
+
+        val manager = AppWidgetManager.getInstance(context)
+        val component = ComponentName(context.packageName, provider)
+
+        /*
+          No callback intent. Success here means "the launcher took the request",
+          not "a widget exists" — the person still has to confirm, and may not.
+          Reporting the confirmation would need a broadcast receiver whose only
+          job is to make the app feel clever about something it does not own.
+        */
+        val asked = manager.requestPinAppWidget(component, null, null)
+        call.resolve(JSObject().put("value", asked))
+    }
+
+    private fun pinSupported(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            AppWidgetManager.getInstance(context).isRequestPinAppWidgetSupported
+
+    /**
      * Fire-and-forget on the default dispatcher.
      *
      * The web app calls this after writing a snap or an answer, and a redraw
@@ -119,5 +186,21 @@ class WidgetsPlugin : Plugin() {
 
     private companion object {
         val ALLOWED_IMAGES = setOf("snap", "canvas")
+
+        /**
+         * The names the web app uses, mapped to the receivers the launcher binds.
+         *
+         * A map rather than a constructed class name, so a string arriving from
+         * the WebView can never name a component that was not meant to be here.
+         * The keys match the ids in `lib/widgets.ts`.
+         */
+        val PROVIDERS = mapOf(
+            "snaps" to SnapsReceiver::class.java.name,
+            "canvas" to CanvasReceiver::class.java.name,
+            "anniversary" to AnniversaryReceiver::class.java.name,
+            "countdown" to CountdownReceiver::class.java.name,
+            "streak" to StreakReceiver::class.java.name,
+            "distance" to DistanceReceiver::class.java.name,
+        )
     }
 }

@@ -51,6 +51,24 @@ export async function removeCountdown(id: string): Promise<void> {
 export const listCountdowns = (coupleId: string): Promise<Countdown[]> =>
   db.countdowns.where('couple_id').equals(coupleId).sortBy('target_at');
 
+/**
+ * The one worth putting on a home screen: the soonest that has not passed.
+ *
+ * Pure, and shared by Home, the widget snapshot and anything else that needs
+ * "the next one" — because the rule has a judgement in it that must not drift
+ * between them. A countdown stays current for a day *after* its date: the
+ * evening of the day she lands is not the moment to replace "she lands today"
+ * with the next thing on the list.
+ */
+export function soonestCountdown<T extends { target_at: string }>(
+  rows: readonly T[],
+  nowMs: number = Date.now(),
+): T | undefined {
+  return rows
+    .filter((row) => Date.parse(row.target_at) >= nowMs - 86_400_000)
+    .sort((a, b) => Date.parse(a.target_at) - Date.parse(b.target_at))[0];
+}
+
 // ── the shared list ──────────────────────────────────────────────────────────
 
 /**

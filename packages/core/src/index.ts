@@ -22,6 +22,7 @@ export * from './sync.ts';
 export * from './daily.ts';
 export * from './streakMath.ts';
 export * from './prompts.ts';
+export * from './cards.ts';
 export * from './strokes.ts';
 export * from './distance.ts';
 export * from './zip.ts';

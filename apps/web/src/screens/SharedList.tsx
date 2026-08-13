@@ -106,17 +106,38 @@ export function SharedList({ coupleId, tint }: { coupleId?: string; tint: string
         ))}
       </div>
 
-      <form onSubmit={add} className="mb-7 flex gap-2">
-        <TextInput
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder={LABELS[kind].prompt}
-          maxLength={120}
-          aria-label={LABELS[kind].prompt}
-        />
-        <Button accent={tint} disabled={!title.trim()} className="shrink-0 px-5">
-          Add
-        </Button>
+      {/*
+        Both children are wrapped rather than styled directly, and that is the
+        whole bug fix.
+
+        `Button` carries `w-full` in its own base classes, so `shrink-0` on top
+        of it made the Add button demand 100% of the row and refuse to give any
+        of it back — the input, which shrinks by default, collapsed to nothing.
+        There was still a caret in there and you could still type; you simply
+        could not see a single character of it, which is indistinguishable from
+        a dead field.
+
+        Fighting that with a `w-auto` on the button would have depended on which
+        order Tailwind happened to emit two width utilities in. A wrapper decides
+        the width in the layout instead, where it cannot be overridden by class
+        ordering at all.
+      */}
+      <form onSubmit={add} className="mb-7 flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <TextInput
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder={LABELS[kind].prompt}
+            maxLength={120}
+            aria-label={LABELS[kind].prompt}
+            enterKeyHint="done"
+          />
+        </div>
+        <div className="shrink-0">
+          <Button accent={tint} disabled={!title.trim()} className="px-6">
+            Add
+          </Button>
+        </div>
       </form>
 
       {open.length === 0 && done.length === 0 && (

@@ -255,6 +255,48 @@ export type Database = {
           },
         ]
       }
+      game_picks: {
+        Row: {
+          card_id: string
+          choice: number
+          couple_id: string
+          created_at: string
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          card_id: string
+          choice: number
+          couple_id: string
+          created_at?: string
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          card_id?: string
+          choice?: number
+          couple_id?: string
+          created_at?: string
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_picks_couple_id_fkey"
+            columns: ["couple_id"]
+            isOneToOne: false
+            referencedRelation: "couples"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_picks_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invites: {
         Row: {
           code: string
@@ -688,8 +730,19 @@ export type Database = {
       coarse_grid: { Args: never; Returns: number }
       confirm_unpair: { Args: never; Returns: undefined }
       create_invite: { Args: { p_ttl?: string }; Returns: string }
+      game_tally: {
+        Args: { p_couple_id: string }
+        Returns: {
+          agreed: number
+          played: number
+        }[]
+      }
       generate_invite_code: { Args: never; Returns: string }
       i_have_answered: { Args: { p_prompt_day_id: string }; Returns: boolean }
+      i_have_picked: {
+        Args: { p_card_id: string; p_couple_id: string }
+        Returns: boolean
+      }
       is_member_of: { Args: { c: string }; Returns: boolean }
       partner_has_answered: {
         Args: { p_prompt_day_id: string }

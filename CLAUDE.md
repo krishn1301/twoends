@@ -31,9 +31,11 @@ plan was written before Phase 0 and this is updated after every phase.
 ## Feature set
 
 **In, and committed** — snaps (daily photo), canvas, anniversary counter,
-special-day countdowns, streak, journal with map entries, distance apart. Plus
-the spine: pairing, onboarding, the daily question with a both-must-answer
-reveal, offline-first, full export, real delete, and no paywall surface anywhere.
+special-day countdowns, streak, journal with map entries, distance apart, the
+shared list, and **Play**: a this-or-that game with the same both-must-move
+reveal, plus topic cards to talk about. Plus the spine: pairing, onboarding, the
+daily question with a both-must-answer reveal, offline-first, full export, real
+delete, and no paywall surface anywhere.
 
 **Out** — thumb kiss (F7 in the plan) is dropped. No `thumb_events` table, no
 realtime broadcast channel for it, no haptics adapter, no widget. Supabase
@@ -80,17 +82,104 @@ Commands: `pnpm db:push`, `pnpm db:types`, `pnpm test:rls`, `pnpm verify`.
 
 ## Current phase
 
-**Phase 10 done: export and real delete both work, verified on the S9+.**
-Phase 9's distance feature is done. Phase 7's last step — a widget actually on
-a launcher — is still the one thing outstanding. Phases 0–6 shipped.
+**Phase 11 done. Phase 7 is finally closed too: all six widgets have been placed
+on a real launcher and drawn with real data.** Phases 0–10 shipped.
 
-### The APK runs on the S9+, and putting it there found three real bugs
+### Phase 11 — Play, and four things a person found by using the app
 
-None of them could have been found from the PWA, and all three are recorded as
-gotchas below. Briefly: half the accent palette was rejected by a check
-constraint so a third of new users could not create a profile at all; the
-manifest declared no location permission so `navigator.geolocation` could never
-succeed in the native app; and a `presence` row survived a "successful" delete.
+Everything below came from one round of feedback after real use, which is worth
+noting on its own: none of it came from a test.
+
+**1. Home's countdown was a fixture.** `useDesignModel` still served
+`SAMPLE_COUNTDOWN`, so the tile showed an invented trip and an invented number
+of days next to a countdown the couple had actually entered. It read as a bug
+because it *was* one, and it had survived five phases because a placeholder that
+looks like data never announces itself. The design model has been cut back to
+identity and arithmetic — every fixture is gone from it, and the ones that would
+be visible cannot come back. The tile now reads Dexie, shows the date under the
+title, and opens Dates.
+
+`soonestCountdown` lives in `db/repository.ts` because Home and the widget
+snapshot both need "the next one" and the rule has a judgement in it: a
+countdown stays current for a day *after* its date. Two copies of that would
+drift, and the widget would count down to something the app had moved past.
+
+**2. The shared list could not be typed into.** `Button` carries `w-full` in its
+base classes, and `SharedList` added `shrink-0` on top — so in a flex row the
+Add button demanded the whole width and refused to give any back, collapsing the
+input to nothing. The caret was there and typing worked; you simply could not
+see a character of it. Fixed with wrapper divs rather than a competing `w-auto`,
+because which of two width utilities wins depends on Tailwind's emit order and
+that is not a thing to rely on. **Any `Button` placed in a `flex-row` has this
+bug** — it was the only one.
+
+**3. Zoom.** Pinch and double-tap both worked, which is what made the APK feel
+like a website — and worse, the rails are sized in `vw`, so a zoomed viewport
+re-laid them out and clipped the cards. `user-scalable=no, maximum-scale=1` in
+the viewport meta plus `touch-action: manipulation` on `body`. Android's WebView
+honours the meta; iOS Safari has ignored it since iOS 10, so iPhone users keep
+their accessibility zoom either way. `touch-action` is the half that stops
+double-tap, which the meta tag does not cover on Android, and it also removes
+the 300ms delay a tile used to wait out.
+
+**4. Play — the fourth tab.** Both reference apps put a games section behind the
+paywall; candle's upsell literally reads "unlock all questions, widgets, games".
+Ours is the cheapest possible demonstration that this app means what it says.
+
+- **This or that** — 32 two-option cards, in `packages/core/content/cards.json`.
+  It is the daily question with the writing removed, so it survives the evening
+  when neither of you can compose a paragraph. Nothing reveals until both have
+  picked, and that is a **policy**, not a curtain: see
+  `supabase/migrations/00000000000016_game.sql`. `i_have_picked` is
+  security-definer for the same reason `i_have_answered` had to be — asking
+  about `game_picks` from inside a policy *on* `game_picks` recurses (42P17).
+- **Talk about** — topic cards that store nothing at all. They are subjects to
+  read out on a call, not questions to answer; recording an answer would turn a
+  conversation into homework. One button hands a topic to the daily loop.
+- `game_picks` goes straight to Supabase rather than through Dexie and the
+  outbox, like `asks` and `capsules`. The whole point of a pick is what the
+  other person did with it, so a queued pick that reveals nothing is a spinner
+  with extra steps.
+- **No push on a pick.** The cap is two per person per day and a deck is 32
+  cards; one evening of playing would spend both of somebody's notifications and
+  silence "they answered".
+- The deck order is seeded from the couple id so both phones show the same card
+  in the same place.
+
+**Two bugs the device found in Play, neither visible in code review:** picking
+made the deck jump to the next card before you saw your own choice light up
+(the index followed "first unfinished" and the board had just changed under it —
+fixed by pinning the index on pick); and the 2×2 streak widget bottom-aligned
+its content, leaving an empty top half that reads as a rendering fault.
+
+### Phase 7 is closed: the widgets are on a home screen
+
+The reason it had never happened is worth keeping. The widgets were registered,
+installed and working — and were still reported as *"I am not getting any
+options to add widgets"*, because the only route to them was: long-press an
+empty part of the home screen, find Widgets, scroll to TwoEnds, press and hold,
+drag. Nobody does that for an app they installed ten minutes ago.
+
+`WidgetsPlugin.pin()` now calls `requestPinAppWidget`, and the Widgets rail on
+Home is six real buttons instead of four inert pictures. The launcher still
+shows its own confirmation — an app that could silently add things to your home
+screen would be a worse thing to install — so the honest state after a tap is
+"asked", never "added". `canPin()` asks `isRequestPinAppWidgetSupported` first,
+because a button that does nothing is worse than no button.
+
+All six were then placed on the S9+ and photographed rendering real data:
+`together 1157 days` in the two-accent gradient, `countdown 13 days · Hug`, the
+snap centre-cropped under its scrim, `apart 1150 km from Aanya`, the streak with
+its week strip, and `aanya drew` with the drawing in her colour.
+
+### The APK on the S9+ has found five real bugs so far
+
+None could have been found from the PWA, and all are recorded as gotchas below.
+Briefly: half the accent palette was rejected by a check constraint so a third
+of new users could not create a profile at all; the manifest declared no
+location permission so `navigator.geolocation` could never succeed in the native
+app; a `presence` row survived a "successful" delete; the deck jumped a card on
+pick; and a 2×2 widget bottom-aligned itself into looking broken.
 
 ### Phase 10 — export and delete
 
@@ -142,26 +231,22 @@ says "same city" there. The constant is 16 rather than 15 because the test
 derives the worst case from `haversineKm` instead of trusting arithmetic in a
 comment — and 15 did not clear it.
 
-### Phase 7 — builds, installs, runs. Widgets not yet seen on a launcher.
+### Phase 7 — done. All six drawn by a real launcher.
 
-The APK compiles (`BUILD SUCCESSFUL`, 11.4 MB), installs, and launches. All six
-receivers are registered — confirmed with `dumpsys package com.twoends.app`. No
-crash in logcat.
+**Test device is the S9+** (`SM-G965F`, Android 10 / API 29, `3811500229057ece`).
+The Pixel 9a is no longer in play.
 
-**Test device is a Pixel 9a (Android 17), not the S9+.** `62211XEBF1F1F0`.
-
-What is still unproven, and it is the important half: **no widget has been
-placed on a home screen**, so nothing has ever called `provideGlance`. Every
-drawing decision — the rounded bitmap backgrounds, the centre-crop, the scrim,
-the week strip, the two-accent gradient — is untested. There is no adb command
-that binds a widget; it has to be done by hand from the launcher.
-
-To finish: connect the Pixel over USB, install the current APK, sign in, then
-long-press the home screen → Widgets → TwoEnds, and place all six.
+Every drawing decision is now proven rather than assumed: the rounded bitmap
+backgrounds, the centre-crop and scrim, the week strip, the two-accent gradient.
+`dumpsys appwidget | grep <Name>Receiver` returning **2** is the check — one
+line for the provider, one for a bound instance. Six providers with no instances
+is what "installed but never drawn" looks like, and it looks identical to
+working.
 
 **Most of the intended users are on iPhones and cannot install the APK at all**,
-so every feature has to be complete in the PWA. Distance is; the Widgets rail on
-Home is still an Android promo shown to everyone, which is worth revisiting.
+so every feature has to be complete in the PWA. Distance is, Play is, and the
+Widgets rail is now gated on `widgetsSupported()` with an honest card in its
+place rather than an advert for something the reader cannot reach.
 
 Design decisions worth keeping: widgets read a snapshot the app pushes, never
 the network — six background processes holding auth tokens is how a widget gets
@@ -368,6 +453,45 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
 - **The dev loop for the S9+ is `pnpm dev` over LAN** — Vite is configured with
   `host: true`, so the phone loads `http://<laptop-ip>:5173`. Both devices must
   be on the same router.
+- **`Button` carries `w-full` in its base classes.** Put one in a `flex-row`
+  beside an input and it takes the whole row; add `shrink-0` and it refuses to
+  give any back, collapsing the input to zero width. Typing still works and you
+  see none of it, which is indistinguishable from a dead field. Wrap both
+  children in divs — `min-w-0 flex-1` and `shrink-0` — rather than adding a
+  competing `w-auto`, because which width utility wins depends on Tailwind's
+  emit order.
+- **A fixture that looks like data never announces itself.** `SAMPLE_COUNTDOWN`
+  sat on Home for five phases showing an invented trip beside a real one, and
+  the only way to notice was to know what you had typed. Every remaining fixture
+  is out of `design/model.ts`; what is left is identity and arithmetic. If a
+  sample value has to exist on a real screen, it needs to say so on the screen.
+- **Chrome for Android honours `user-scalable=no`; iOS Safari has ignored it
+  since iOS 10.** So the meta tag fixes the Android WebView and leaves iPhone
+  accessibility zoom alone, which is the outcome you want anyway. It does *not*
+  stop double-tap zoom on Android — that needs `touch-action: manipulation`,
+  which also removes the 300ms click delay. `DrawSurface` sets `touch-action:
+none` for itself and must keep doing so.
+- **`requestPinAppWidget` is the only way most people will ever get a widget.**
+  Six registered providers and a working app still reads as "there are no
+  widgets" if the route to them is a long-press on the wallpaper. Guard it with
+  `isRequestPinAppWidgetSupported`; the launcher shows its own confirmation, so
+  the app can never report more than "asked".
+- **`dumpsys appwidget | grep <Name>Receiver` returning 1 means never placed.**
+  One line is the provider, two is provider plus a bound instance. A widget that
+  has never been bound has never run `provideGlance`, and from the app's side
+  that is indistinguishable from one that works.
+- **A Glance `Column` with `verticalAlignment = Bottom` is right for a 2×1 strip
+  and wrong for a 2×2.** The streak widget bottom-aligned itself into a tall
+  black tile with an empty top half, which reads as a rendering fault. Only a
+  launcher shows you this.
+- **Seeding a canvas by hand needs the exact `Drawing` shape** — `{ version: 1,
+  strokes: [{ color, width, points: [{x, y, p}] }] }`. `isDrawing` correctly
+  rejects anything else, and the widget then draws its empty state, which looks
+  like a broken widget rather than a bad fixture.
+- **The service role has no `auth.uid()`,** so any `security definer` function
+  that checks `is_member_of` returns nothing when called from a seeding script.
+  `game_tally` looks broken that way and is not; test it from a signed-in
+  client.
 
 ## Open questions
 

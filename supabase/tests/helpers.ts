@@ -100,6 +100,7 @@ export const COUPLE_TABLES = [
   'journal_entries',
   'list_items',
   'capsules',
+  'game_picks',
 ] as const;
 
 export type CoupleTable = (typeof COUPLE_TABLES)[number];

@@ -35,6 +35,13 @@ const TABLES = [
   'journal_entries',
   'list_items',
   'capsules',
+  /*
+    Your own picks, and their picks on every card you have both played. The
+    cards they picked and you did not are simply absent — the reveal policy
+    applies to an export exactly as it does to the screen, which is the correct
+    answer rather than a limitation.
+  */
+  'game_picks',
 ] as const;
 
 const BUCKETS = ['photos', 'covers'] as const;

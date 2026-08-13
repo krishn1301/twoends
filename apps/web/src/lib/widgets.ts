@@ -3,6 +3,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 
 import { paintStroke } from './paintStroke.ts';
 import { db } from '../db/schema.ts';
+import { soonestCountdown } from '../db/repository.ts';
 import { signedUrls, type Snap } from '../db/photos.ts';
 import type { SharedCanvas } from '../db/canvas.ts';
 
@@ -40,10 +41,30 @@ interface WidgetSnapshot {
   quiet: boolean;
 }
 
+/**
+ * The six, in the order they are offered.
+ *
+ * These ids are a contract with `WidgetsPlugin.PROVIDERS` on the Kotlin side.
+ * A typo here is a rejected call rather than a wrong widget, which is the
+ * failure mode worth having.
+ */
+export const WIDGETS = [
+  { id: 'snaps', name: 'Their latest photo', note: 'Whatever they last sent, full bleed.' },
+  { id: 'canvas', name: 'The canvas', note: 'Whatever the two of you drew.' },
+  { id: 'anniversary', name: 'Days together', note: 'Counting up, in both your colours.' },
+  { id: 'countdown', name: 'The next countdown', note: 'Days until the soonest one.' },
+  { id: 'streak', name: 'Streak', note: 'The number and the week so far.' },
+  { id: 'distance', name: 'How far apart', note: 'Distance only. Never where.' },
+] as const;
+
+export type WidgetId = (typeof WIDGETS)[number]['id'];
+
 interface WidgetsBridge {
   update(options: { snapshot: WidgetSnapshot }): Promise<void>;
   putImage(options: { name: 'snap' | 'canvas'; data: string | null }): Promise<void>;
   clear(): Promise<void>;
+  canPin(): Promise<{ value: boolean }>;
+  pin(options: { name: WidgetId }): Promise<{ value: boolean }>;
 }
 
 const Widgets = registerPlugin<WidgetsBridge>('Widgets');
@@ -51,6 +72,43 @@ const Widgets = registerPlugin<WidgetsBridge>('Widgets');
 /** Android only. iOS widgets are Phase 8 and need a different bridge entirely. */
 export const widgetsSupported = (): boolean =>
   Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
+
+/**
+ * Whether this launcher will let the app offer to place a widget for you.
+ *
+ * Most will. Some will not, and on those the app has to fall back to telling
+ * you where the widget drawer is rather than showing a button that does
+ * nothing.
+ */
+export async function canPinWidgets(): Promise<boolean> {
+  if (!widgetsSupported()) return false;
+  try {
+    return (await Widgets.canPin()).value;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Asks the launcher to put one widget on the home screen.
+ *
+ * The reason this exists at all: the widgets are why there is an APK, and the
+ * only route to them was "long-press the home screen, find Widgets, scroll to
+ * TwoEnds, press and hold, drag". Every step in that sentence is somewhere to
+ * give up, and it was reported here as the feature simply not being there.
+ *
+ * The launcher shows its own confirmation, which is correct — an app able to
+ * silently add things to your home screen would be a worse thing to install.
+ * So `true` means "the launcher was asked", never "a widget now exists".
+ */
+export async function pinWidget(id: WidgetId): Promise<boolean> {
+  if (!widgetsSupported()) return false;
+  try {
+    return (await Widgets.pin({ name: id })).value;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Widget art is deliberately small.
@@ -217,14 +275,16 @@ function canvasArt(shared: SharedCanvas | null): string | null {
 
 // ── data ─────────────────────────────────────────────────────────────────────
 
-/** The soonest one still ahead. A countdown to a date that has passed is noise. */
+/**
+ * The soonest one still ahead. A countdown to a date that has passed is noise.
+ *
+ * The choosing lives in `repository.ts` so that the widget and Home cannot
+ * disagree about which countdown is "the next one" — they were two copies of
+ * the same three lines, which is exactly how a widget ends up counting down to
+ * something the app has already moved past.
+ */
 async function nextCountdown(coupleId: string) {
-  const now = Date.now();
-  const rows = await db.countdowns.where('couple_id').equals(coupleId).toArray();
-
-  return rows
-    .filter((row) => Date.parse(row.target_at) >= now - 86_400_000)
-    .sort((a, b) => Date.parse(a.target_at) - Date.parse(b.target_at))[0];
+  return soonestCountdown(await db.countdowns.where('couple_id').equals(coupleId).toArray());
 }
 
 const mark = (value: DayMark): string =>
