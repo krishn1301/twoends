@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Backup is off.
+
+      Android's default would sync app-private storage to the account's Drive —
+      including the widget snapshot, which holds a photo they sent. Unpair and
+      account deletion promise a delete that actually deletes, and a copy in
+      someone's cloud backup that neither partner knows about would make that
+      untrue. The data is all recoverable from Supabase on a reinstall anyway.
+    -->
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <!--
+          The six widgets.
+
+          `exported="true"` is required — the launcher is a different process and
+          has to be able to bind these. It is not a hole: a receiver only ever
+          reads the snapshot this app wrote for it, and the snapshot holds a day
+          count, a streak and a first name. No token, no coordinate, no photo
+          path that resolves outside this app's own storage.
+        -->
+        <receiver
+            android:name=".widget.SnapsReceiver"
+            android:label="@string/widget_snaps_description"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_snaps" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.CanvasReceiver"
+            android:label="@string/widget_canvas_description"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_canvas" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.AnniversaryReceiver"
+            android:label="@string/widget_anniversary_description"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_anniversary" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.CountdownReceiver"
+            android:label="@string/widget_countdown_description"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_countdown" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.StreakReceiver"
+            android:label="@string/widget_streak_description"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_streak" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.DistanceReceiver"
+            android:label="@string/widget_distance_description"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_distance" />
+        </receiver>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+    <!-- Permissions -->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>

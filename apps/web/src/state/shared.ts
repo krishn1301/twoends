@@ -11,7 +11,8 @@ import {
 } from '../db/capsules.ts';
 import { recentEntries, type JournalEntry } from '../db/journal.ts';
 import { recentSnaps, signedUrls, type Snap } from '../db/photos.ts';
-import type { Couple } from './session.ts';
+import { syncWidgets } from '../lib/widgets.ts';
+import { useSession, type Couple } from './session.ts';
 
 /**
  * The shared surfaces: the latest snap, the latest drawing, and the streak.
@@ -71,6 +72,8 @@ export const useShared = create<SharedState>((set) => ({
     const today = localDateIn(couple.day_timezone ?? 'UTC');
     const streak = computeStreak(days, today);
 
+    const week = weekMarks(days, today);
+
     set({
       snaps,
       urls,
@@ -79,8 +82,30 @@ export const useShared = create<SharedState>((set) => ({
       sealed,
       opened,
       streak: { current: streak.current, longest: streak.longest },
-      week: weekMarks(days, today),
+      week,
       loaded: true,
+    });
+
+    /*
+      Push the same state out to the home screen.
+
+      Not awaited: this runs on every foreground and after every send, and the
+      screen must never wait on a widget redraw. A failure here costs a stale
+      widget until the next load — the app itself is already correct.
+    */
+    const { profile, partner } = useSession.getState();
+    void syncWidgets({
+      myId: profile?.id ?? null,
+      myName: profile?.display_name ?? '',
+      theirName: partner?.display_name ?? '',
+      myAccentKey: profile?.accent_key ?? 'coral',
+      theirAccentKey: partner?.accent_key ?? 'rose',
+      coupleId: couple.id,
+      startedOn: couple.started_on ?? null,
+      snaps,
+      canvas,
+      streak: { current: streak.current },
+      week,
     });
   },
 

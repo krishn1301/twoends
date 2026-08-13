@@ -1,0 +1,120 @@
+name: Android APK
+
+# The build machine. There is no Android SDK on the laptop this project is
+# written on, and there does not need to be — a GitHub runner ships the JDK and
+# the SDK preinstalled, so the toolchain costs nothing on disk and the build is
+# reproducible rather than dependent on one machine's environment.
+#
+# Run it from the Actions tab: "Android APK" → "Run workflow". The APK lands
+# under Artifacts on the run page.
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    # Only when something that reaches the APK changed. A doc edit should not
+    # cost five minutes of CI.
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - '.github/workflows/android.yml'
+      - 'pnpm-lock.yaml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Android Gradle Plugin 8.13 wants 17 or newer; 21 is the version it
+          # is actually tested against.
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck, lint and test
+        # The same gate that runs before every commit. A widget built from code
+        # that does not pass it is not worth installing.
+        run: pnpm check
+
+      - name: Build the web bundle
+        env:
+          # These three are inlined by Vite at build time. The URL and anon key
+          # are public by design — they ship in the deployed PWA too, and the
+          # security boundary is row-level security on the server, which the
+          # leak suite tests. They live in secrets so the repo does not have to
+          # name a specific Supabase project.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
+          # Not the GitHub Pages prefix. The WebView serves from the bundle
+          # root, and a '/twoends/' base there produces an app that loads a
+          # white screen and no error.
+          VITE_BASE: /
+        run: |
+          for name in VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret $name — add it under Settings → Secrets and variables → Actions."
+              exit 1
+            fi
+          done
+          pnpm --filter @twoends/web build
+
+      - name: Sync Capacitor
+        working-directory: apps/web
+        run: pnpm exec cap sync android
+
+      - name: Assemble the debug APK
+        working-directory: apps/web/android
+        env:
+          # Monotonic across runs, so Android treats each build as an upgrade.
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Check it is signed and the widgets are in it
+        run: |
+          APK=apps/web/android/app/build/outputs/apk/debug/app-debug.apk
+          test -f "$APK" || { echo "::error::No APK was produced"; exit 1; }
+
+          # An unsigned APK installs on nothing, and the failure only shows up
+          # on the phone. Catch it here.
+          unzip -l "$APK" | grep -qE 'META-INF/.*\.(RSA|EC|DSA)' \
+            || { echo "::error::APK has no signature block"; exit 1; }
+
+          # The whole reason this APK exists. If the receivers are missing the
+          # app installs fine and the widget picker is simply empty, which is a
+          # very slow way to find out something went wrong.
+          AAPT=$(ls -d "$ANDROID_HOME"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -1)
+          if [ -n "$AAPT" ]; then
+            found=$("$AAPT" dump xmltree --file AndroidManifest.xml "$APK" | grep -c 'Receiver' || true)
+            echo "Widget receivers found in the manifest: $found"
+            [ "$found" -ge 6 ] || { echo "::error::Expected six widget receivers, found $found"; exit 1; }
+          fi
+
+          cp "$APK" "TwoEnds-debug-${{ github.run_number }}.apk"
+          echo "Built TwoEnds-debug-${{ github.run_number }}.apk ($(du -h "$APK" | cut -f1))"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TwoEnds-apk
+          path: TwoEnds-debug-*.apk
+          # A debug APK is a test build, not an archive. Ninety days of them
+          # would be ninety copies of the same app.
+          retention-days: 14

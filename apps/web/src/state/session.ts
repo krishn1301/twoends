@@ -4,6 +4,7 @@ import { create } from 'zustand';
 
 import { wipeLocal } from '../db/schema.ts';
 import { supabase } from '../lib/supabase.ts';
+import { clearWidgets } from '../lib/widgets.ts';
 
 /**
  * Who is using this app, and how far through the setup they are.
@@ -121,6 +122,7 @@ export const useSession = create<SessionState>((set, get) => ({
         if (definitelyGone) {
           await supabase.auth.signOut();
           await wipeLocal();
+          await clearWidgets();
           await supabase.auth.signInAnonymously();
           await get().refresh();
           return;
@@ -217,6 +219,9 @@ export const useSession = create<SessionState>((set, get) => ({
     // The local mirror goes with the session. Leaving the pair's words in
     // IndexedDB for whoever opens the browser next would make sign-out a lie.
     await wipeLocal();
+    // Same reasoning, one layer out: a snap still sitting on the home screen
+    // after sign-out is the copy nobody thinks to check.
+    await clearWidgets();
     set({
       status: 'loading',
       session: null,
@@ -240,6 +245,7 @@ export const useSession = create<SessionState>((set, get) => ({
 export async function recoverSession(): Promise<void> {
   await supabase.auth.signOut();
   await wipeLocal();
+  await clearWidgets();
   await supabase.auth.signInAnonymously();
   await useSession.getState().refresh();
 }

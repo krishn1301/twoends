@@ -1,0 +1,136 @@
+apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
+
+android {
+    namespace = "com.twoends.app"
+    compileSdk = rootProject.ext.compileSdkVersion
+
+    buildFeatures {
+        compose = true
+    }
+
+    /*
+      Pinned to 17 on purpose. Gradle itself may run on whatever JDK is
+      installed — 21, 23 — but the bytecode this module emits must not drift
+      with it, or the APK stops installing on the older phone it is built for.
+    */
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+
+        /*
+          `java.time` arrived in API 26 and minSdk here is 24. The widgets do
+          real calendar arithmetic — days together, days until — and rolling
+          that by hand is how a countdown ends up one day out across a daylight
+          saving boundary. Desugaring costs a few hundred kilobytes.
+        */
+        coreLibraryDesugaringEnabled true
+    }
+    defaultConfig {
+        applicationId "com.twoends.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        /*
+          CI passes the run number so each build is an upgrade rather than a
+          sidegrade Android refuses to install over the previous one. Locally
+          it is always 1, which is fine — a laptop build replaces itself.
+        */
+        versionCode (System.getenv("VERSION_CODE") ?: "1") as Integer
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    /*
+      A checked-in debug key, on purpose.
+
+      Gradle's default is to invent one in ~/.android on first build. On a CI
+      runner that home directory is new every time, so every build would be
+      signed by a different key — and Android refuses to install an APK over one
+      with a different signature. The only way through is uninstalling first,
+      which wipes the app's data and un-pairs both phones.
+
+      The password is "android", which is Android's own published convention for
+      debug keys. It protects nothing and is not meant to. Play will not accept
+      an APK signed with it, so it cannot be mistaken for a release key.
+    */
+    signingConfigs {
+        debug {
+            storeFile file('../debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+}
+
+/*
+  Top level, not inside `android`. The Kotlin Gradle plugin owns this extension;
+  putting it in the android block makes Gradle fail at configuration time with a
+  "method not found" that reads like the plugin is missing entirely.
+*/
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+
+    /*
+      Glance — app widgets written as Compose.
+
+      The alternative is RemoteViews and XML layouts, which is what widgets were
+      before 2022. Six widgets in RemoteViews means six layout files, manual
+      bitmap work for every rounded corner, and no way to share a colour scheme
+      with the app. Glance draws them as composables and translates to
+      RemoteViews underneath.
+    */
+    implementation "androidx.glance:glance-appwidget:$glanceVersion"
+    implementation "androidx.glance:glance-material3:$glanceVersion"
+    implementation "androidx.core:core-ktx:$androidxCoreVersion"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion"
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:$desugarVersion"
+
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

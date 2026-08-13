@@ -80,7 +80,28 @@ Commands: `pnpm db:push`, `pnpm db:types`, `pnpm test:rls`, `pnpm verify`.
 
 ## Current phase
 
-**Phase 1 — complete.** Ready for Phase 2 (auth, onboarding, pairing).
+**Phase 7 — code complete, unverified on a phone.** Phases 0–6 shipped.
+
+The six Glance widgets, the `Widgets` Capacitor plugin and the CI workflow are
+written and `pnpm check` is green (81 tests). What has **not** happened: the APK
+has never been built, installed, or seen on a launcher. Everything below the web
+layer is therefore unproven — the same standing as Phase 1's migrations before
+they first met a real Postgres.
+
+To finish it: add the three `VITE_*` repository secrets, run the **Android APK**
+workflow, install the artifact on the S9+, and put all six widgets on a home
+screen.
+
+Design decisions worth keeping: widgets read a snapshot the app pushes, never
+the network — six background processes holding auth tokens is how a widget gets
+uninstalled. Dates are stored as anchors and counted at draw time, so a widget
+the launcher has not redrawn in a day is still correct. `allowBackup` is off,
+because the snapshot holds a photo and a silent Drive copy would break the
+delete promise.
+
+---
+
+**Phase 1 — complete.** (Historical.)
 
 The schema, RLS and storage policies are applied to the live project and the
 leak suite is green — **and proven**: a `members read` policy was deliberately
@@ -165,10 +186,33 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   (SM-G965F, `star2lte`, 1080x2220 override, density 420) connects over USB.
   `adb reverse tcp:5173 tcp:5173` then `http://localhost:5173` on the phone is
   more reliable than the LAN address, and works regardless of Wi-Fi.
-- **Phase 7 is still blocked on a JDK.** Installed JDKs are 23 and JRE 8; the
-  Android Gradle Plugin supports neither, and there is no Android Studio.
-  Install it (it bundles a JBR 21) before starting Phase 7. `adb` alone is
-  enough to install and debug, not to build.
+- **The APK is built in CI, and no Android SDK is installed locally — on
+  purpose.** `.github/workflows/android.yml` runs on a GitHub runner, which
+  ships the JDK and the SDK already. This replaces an earlier note here claiming
+  Phase 7 was blocked on installing a JDK; it never was. The sibling `Life.rpg`
+  project settled this the same way and is worth reading
+  (`D:\Project\Life.rpg\.github\workflows\android-release.yml`). Local Gradle
+  would cost ~3 GB and C: had 2.7 GB free.
+  `adb` is still needed, and is still not on PATH.
+- **`apps/web/android/debug.keystore` is committed, deliberately.** Gradle
+  invents a debug key in `~/.android` when none exists, and a CI runner's home
+  is new every run — so every build would carry a different signature and
+  Android would refuse to install it over the last one. The only way through is
+  uninstalling, which wipes the pairing. Its password is `android`, the
+  published convention; Play rejects APKs signed with it. The root `.gitignore`
+  still blocks `*.keystore` everywhere else, via a single `!` exception.
+- **`cap add android` copies the built web bundle into the native project**, and
+  ESLint will happily lint minified output — 2,359 errors about `self` being
+  undefined, burying every real one. `apps/web/android/` is in the ESLint
+  ignores for that reason, and the copied bundle is gitignored.
+- **Glance cannot use the app's fonts, and `cornerRadius` needs API 31.**
+  RemoteViews only resolve fonts the launcher process can see, so the widgets
+  lean on size and weight where the app leans on Fraunces. Rounded corners are
+  drawn as bitmaps instead, which also happens to be how the anniversary widget
+  gets its two-accent gradient.
+- **The Kotlin `kotlin { compilerOptions { } }` block is top-level**, not inside
+  `android { }`. Nesting it fails at configuration time with a "method not
+  found" that reads as though the Kotlin plugin were missing entirely.
 - **The dev loop for the S9+ is `pnpm dev` over LAN** — Vite is configured with
   `host: true`, so the phone loads `http://<laptop-ip>:5173`. Both devices must
   be on the same router.

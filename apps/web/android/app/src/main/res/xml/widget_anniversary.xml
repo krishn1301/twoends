@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Thirty minutes, the shortest the system allows. The number this shows changes
+  at midnight whether or not the app has run, so it is one of only two widgets
+  here that genuinely needs a timer. The redraw is local arithmetic — no radio,
+  no disk beyond one preferences read.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="140dp"
+    android:minHeight="70dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="1"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="70dp"
+    android:description="@string/widget_anniversary_description"
+    android:updatePeriodMillis="1800000"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:previewImage="@mipmap/ic_launcher"
+    android:initialLayout="@layout/glance_default_loading_layout" />

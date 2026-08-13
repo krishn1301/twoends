@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">TwoEnds</string>
+    <string name="title_activity_main">TwoEnds</string>
+    <string name="package_name">com.twoends.app</string>
+    <string name="custom_url_scheme">com.twoends.app</string>
+
+    <!--
+      Shown in the widget picker. Written as what you get rather than what it
+      is, because the picker is a long list of app names and a person scrolling
+      it is deciding what to give home-screen space to.
+    -->
+    <string name="widget_snaps_description">Their latest photo, on your home screen</string>
+    <string name="widget_canvas_description">The canvas you both draw on</string>
+    <string name="widget_anniversary_description">Days together, counting up</string>
+    <string name="widget_countdown_description">Days until the next one</string>
+    <string name="widget_streak_description">Your streak and this week</string>
+    <string name="widget_distance_description">How far apart, never where</string>
+</resources>

@@ -19,6 +19,20 @@ dist-ssr/
 *.jks
 keystore.properties
 
+# ...with one deliberate exception.
+#
+# `debug.keystore` is not a secret and is not allowed to become one. Its
+# password is the literal string "android", the same convention Android's own
+# auto-generated debug key uses, and it can only ever sign debug builds — Play
+# refuses an APK signed with it.
+#
+# It is committed because CI generates a fresh debug key on every run otherwise,
+# which changes the APK's signature, which makes Android refuse to install the
+# new build over the old one. The workaround is uninstalling first, and that
+# wipes the pairing. Two people re-pairing on every test build is not a
+# development loop anyone sticks to.
+!apps/web/android/debug.keystore
+
 # editor / OS
 .vscode/*
 !.vscode/extensions.json
@@ -26,9 +40,22 @@ keystore.properties
 .DS_Store
 Thumbs.db
 
-# generated native shells (Capacitor, phases 7-8)
+# Capacitor native shells.
+#
+# The Android project itself IS committed — it holds the six Glance widgets and
+# the plugin that feeds them, which are hand-written and the whole point of
+# Phase 7. Only the parts Gradle and `cap sync` regenerate are ignored.
 apps/android/
 apps/ios/
+apps/web/ios/
+apps/web/android/.gradle/
+apps/web/android/build/
+apps/web/android/app/build/
+apps/web/android/capacitor-cordova-android-plugins/
+apps/web/android/local.properties
+# The built web bundle, copied in by `cap sync`. Committing it would mean every
+# APK build showed up as a diff of minified JavaScript.
+apps/web/android/app/src/main/assets/public/
 
 # logs
 *.log

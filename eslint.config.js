@@ -11,7 +11,21 @@ import tseslint from 'typescript-eslint';
  * A check nobody waits for is a check nobody runs.
  */
 export default tseslint.config(
-  { ignores: ['**/dist/', '**/dist-*/', '**/node_modules/', 'Inspiration/'] },
+  {
+    ignores: [
+      '**/dist/',
+      '**/dist-*/',
+      '**/node_modules/',
+      'Inspiration/',
+      /*
+        The native project is generated, and `cap sync` copies the built web
+        bundle into it. Linting that means linting minified output — a couple of
+        thousand errors about `self` being undefined, drowning every real one.
+      */
+      'apps/web/android/',
+      'apps/web/ios/',
+    ],
+  },
 
   js.configs.recommended,
   ...tseslint.configs.recommended,
