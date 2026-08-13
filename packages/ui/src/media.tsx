@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 
 /**
  * Faces, photographs and hand-made marks.
@@ -60,9 +60,15 @@ export function Snapshot({
 /**
  * A face.
  *
- * Falls back to the initial on their accent when there is no photograph, which
- * is most of the time at first and is never treated as a broken state — a
- * coloured circle with a letter in it is a perfectly good way to be recognised.
+ * The initial is a *fallback*, not a decoration: it shows when there is no
+ * photograph, which is most of the time at first and is never treated as a
+ * broken state — a coloured circle with a letter in it is a perfectly good way
+ * to be recognised. When there is a photograph, the photograph is the whole
+ * point and the letter gets out of the way.
+ *
+ * It also comes back if the image fails. Signed URLs expire, and an avatar that
+ * silently becomes an empty coloured disc is worse than one that goes back to
+ * saying who it is.
  */
 export function Avatar({
   name,
@@ -78,6 +84,14 @@ export function Avatar({
   /** A signed URL. Absent until they upload one. */
   src?: string | null;
 }) {
+  const [broken, setBroken] = useState(false);
+
+  // A new URL deserves a fresh attempt — otherwise re-signing a link that had
+  // expired leaves the avatar stuck on the initial until the screen remounts.
+  useEffect(() => setBroken(false), [src]);
+
+  const showPhoto = Boolean(src) && !broken;
+
   return (
     <span
       className="relative inline-grid shrink-0 place-items-center overflow-hidden rounded-full"
@@ -88,16 +102,21 @@ export function Avatar({
         boxShadow: ring ? `0 0 0 2px ${ring}` : undefined,
         fontSize: size * 0.4,
       }}
+      // `role` matters more now that the letter is conditional: an aria-label on
+      // a bare span is not reliably announced, and with a photo showing there is
+      // no longer any text inside to fall back on.
+      role="img"
       aria-label={name}
     >
-      {src && (
+      {showPhoto && (
         <img
-          src={src}
+          src={src ?? undefined}
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
-          // The accent circle stays underneath, so a slow or failed load shows
-          // their colour rather than a grey hole.
+          // The accent circle stays underneath, so a slow load shows their
+          // colour rather than a grey hole.
           loading="lazy"
+          onError={() => setBroken(true)}
         />
       )}
       {/*
@@ -106,9 +125,11 @@ export function Avatar({
         Chromium — on the S9+ that painted a black square around every avatar.
         At 30-60px the texture bought nothing anyway.
       */}
-      <span className="font-display relative leading-none font-semibold text-white/95">
-        {name.slice(0, 1)}
-      </span>
+      {!showPhoto && (
+        <span className="font-display relative leading-none font-semibold text-white/95">
+          {name.slice(0, 1)}
+        </span>
+      )}
     </span>
   );
 }

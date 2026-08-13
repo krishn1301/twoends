@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { deviceTimezone, getAccent, nearestAccent, type AccentKey } from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 
 import { Button, Field, TextInput } from '../components/Field.tsx';
 import { supabase } from '../lib/supabase.ts';
+import { useAvatars } from '../state/avatars.ts';
 import { takeCoupleDraft } from '../state/coupleDraft.ts';
 import { inviteCodeFromUrl, useSession } from '../state/session.ts';
 import { useWaitForPartner } from '../state/useWaitForPartner.ts';
@@ -52,6 +53,13 @@ export function Pair() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const avatarUrls = useAvatars((s) => s.urls);
+  const loadAvatars = useAvatars((s) => s.load);
+
+  useEffect(() => {
+    void loadAvatars([profile?.avatar_path]);
+  }, [profile?.avatar_path, loadAvatars]);
 
   const accent = getAccent(profile?.accent_key ?? 'teal');
   const tint = accent.onDark;
@@ -174,7 +182,17 @@ export function Pair() {
         {mode === 'choose' && (
           <>
             <div className="mb-8 flex items-center gap-3">
-              <Avatar name={profile?.display_name ?? '?'} accent={tint} size={56} />
+              {/*
+                Their own face, not their initial. Onboarding asks for a photo
+                two screens earlier, and showing a letter here made the upload
+                look like it had not taken.
+              */}
+              <Avatar
+                name={profile?.display_name ?? '?'}
+                accent={tint}
+                size={56}
+                src={profile?.avatar_path ? avatarUrls.get(profile.avatar_path) : null}
+              />
               <span className="flex-1 border-t border-dashed border-white/20" />
               <span className="grid h-14 w-14 place-items-center rounded-full border border-dashed border-white/25 text-2xl text-white/30">
                 ?
