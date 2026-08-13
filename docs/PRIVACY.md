@@ -72,6 +72,13 @@ on for someone else.
   nothing survived.
 - **Full export**, one tap, a ZIP of JSON plus original-quality media. The data
   belongs to the couple.
+- **Two things are hidden from your own partner until you have moved**: their
+  answer to the daily question, and their pick in the this-or-that game. Both
+  are enforced by a restrictive `select` policy — `answers` since migration 8,
+  `game_picks` since 16 — because a client that receives the row and declines to
+  render it has drawn a curtain, and anyone with dev tools can walk round a
+  curtain. Nothing about the hidden row reaches the device: not the value, not
+  its length, not the fact that it exists.
 
 ## Third parties
 

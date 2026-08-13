@@ -499,3 +499,10 @@ none` for itself and must keep doing so.
   approach in Phase 8. Must be verified on the actual Mac, not assumed.
 - Whether to publish the 18+ packs at all, and the age rating that implies.
   Irrelevant while distribution is sideloaded APK + PWA.
+- **The APK says "This browser cannot do notifications."** Capacitor's WebView
+  has no Push API, so the native app cannot register a token and never receives
+  a nudge. The widgets cover that need on Android and the PWA does get Web Push
+  on iOS 16.4+ once added to the Home Screen — so the design still holds — but
+  it means the one platform with widgets is the one with no notifications, which
+  is the opposite of what you would guess. Fixing it means a real Capacitor push
+  plugin and FCM, which is a Google dependency the project has so far avoided.
