@@ -4,6 +4,7 @@ import { ACCENTS, emptyDrawing, getAccent, type Drawing, type Stroke } from '@tw
 
 import { DrawSurface } from '../components/DrawSurface.tsx';
 import { appendStrokes, clearCanvas } from '../db/canvas.ts';
+import { notifyPartner } from '../db/push.ts';
 import { useSession } from '../state/session.ts';
 import { useShared } from '../state/shared.ts';
 
@@ -89,6 +90,7 @@ export function Draw({ onSent }: { onSent?: () => void }) {
     if (couple) await load(couple);
     setAdded([]);
     setBusy(false);
+    notifyPartner('drawing');
     onSent?.();
   }
 

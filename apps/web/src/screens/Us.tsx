@@ -4,6 +4,7 @@ import { ACCENTS, ACCENT_KEYS, getAccent, timeTogether, type AccentKey } from '@
 import { Avatar } from '@twoends/ui';
 
 import { removeAvatar, uploadAvatar } from '../db/avatars.ts';
+import { disablePush, enablePush, pushState, type PushState } from '../db/push.ts';
 import { supabase } from '../lib/supabase.ts';
 import { useAvatars } from '../state/avatars.ts';
 import { useSession } from '../state/session.ts';
@@ -36,6 +37,8 @@ export function Us() {
   const [error, setError] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(profile?.display_name ?? '');
+  const [push, setPush] = useState<PushState>(() => pushState());
+  const [pushBusy, setPushBusy] = useState(false);
 
   const mine = getAccent(profile?.accent_key ?? 'teal').onDark;
   const theirs = getAccent(partner?.accent_key ?? 'rose').onDark;
@@ -70,6 +73,22 @@ export function Us() {
     await removeAvatar(profile.id, profile.avatar_path);
     setBusy(false);
     await refresh();
+  }
+
+  async function togglePush() {
+    if (!profile) return;
+    setPushBusy(true);
+    setError(null);
+
+    if (push === 'on') {
+      await disablePush(profile.id);
+    } else {
+      const { error } = await enablePush(profile.id);
+      if (error) setError(error);
+    }
+
+    setPush(pushState());
+    setPushBusy(false);
   }
 
   async function saveName() {
@@ -198,6 +217,45 @@ export function Us() {
                 );
               })}
             </div>
+          </div>
+        </Group>
+
+        <Group title="Notifications">
+          {push === 'needs-install' ? (
+            <div className="px-4 py-3.5">
+              <p className="text-sm font-medium">Add TwoEnds to your Home Screen first</p>
+              {/*
+                Not a nag, a fact. Safari grants notification permission only to
+                an installed web app, never to a tab — so asking here would fail
+                with no way to tell refusal from impossibility.
+              */}
+              <p className="text-ash mt-1.5 text-sm leading-relaxed">
+                On iPhone, notifications only work once the app is installed. Share → Add to Home
+                Screen, then open it from there.
+              </p>
+            </div>
+          ) : push === 'unsupported' ? (
+            <div className="px-4 py-3.5">
+              <p className="text-ash text-sm">This browser cannot do notifications.</p>
+            </div>
+          ) : (
+            <Row label={push === 'on' ? 'On' : 'Off'}>
+              <button
+                type="button"
+                onClick={() => void togglePush()}
+                disabled={pushBusy || push === 'denied'}
+                className="text-ash h-11 text-sm disabled:opacity-40"
+              >
+                {push === 'denied' ? 'Blocked in settings' : push === 'on' ? 'Turn off' : 'Turn on'}
+              </button>
+            </Row>
+          )}
+
+          <div className="px-4 py-3.5">
+            <p className="text-ash text-sm leading-relaxed">
+              At most two a day, each. Never a reminder that you have not done something — only that
+              they did.
+            </p>
           </div>
         </Group>
 

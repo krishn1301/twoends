@@ -37,22 +37,24 @@ beforeAll(async () => {
   const { data } = await bob.db.rpc('redeem_invite', { p_code: code });
   coupleId = data as string;
 
-  await admin().from('capsules').insert([
-    {
-      couple_id: coupleId,
-      author_id: alice.id,
-      title: 'For your birthday',
-      body: 'Something she should not read yet.',
-      deliver_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
-    },
-    {
-      couple_id: coupleId,
-      author_id: alice.id,
-      title: 'Already open',
-      body: 'This one has arrived.',
-      deliver_at: new Date(Date.now() - 86_400_000).toISOString(),
-    },
-  ]);
+  await admin()
+    .from('capsules')
+    .insert([
+      {
+        couple_id: coupleId,
+        author_id: alice.id,
+        title: 'For your birthday',
+        body: 'Something she should not read yet.',
+        deliver_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      },
+      {
+        couple_id: coupleId,
+        author_id: alice.id,
+        title: 'Already open',
+        body: 'This one has arrived.',
+        deliver_at: new Date(Date.now() - 86_400_000).toISOString(),
+      },
+    ]);
 }, 60_000);
 
 afterAll(async () => {

@@ -5,6 +5,7 @@ import { getAccent } from '@twoends/core';
 import { Button, Field } from '../components/Field.tsx';
 import { askQuestion, askToday } from '../db/asks.ts';
 import { todaysPrompt } from '../db/daily.ts';
+import { notifyPartner } from '../db/push.ts';
 import { useSession } from '../state/session.ts';
 import { useToday } from '../state/today.ts';
 
@@ -67,6 +68,7 @@ export function Ask({ onAsked }: { onAsked?: () => void }) {
     }
 
     setBody('');
+    notifyPartner('asked');
     await loadToday(couple, profile);
     onAsked?.();
   }

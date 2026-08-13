@@ -5,6 +5,7 @@ import { Avatar } from '@twoends/ui';
 
 import { Button, Field, TextInput } from '../components/Field.tsx';
 import { sealCapsule } from '../db/capsules.ts';
+import { notifyPartner } from '../db/push.ts';
 import { useSession } from '../state/session.ts';
 import { useShared } from '../state/shared.ts';
 import { useNow } from '../state/useNow.ts';
@@ -72,6 +73,7 @@ export function Capsules() {
     setBody('');
     setDeliverOn('');
     setWriting(false);
+    notifyPartner('capsule');
     load();
   }
 

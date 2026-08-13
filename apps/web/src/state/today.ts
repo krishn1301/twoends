@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { loadToday, submitAnswer, type Today } from '../db/daily.ts';
+import { notifyPartner } from '../db/push.ts';
 import type { Couple, Profile } from './session.ts';
 
 /**
@@ -44,6 +45,10 @@ export const useToday = create<TodayState>((set) => ({
     // visible for the first time, and only the server knows that.
     const today = await loadToday(couple, profile.id);
     set({ today, busy: false });
+
+    // Fire and forget: a push that fails must never make a written answer
+    // look like it failed.
+    notifyPartner('answered');
     return true;
   },
 

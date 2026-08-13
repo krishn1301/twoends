@@ -4,6 +4,7 @@ import { getAccent } from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 
 import { deleteSnap, keepSnap, uploadSnap, type Snap } from '../db/photos.ts';
+import { notifyPartner } from '../db/push.ts';
 import { formatBytes, shrinkForUpload } from '../lib/image.ts';
 import { useSession } from '../state/session.ts';
 import { useShared } from '../state/shared.ts';
@@ -90,6 +91,7 @@ export function Snaps() {
     URL.revokeObjectURL(pending.url);
     setPending(null);
     setCaption('');
+    notifyPartner('snap');
     refresh();
   }
 

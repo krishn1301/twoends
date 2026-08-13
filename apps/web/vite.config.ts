@@ -3,9 +3,30 @@ import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    VitePWA({
+      /*
+        `injectManifest` rather than `generateSW`: the worker has to handle push
+        and notification clicks, which a generated one cannot do. Workbox still
+        writes the precache list into it.
+      */
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      registerType: 'autoUpdate',
+      // The manifest is hand-written in public/ and already correct.
+      manifest: false,
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,woff2,png,webmanifest}'],
+      },
+      devOptions: { enabled: false },
+    }),
+  ],
 
   /*
     GitHub Pages serves a project site from `/<repo>/`, so the built asset URLs
