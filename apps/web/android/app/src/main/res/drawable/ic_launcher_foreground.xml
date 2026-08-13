@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The mark: two discs, overlapping, and the place where they overlap is brighter
+  than either of them.
+
+  That is the product in one shape. Two people, one shared space, and the shared
+  space is the point — not a heart, which every couple app already uses and which
+  says nothing about what this one does.
+
+  Why a vector and not a PNG: it is exact at every density, it is readable as
+  source, and changing the accent pair later is an edit to two hex values rather
+  than a regeneration of ten binary files.
+
+  Geometry. Adaptive icons are a 108x108 viewport of which the launcher may mask
+  anything outside the centre 66dp — the outer ring is used for parallax and
+  shape masking and cannot be relied on. Both discs have r=22 at y=54, centred
+  at x=43 and x=65, so the mark spans x=21 to x=87: exactly 66dp, filling the
+  safe zone without touching the part that gets cropped.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Coral. One partner. -->
+    <path
+        android:pathData="M21,54 a22,22 0 1,0 44,0 a22,22 0 1,0 -44,0"
+        android:fillColor="#e86c46" />
+
+    <!-- Iris. The other. 112 degrees away on the wheel and a different lightness,
+         so the two stay distinguishable to a colourblind eye — the same rule the
+         twelve accents in packages/core are generated under. -->
+    <path
+        android:pathData="M43,54 a22,22 0 1,0 44,0 a22,22 0 1,0 -44,0"
+        android:fillColor="#986ce5" />
+
+    <!--
+      The overlap, drawn as its own lens rather than left to a blend mode —
+      vector drawables have no blend modes, and relying on alpha would make the
+      shared area darker than its parents rather than brighter.
+
+      The colour is the screen blend of the two accents, computed rather than
+      picked: 1-(1-a)(1-b) per channel. Light is what you get when both are
+      present.
+    -->
+    <path
+        android:pathData="M54,34.95 A22,22 0 0,1 54,73.05 A22,22 0 0,1 54,34.95 Z"
+        android:fillColor="#f6a9ec" />
+</vector>

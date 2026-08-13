@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <!--
+      True black, the same ground the app itself is drawn on. Capacitor's
+      default was #FFFFFF, which is why the icon read as a white tile identical
+      to every other Capacitor app on the phone.
+    -->
+    <color name="ic_launcher_background">#000000</color>
 </resources>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The themed-icon layer, for Android 13 and newer.
+
+  When someone turns on themed icons the launcher tints a single-colour
+  silhouette to their wallpaper, and an app with no monochrome layer is left as
+  the one full-colour tile on an otherwise uniform home screen. The shape still
+  reads as two-things-overlapping without any colour to carry it, which is the
+  test of whether the mark works at all.
+
+  Fill colour is irrelevant — the system replaces it — but it must be opaque.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:pathData="M21,54 a22,22 0 1,0 44,0 a22,22 0 1,0 -44,0"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M43,54 a22,22 0 1,0 44,0 a22,22 0 1,0 -44,0"
+        android:fillColor="#FFFFFF" />
+
+    <!--
+      Cut the lens back out. With no colour available, an unbroken blob loses the
+      "two" entirely — the seam is the only thing left saying there are two of
+      them.
+    -->
+    <path
+        android:pathData="M54,34.95 A22,22 0 0,1 54,73.05 A22,22 0 0,1 54,34.95 Z"
+        android:fillColor="#000000"
+        android:fillAlpha="0.35" />
+</vector>
