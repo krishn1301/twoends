@@ -434,13 +434,22 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   the logic in `create or replace function pg_temp.f() returns table (…)` and
   `return query select …` for each step, then `select * from pg_temp.f();`. This
   is how the location trigger was verified against the live database.
-- **The auth rate limit on the free tier is easy to trip.** Running
-  `pnpm test:rls` three times in a few minutes gets
-  `Request rate limit reached` from `signInWithPassword`, and it surfaces as ten
-  unrelated pairing/capsule tests failing in `beforeAll` — nothing to do with the
-  policy you just changed. Wait ~3 minutes and re-run, and prefer
-  `pnpm exec vitest run --config vitest.rls.config.ts supabase/tests/leak.test.ts`
-  to running the whole suite while iterating.
+- **The auth rate limit on the free tier is easy to trip, and it recovers more
+  slowly than you expect.** A full `pnpm test:rls` creates about forty users;
+  run it three times in a few minutes and `signInWithPassword` starts returning
+  `Request rate limit reached`. It surfaces as a pile of unrelated
+  pairing/capsule tests failing in `beforeAll` — nothing to do with the policy
+  you just changed, and the giveaway is that the failure is always in
+  `helpers.ts:72`.
+
+  Three minutes is enough after one extra run and **not** enough after four:
+  budget ten. **`pnpm test:rls <file>` takes a path** and forwards it to vitest
+  (`scripts/rls.mjs` passes `process.argv.slice(2)` through), so re-run only the
+  file that failed rather than spending another forty sign-ins to learn nothing.
+  Calling vitest directly does not work — the env vars come from that script.
+
+  A green *suite* assembled from separate green *files* is a legitimate result
+  here. What is not legitimate is reading a rate-limit failure as a pass.
 - **`Date.now()` in a hook body fails `react-hooks/purity`.** The rule is right —
   React can render twice and get two answers. Use `useNow(interval)` from
   `state/useNow.ts`, which holds the clock in state and re-anchors to the wall
