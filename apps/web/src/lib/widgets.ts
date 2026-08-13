@@ -1,4 +1,4 @@
-import { getAccent, type DayMark, type Drawing } from '@twoends/core';
+import { getAccent, type DayMark, type Drawing, type Reading } from '@twoends/core';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
 import { paintStroke } from './paintStroke.ts';
@@ -34,7 +34,9 @@ interface WidgetSnapshot {
   snapFromThem: boolean;
   snapCaption: string | null;
   canvasFromThem: boolean;
-  distanceKm: number | null;
+  /** Both null until both people have location on. See core/distance.ts. */
+  distanceLabel: string | null;
+  distanceNote: string | null;
   quiet: boolean;
 }
 
@@ -79,6 +81,12 @@ export interface WidgetInput {
   canvas: SharedCanvas | null;
   streak: { current: number };
   week: DayMark[];
+  /**
+   * Already phrased by `readDistance`. A kilometre figure is deliberately not
+   * passed: the widget process is never given a distance it could turn back
+   * into a position, and the rounding rules exist in one place only.
+   */
+  distance: Reading;
 }
 
 /**
@@ -94,6 +102,7 @@ export async function syncWidgets(input: WidgetInput): Promise<void> {
   const { snaps, canvas, streak, week, myId } = input;
   const countdown = await nextCountdown(input.coupleId);
   const latest = snaps[0];
+  const hasFix = input.distance.km !== null;
 
   const snapshot: WidgetSnapshot = {
     myName: input.myName,
@@ -110,11 +119,13 @@ export async function syncWidgets(input: WidgetInput): Promise<void> {
     snapCaption: latest?.caption ?? null,
     canvasFromThem: canvas?.lastAuthorId != null && canvas.lastAuthorId !== myId,
     /*
-      Always null for now. Location is opt-in per person and lands in Phase 9;
-      until then the widget's locked state is the honest reading, and shipping a
-      placeholder number would be worse than shipping none.
+      Null unless there is a real reading. `off` and `stale` both mean the widget
+      should draw its locked state — "no recent location" is not something worth
+      a home-screen tile, and it is indistinguishable to a reader from a number
+      that has simply stopped changing.
     */
-    distanceKm: null,
+    distanceLabel: hasFix ? input.distance.label : null,
+    distanceNote: hasFix ? input.distance.note : null,
     quiet: false,
   };
 

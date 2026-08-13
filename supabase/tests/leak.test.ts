@@ -145,7 +145,12 @@ beforeAll(async () => {
     if (error) throw new Error(`seed ${table}: ${error.message}`);
   }
 
-  await db.from('presence').insert({ profile_id: alice.id, status_note: 'at work' });
+  // `sharing` matters: since migration 13 the partner-read policy stops matching
+  // when it is false, so a seed without it would make the positive controls
+  // below fail for the right reason and the wrong one.
+  await db
+    .from('presence')
+    .insert({ profile_id: alice.id, status_note: 'at work', sharing: true });
   await db.from('invites').insert({
     code: 'ABC123',
     couple_id: coupleA,
@@ -288,6 +293,110 @@ describe('a partner is not an editor', () => {
     await bob.db.from('journal_entries').delete().eq('couple_id', coupleA);
     const after = await admin().from('journal_entries').select('id').eq('couple_id', coupleA);
     expect(after.data?.length).toBe(before.data?.length);
+  });
+});
+
+/*
+  Location is the one thing in this schema that could turn the app into a
+  surveillance tool, and the only place where a *partner* — not a stranger — is
+  the party the rules defend against. Everything below runs as Alice and Bob,
+  who are a real couple with every right to each other's photos and words.
+*/
+describe('location is opt-in, coarse, and erased when switched off', () => {
+  const DELHI = { lat: 28.613912345, lng: 77.209012345 };
+
+  const presenceOf = async (id: string) =>
+    (await admin().from('presence').select('*').eq('profile_id', id).single()).data;
+
+  beforeAll(async () => {
+    await admin().from('presence').upsert(
+      [
+        { profile_id: alice.id, sharing: true, wants_precise: false, ...DELHI },
+        { profile_id: bob.id, sharing: true, wants_precise: false, lat: 19.07, lng: 72.87 },
+      ],
+      { onConflict: 'profile_id' },
+    );
+  });
+
+  it('rounds a precise coordinate away when only one partner asked for precise', async () => {
+    const { error } = await alice.db
+      .from('presence')
+      .update({ wants_precise: true, ...DELHI })
+      .eq('profile_id', alice.id);
+    expect(error).toBeNull();
+
+    const row = await presenceOf(alice.id);
+    expect(row?.precision).toBe('coarse');
+    // The grid is a tenth of a degree. Anything finer surviving the write means
+    // a client could opt itself into precise unilaterally.
+    expect(row?.lat).toBeCloseTo(28.6, 6);
+    expect(row?.lng).toBeCloseTo(77.2, 6);
+  });
+
+  it('keeps a precise coordinate only once both partners have asked', async () => {
+    await bob.db.from('presence').update({ wants_precise: true }).eq('profile_id', bob.id);
+    await alice.db.from('presence').update(DELHI).eq('profile_id', alice.id);
+
+    const row = await presenceOf(alice.id);
+    expect(row?.precision).toBe('precise');
+    expect(row?.lat).toBeCloseTo(DELHI.lat, 9);
+  });
+
+  it("re-coarsens Alice's stored row the moment Bob withdraws, without Alice writing", async () => {
+    await bob.db.from('presence').update({ wants_precise: false }).eq('profile_id', bob.id);
+
+    const row = await presenceOf(alice.id);
+    expect(row?.precision).toBe('coarse');
+    expect(row?.lat).toBeCloseTo(28.6, 6);
+  });
+
+  it('erases the coordinate when sharing is switched off, rather than freezing it', async () => {
+    await alice.db.from('presence').update({ sharing: false }).eq('profile_id', alice.id);
+
+    const row = await presenceOf(alice.id);
+    expect(row?.lat).toBeNull();
+    expect(row?.lng).toBeNull();
+  });
+
+  it('hides the row from the partner while sharing is off', async () => {
+    const { data } = await bob.db.from('presence').select('*').eq('profile_id', alice.id);
+    expect(data).toEqual([]);
+  });
+
+  it('shows it again when Alice switches it back on', async () => {
+    await alice.db
+      .from('presence')
+      .update({ sharing: true, ...DELHI })
+      .eq('profile_id', alice.id);
+
+    const { data } = await bob.db.from('presence').select('lat').eq('profile_id', alice.id);
+    expect(data).toHaveLength(1);
+    expect(data?.[0]?.lat).toBeCloseTo(28.6, 6);
+  });
+
+  it('never lets Bob switch sharing on for Alice', async () => {
+    await alice.db.from('presence').update({ sharing: false }).eq('profile_id', alice.id);
+
+    const { data } = await bob.db
+      .from('presence')
+      .update({ sharing: true, lat: 1, lng: 1 })
+      .eq('profile_id', alice.id)
+      .select();
+    expect(data).toEqual([]);
+
+    const row = await presenceOf(alice.id);
+    expect(row?.sharing).toBe(false);
+    expect(row?.lat).toBeNull();
+  });
+
+  it('never lets Mallory read a location at all', async () => {
+    await alice.db
+      .from('presence')
+      .update({ sharing: true, ...DELHI })
+      .eq('profile_id', alice.id);
+
+    const { data } = await mallory.db.from('presence').select('*');
+    expect(data).toEqual([]);
   });
 });
 

@@ -7,7 +7,9 @@ import { useEffect } from 'react';
 import { DailyCard } from '../components/DailyCard.tsx';
 import { Flame, Lock } from '../components/icons.tsx';
 import { WEEK_LABELS, pad, useDesignModel } from '../design/model.ts';
+import { widgetsSupported } from '../lib/widgets.ts';
 import { useAvatars } from '../state/avatars.ts';
+import { useDistanceReading, useLocation } from '../state/location.ts';
 import { useSession } from '../state/session.ts';
 import { useShared } from '../state/shared.ts';
 
@@ -39,11 +41,20 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap' | 'ask') => v
   const partner = useSession((s) => s.partner);
   const avatarUrls = useAvatars((s) => s.urls);
   const loadAvatars = useAvatars((s) => s.load);
+  const loadLocation = useLocation((s) => s.load);
+  const distance = useDistanceReading(partner?.display_name);
   const { snaps, urls, canvas, streak, week, load } = useShared();
+
+  const myId = profile?.id;
 
   useEffect(() => {
     if (!couple) return;
-    const refresh = () => void load(couple);
+    const refresh = () => {
+      void load(couple);
+      // Foreground, and only foreground. This is the entire schedule on which
+      // this app ever reads a position — see db/location.ts.
+      if (myId) void loadLocation(myId);
+    };
     refresh();
     void loadAvatars([profile?.avatar_path, partner?.avatar_path]);
 
@@ -54,12 +65,16 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap' | 'ask') => v
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [couple, load, loadAvatars, profile?.avatar_path, partner?.avatar_path]);
+  }, [couple, load, loadAvatars, loadLocation, myId, profile?.avatar_path, partner?.avatar_path]);
 
   const latestSnap = snaps[0];
   const latestSnapUrl = latestSnap ? urls.get(latestSnap.storage_path) : undefined;
   const hasDrawing = (canvas?.drawing.strokes.length ?? 0) > 0;
   const theirsLatest = canvas?.lastAuthorId != null && canvas.lastAuthorId !== m.myId;
+
+  // Android, in the installed app. A PWA on Android has no widgets either, and
+  // this correctly says so.
+  const hasWidgets = widgetsSupported();
 
   const mine = m.myAccent.onDark;
   const theirs = m.theirAccent.onDark;
@@ -92,10 +107,31 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap' | 'ask') => v
             theirSrc={partner?.avatar_path ? avatarUrls.get(partner.avatar_path) : null}
             lineColor="#3A322D"
             middle={
-              <span className="bg-surface-2 text-ash relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm">
-                <Lock />
-                km
-              </span>
+              /*
+                The distance badge, and the only place on Home that says anything
+                about location. It shows how far, never where, and it reads
+                locked until both of you have switched it on — which is also
+                exactly what it looks like when one of you switches it off.
+              */
+              distance.km === null ? (
+                <span
+                  className="bg-surface-2 text-ash relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm"
+                  title={distance.note}
+                >
+                  <Lock />
+                  km
+                </span>
+              ) : (
+                <span
+                  className="bg-surface-2 relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm"
+                  title={distance.note}
+                >
+                  <span className="counter" style={{ color: mine }}>
+                    {distance.label}
+                  </span>
+                  {distance.kind === 'apart' && <span className="text-ash">km</span>}
+                </span>
+              )
             }
           />
         </div>
@@ -240,13 +276,64 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap' | 'ask') => v
                     ))}
                   </div>
                 </Tile>
+
+                {/*
+                  Distance, in the app rather than only on a widget. Most of the
+                  people this is for are on iPhones and cannot install the APK at
+                  all, so every feature has to be complete without one.
+                */}
+                <Tile
+                  eyebrow={distance.kind === 'apart' ? 'apart' : 'distance'}
+                  headline={distance.note}
+                >
+                  <div className="absolute inset-x-4 top-4 flex items-center">
+                    <Avatar name={m.myName} accent={mine} size={28} />
+                    <span className="mx-1.5 flex-1 border-t border-dashed border-white/25" />
+                    <Avatar name={m.theirName} accent={theirs} size={28} />
+                  </div>
+                  <p
+                    className="counter absolute right-4 bottom-14 text-[1.6rem] leading-none font-medium"
+                    style={{ color: distance.km === null ? '#948A82' : mine }}
+                  >
+                    {distance.label}
+                  </p>
+                </Tile>
               </Rail>
             </Section>
           </div>
 
-          <div className="rise" style={{ animationDelay: '240ms' }}>
-            <Section title="Widgets" action="All">
-              <Rail>
+          {/*
+            Widgets, only where there are widgets.
+
+            This rail is four pictures of something the phone can put on its home
+            screen, and on a device that cannot do that it is an advert for a
+            feature the reader will never reach. Most of the people this app is
+            for are on iPhones and cannot install the APK at all — showing them
+            the rail would make the one honest screen in the app dishonest.
+
+            They are not being fobbed off: notifications carry the same idea, and
+            iOS widgets are Phase 8. The card below says both, which is more than
+            "Widgets" and a row of teasers said.
+          */}
+          {!hasWidgets && (
+            <div className="rise px-5" style={{ animationDelay: '240ms' }}>
+              <div className="bg-surface rounded-[28px] p-5">
+                <p className="font-display text-[1.25rem] leading-snug font-semibold">
+                  Home-screen widgets are on Android for now.
+                </p>
+                <p className="text-ash mt-1.5 text-sm leading-relaxed">
+                  Everything else works here exactly the same. Add TwoEnds to your Home Screen and
+                  turn on notifications, and {m.theirName} still reaches you without you opening
+                  anything. iPhone widgets are next.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {hasWidgets && (
+            <div className="rise" style={{ animationDelay: '240ms' }}>
+              <Section title="Widgets" action="All">
+                <Rail>
                 <Tile eyebrow="daily photo" headline="Live pics on their home screen">
                   <Snapshot seed={1} className="h-full w-full" />
                   <span
@@ -271,9 +358,10 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap' | 'ask') => v
                 </Tile>
 
                 <Tile ground={shared} eyebrow="anniversary" headline="Time together, ticking" />
-              </Rail>
-            </Section>
-          </div>
+                </Rail>
+              </Section>
+            </div>
+          )}
 
           {/* Where both reference apps put the paywall. */}
           <div className="rise px-5" style={{ animationDelay: '300ms' }}>

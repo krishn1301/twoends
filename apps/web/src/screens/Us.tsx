@@ -7,6 +7,7 @@ import { removeAvatar, uploadAvatar } from '../db/avatars.ts';
 import { disablePush, enablePush, pushState, type PushState } from '../db/push.ts';
 import { supabase } from '../lib/supabase.ts';
 import { useAvatars } from '../state/avatars.ts';
+import { useDistanceReading, useLocation } from '../state/location.ts';
 import { useSession } from '../state/session.ts';
 import { useNow } from '../state/useNow.ts';
 
@@ -40,6 +41,9 @@ export function Us() {
   const [push, setPush] = useState<PushState>(() => pushState());
   const [pushBusy, setPushBusy] = useState(false);
 
+  const location = useLocation();
+  const distance = useDistanceReading(partner?.display_name);
+
   const mine = getAccent(profile?.accent_key ?? 'teal').onDark;
   const theirs = getAccent(partner?.accent_key ?? 'rose').onDark;
   const now = useNow(1000);
@@ -49,6 +53,13 @@ export function Us() {
   }, [profile?.avatar_path, partner?.avatar_path, loadAvatars]);
 
   useEffect(syncAvatars, [syncAvatars]);
+
+  useEffect(() => {
+    if (profile?.id) void location.load(profile.id);
+    // `location.load` is stable on the store and including the whole store here
+    // would re-read a position on every unrelated set().
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id]);
 
   async function pickAvatar(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -257,6 +268,85 @@ export function Us() {
               they did.
             </p>
           </div>
+        </Group>
+
+        {/*
+          Location.
+
+          The most sensitive switch in the app, so it gets the most words. Three
+          things are stated plainly rather than buried in a privacy policy: that
+          it is off until you turn it on, that it reads your position only while
+          the app is open, and that turning it off deletes the coordinate rather
+          than freezing it. All three are enforced in the database — see
+          supabase/migrations/00000000000013_location.sql.
+        */}
+        <Group title="Distance">
+          {location.state === 'unsupported' ? (
+            <div className="px-4 py-3.5">
+              <p className="text-ash text-sm">This browser cannot do location.</p>
+            </div>
+          ) : (
+            <>
+              <Row label={location.presence.sharing ? 'Sharing' : 'Off'}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void (profile &&
+                      (location.presence.sharing
+                        ? location.disable(profile.id)
+                        : location.enable(profile.id)))
+                  }
+                  disabled={location.busy || location.state === 'denied'}
+                  className="text-ash h-11 text-sm disabled:opacity-40"
+                >
+                  {location.state === 'denied'
+                    ? 'Blocked in settings'
+                    : location.presence.sharing
+                      ? 'Turn off'
+                      : 'Turn on'}
+                </button>
+              </Row>
+
+              {location.presence.sharing && (
+                <Row label="Precise">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void (profile &&
+                        location.togglePrecise(profile.id, !location.presence.wantsPrecise))
+                    }
+                    disabled={location.busy}
+                    className="text-ash h-11 text-sm disabled:opacity-40"
+                  >
+                    {location.presence.wantsPrecise ? 'Asked for' : 'Ask for it'}
+                  </button>
+                </Row>
+              )}
+
+              <div className="px-4 py-3.5">
+                <p className="text-sm font-medium">
+                  {distance.kind === 'apart' ? `${distance.label} km` : distance.label}
+                </p>
+                <p className="text-ash mt-1 text-sm">{location.error ?? distance.note}</p>
+              </div>
+
+              <div className="px-4 py-3.5">
+                <p className="text-ash text-sm leading-relaxed">
+                  Off until you turn it on, and only for you — turning it on does not turn it on for{' '}
+                  {partner?.display_name ?? 'them'}. Your position is read while the app is open and
+                  at no other time, rounded to about ten kilometres, and{' '}
+                  {partner?.display_name ?? 'they'} only ever sees a distance. Turning it off
+                  deletes the coordinate.
+                </p>
+                {location.presence.sharing && (
+                  <p className="text-ash mt-2.5 text-sm leading-relaxed">
+                    Precise takes effect only when you have both asked for it, and stops the moment
+                    either of you stops asking.
+                  </p>
+                )}
+              </div>
+            </>
+          )}
         </Group>
 
         {/* The slot where the other apps sell you something. */}

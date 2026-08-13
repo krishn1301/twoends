@@ -23,4 +23,5 @@ export * from './daily.ts';
 export * from './streakMath.ts';
 export * from './prompts.ts';
 export * from './strokes.ts';
+export * from './distance.ts';
 export * from './fixtures/sampleCouple.ts';

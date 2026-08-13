@@ -24,6 +24,42 @@ The app must never become a surveillance tool:
 - Widgets show **distance, never position** — a lock screen is readable by a
   third person standing next to you.
 
+### How each of those is enforced — built in Phase 9
+
+None of the five rules above is implemented as a client-side check, because a
+client is the layer an attacker replaces. They live in
+`supabase/migrations/00000000000013_location.sql`, in a `before insert or update`
+trigger and one read policy:
+
+| Rule                                   | Where it actually lives                                                                                                                                               |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Off by default                         | `presence.sharing boolean not null default false`, and no coordinate is stored while it is false.                                                                       |
+| Revocable instantly, without warning   | Turning it off **erases** `lat`/`lng` rather than freezing them, and the partner-read policy stops matching the row entirely.                                            |
+| Foreground only                        | `apps/web/src/db/location.ts` never calls `watchPosition`, and nothing schedules a read. The only caller is the foreground effect in `Home`.                            |
+| City-level unless both agree           | The trigger rounds to a 0.1° grid (~11 km) and forces `precision = 'coarse'` unless **both** rows have `wants_precise`. It degrades rather than rejects — see below.     |
+| Distance, never position               | The Android widget snapshot carries two finished strings, not a coordinate and not a kilometre figure. `packages/core/src/distance.ts` is the only thing that computes. |
+
+Three details worth stating, because each one is a place this could have been
+subtly wrong:
+
+- **Consent is mutual and takes effect immediately in both directions.** When one
+  partner withdraws `wants_precise`, a second trigger re-coarsens the *other*
+  person's already-stored row on the spot. Waiting for their next foreground
+  would leave a precise coordinate readable after consent for it was withdrawn.
+- **The trigger degrades instead of raising.** If it rejected the write, one
+  partner turning precise off would start failing the other's updates, and their
+  position would silently freeze at its last value — which looks identical to a
+  current one, and is the worst outcome available.
+- **A coarse reading is never printed as a number.** Rounding to the grid moves
+  each person by up to ~7.9 km, so two people standing together can compute up
+  to 15.7 km apart. Below `COARSE_NOISE_KM` the app says "same city", which is
+  the most the data honestly supports.
+
+All eight of these behaviours are asserted by the leak suite against a real
+hosted Postgres, under "location is opt-in, coarse, and erased when switched
+off" — including that a *partner*, not merely a stranger, cannot switch sharing
+on for someone else.
+
 ## Data
 
 - Every table has row-level security on, scoped to the couple. A third user must

@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { wipeLocal } from '../db/schema.ts';
 import { supabase } from '../lib/supabase.ts';
 import { clearWidgets } from '../lib/widgets.ts';
+import { useLocation } from './location.ts';
 
 /**
  * Who is using this app, and how far through the setup they are.
@@ -123,6 +124,7 @@ export const useSession = create<SessionState>((set, get) => ({
           await supabase.auth.signOut();
           await wipeLocal();
           await clearWidgets();
+    useLocation.getState().clear();
           await supabase.auth.signInAnonymously();
           await get().refresh();
           return;
@@ -222,6 +224,7 @@ export const useSession = create<SessionState>((set, get) => ({
     // Same reasoning, one layer out: a snap still sitting on the home screen
     // after sign-out is the copy nobody thinks to check.
     await clearWidgets();
+    useLocation.getState().clear();
     set({
       status: 'loading',
       session: null,
@@ -246,6 +249,7 @@ export async function recoverSession(): Promise<void> {
   await supabase.auth.signOut();
   await wipeLocal();
   await clearWidgets();
+    useLocation.getState().clear();
   await supabase.auth.signInAnonymously();
   await useSession.getState().refresh();
 }

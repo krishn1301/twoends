@@ -235,21 +235,22 @@ class DistanceReceiver : GlanceAppWidgetReceiver() {
 /**
  * How far apart, and never where.
  *
- * The snapshot carries a single number that the app computed. No coordinate
- * ever reaches this process, so there is nothing here to leak to a launcher, a
- * backup, or whoever picks the phone up — which is the only way to make the
- * privacy promise in docs/PRIVACY.md structural rather than a policy.
+ * The snapshot carries two finished strings that the app wrote. No coordinate
+ * ever reaches this process, and neither does a distance in kilometres — so
+ * there is nothing here to leak to a launcher, a backup, or whoever picks the
+ * phone up. That is what makes the promise in docs/PRIVACY.md structural rather
+ * than a policy: this code could not disclose a position if it wanted to.
  *
- * Location is opt-in per person and lands in Phase 9. Until then this renders
- * the locked state, which is the honest reading of "neither of you has
- * opted in" anyway.
+ * It also means the rounding rules live in exactly one place. `readDistance` in
+ * `packages/core/src/distance.ts` decides whether a reading is a number, "same
+ * city" or "here", and this draws whatever it decided.
  */
 @Composable
 private fun DistanceContent(snapshot: WidgetStore.Snapshot) {
-    val km = snapshot.distanceKm
+    val label = snapshot.distanceLabel
     val accent = Color(snapshot.theirAccent)
 
-    if (km == null) {
+    if (label == null) {
         Empty(
             eyebrow = "distance",
             line = if (snapshot.paired) "Both of you turn it on" else "Pair first",
@@ -261,23 +262,13 @@ private fun DistanceContent(snapshot: WidgetStore.Snapshot) {
     Shell {
         Column(modifier = GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.Bottom) {
             Eyebrow("apart", accent)
-            Counter(
-                text = if (km < 1.0) "here" else formatKm(km),
-                size = if (km < 1.0) 28 else 34,
-                color = accent,
-            )
-            Headline(
-                text = if (km < 1.0) "same place" else "km from ${snapshot.theirName}",
-                size = 13,
-                color = Ash,
-            )
+            // A word needs more room than a number. "same city" at 34sp wraps on
+            // a 2x2 cell and loses its second half.
+            Counter(text = label, size = if (label.length > 4) 24 else 34, color = accent)
+            Headline(text = snapshot.distanceNote ?: "", size = 13, color = Ash)
         }
     }
 }
-
-/** No decimals past ten kilometres — nobody feels the difference. */
-private fun formatKm(km: Double): String =
-    if (km < 10.0) String.format(java.util.Locale.US, "%.1f", km) else km.toInt().toString()
 
 /** Exposed for the daily rollover check; keeps `LocalDate` out of the widgets. */
 internal fun today(): LocalDate = LocalDate.now()

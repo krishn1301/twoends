@@ -434,24 +434,30 @@ export type Database = {
           lng: number | null
           precision: string
           profile_id: string
+          sharing: boolean
           status_note: string | null
           updated_at: string
+          wants_precise: boolean
         }
         Insert: {
           lat?: number | null
           lng?: number | null
           precision?: string
           profile_id: string
+          sharing?: boolean
           status_note?: string | null
           updated_at?: string
+          wants_precise?: boolean
         }
         Update: {
           lat?: number | null
           lng?: number | null
           precision?: string
           profile_id?: string
+          sharing?: boolean
           status_note?: string | null
           updated_at?: string
+          wants_precise?: boolean
         }
         Relationships: [
           {
@@ -577,6 +583,35 @@ export type Database = {
           },
         ]
       }
+      push_log: {
+        Row: {
+          id: string
+          kind: string
+          profile_id: string
+          sent_at: string
+        }
+        Insert: {
+          id?: string
+          kind: string
+          profile_id: string
+          sent_at?: string
+        }
+        Update: {
+          id?: string
+          kind?: string
+          profile_id?: string
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_log_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_tokens: {
         Row: {
           id: string
@@ -650,6 +685,7 @@ export type Database = {
     }
     Functions: {
       cancel_unpair: { Args: never; Returns: undefined }
+      coarse_grid: { Args: never; Returns: number }
       confirm_unpair: { Args: never; Returns: undefined }
       create_invite: { Args: { p_ttl?: string }; Returns: string }
       generate_invite_code: { Args: never; Returns: string }

@@ -55,7 +55,17 @@ object WidgetStore {
         val snapFromThem: Boolean,
         val snapCaption: String?,
         val canvasFromThem: Boolean,
-        val distanceKm: Double?,
+        /**
+         * The two lines the distance widget prints, already written by the app.
+         *
+         * Not a number, deliberately. Whether a reading is "412", "same city" or
+         * "here" depends on the grid the coordinate was rounded to and on which
+         * of the two people opted into precise — questions this process has no
+         * way to answer and no business asking. Both are null until both people
+         * have switched location on.
+         */
+        val distanceLabel: String?,
+        val distanceNote: String?,
         val quiet: Boolean,
     ) {
         val paired: Boolean get() = theirName.isNotEmpty()
@@ -75,7 +85,8 @@ object WidgetStore {
         snapFromThem = false,
         snapCaption = null,
         canvasFromThem = false,
-        distanceKm = null,
+        distanceLabel = null,
+        distanceNote = null,
         quiet = false,
     )
 
@@ -101,7 +112,8 @@ object WidgetStore {
                 snapFromThem = json.optBoolean("snapFromThem", false),
                 snapCaption = json.optStringOrNull("snapCaption"),
                 canvasFromThem = json.optBoolean("canvasFromThem", false),
-                distanceKm = if (json.isNull("distanceKm")) null else json.optDouble("distanceKm"),
+                distanceLabel = json.optStringOrNull("distanceLabel"),
+                distanceNote = json.optStringOrNull("distanceNote"),
                 quiet = json.optBoolean("quiet", false),
             )
         } catch (_: Exception) {

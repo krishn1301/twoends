@@ -21,7 +21,7 @@ plan was written before Phase 0 and this is updated after every phase.
 | Audience        | **Small circle of friends.** Real pairs, no strangers. No moderation, no abuse reporting, no store review at 1.0.                                                                                                                                       |
 | Backend         | **Supabase free tier.**                                                                                                                                                                                                                                 |
 | Photo retention | **30 days**, auto-deleted unless either partner taps "keep".                                                                                                                                                                                            |
-| Location        | **Opt-in per person, off by default, foreground-only, city-level** unless both opt into precise. The widget shows distance, never position.                                                                                                             |
+| Location        | **Opt-in per person, off by default, foreground-only, city-level** unless both opt into precise. The widget shows distance, never position. All five rules are enforced by triggers and a read policy in migration 13, not by the client.               |
 | 18+ packs       | **Built, gated.** Both confirm 18+, both opt in, off by default, never surfaced in widgets or notifications. Store age-rating decision deferred.                                                                                                        |
 | Streaks         | **Two missed days a month are forgiven.** Quiet mode pauses streaks with no penalty.                                                                                                                                                                    |
 | Design          | **Bento, on true black.** Section titles with "All ›", rails of uniform cards with the next peeking, lowercase eyebrow + serif headline. Structure from candle; colour is ours — every surface is your accent, their accent, or a gradient across both. |
@@ -80,12 +80,50 @@ Commands: `pnpm db:push`, `pnpm db:types`, `pnpm test:rls`, `pnpm verify`.
 
 ## Current phase
 
-**Phase 7 — builds, installs, runs. Widgets not yet seen on a launcher.**
-Phases 0–6 shipped.
+**Phase 9 (distance) built and proven server-side. Phase 7's last step — a
+widget actually on a launcher — is still outstanding.** Phases 0–6 shipped.
 
-The APK compiles (`BUILD SUCCESSFUL`, 11 MB), installs, and launches. All six
+### Distance apart — done
+
+The feature exists end to end and its privacy rules are enforced by the
+database, not by the client. `pnpm check` green, **100 tests**; `pnpm test:rls`
+green, **85 tests**, eight of them new and specifically about location.
+
+What was built:
+
+- `supabase/migrations/00000000000013_location.sql` — `presence.sharing` and
+  `presence.wants_precise`, a `before insert or update` trigger that coarsens or
+  erases, an `after update` trigger that re-coarsens the *partner's* stored row
+  the instant they withdraw consent, and a read policy that stops matching when
+  the subject is not sharing.
+- `packages/core/src/distance.ts` — haversine, grid coarsening, and the
+  **phrasing**. The words live in core because Home, Us and a Kotlin widget all
+  have to agree on them, and a second copy in Kotlin would drift.
+- `apps/web/src/db/location.ts` + `state/location.ts` — foreground-only reads.
+  There is no `watchPosition` anywhere in the repo, deliberately.
+- Home: the badge between the two faces is live, plus a distance card in the
+  Together rail. Us: the opt-in, the precise negotiation, and the explanation.
+- The widget snapshot carries `distanceLabel` / `distanceNote` — two finished
+  strings. `distanceKm` was removed; the widget process is never handed a number
+  it could turn back into a position.
+
+Verified against the live database in four steps (see the trigger check in
+`docs/PRIVACY.md`): one side wanting precise → coarse; both wanting → precise;
+partner withdrawing → my row re-coarsened without me opening the app; sharing off
+→ `lat`/`lng` null rather than stale.
+
+**The threshold that matters:** coarse readings are never printed as a number
+below `COARSE_NOISE_KM` (16 km). Rounding to the 0.1° grid moves each person by
+up to ~7.9 km, so two people standing together can compute 15.7 km apart. The app
+says "same city" there. The constant is 16 rather than 15 because the test
+derives the worst case from `haversineKm` instead of trusting arithmetic in a
+comment — and 15 did not clear it.
+
+### Phase 7 — builds, installs, runs. Widgets not yet seen on a launcher.
+
+The APK compiles (`BUILD SUCCESSFUL`, 11.4 MB), installs, and launches. All six
 receivers are registered — confirmed with `dumpsys package com.twoends.app`. No
-crash in logcat. `pnpm check` green, 81 tests.
+crash in logcat.
 
 **Test device is a Pixel 9a (Android 17), not the S9+.** `62211XEBF1F1F0`.
 
@@ -95,12 +133,12 @@ drawing decision — the rounded bitmap backgrounds, the centre-crop, the scrim,
 the week strip, the two-accent gradient — is untested. There is no adb command
 that binds a widget; it has to be done by hand from the launcher.
 
-Blocked on the phone having **no network at all** (Wi-Fi radio on, connected to
-nothing, `Active default network: none`), so the app cannot sign in and the
-widgets have no data to draw. Connect it to Wi-Fi first.
+To finish: connect the Pixel over USB, install the current APK, sign in, then
+long-press the home screen → Widgets → TwoEnds, and place all six.
 
-To finish: connect the Pixel to Wi-Fi, sign in, then long-press the home screen
-→ Widgets → TwoEnds, and place all six.
+**Most of the intended users are on iPhones and cannot install the APK at all**,
+so every feature has to be complete in the PWA. Distance is; the Widgets rail on
+Home is still an Android promo shown to everyone, which is worth revisiting.
 
 Design decisions worth keeping: widgets read a snapshot the app pushes, never
 the network — six background processes holding auth tokens is how a widget gets
@@ -255,6 +293,28 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
 - **The Kotlin `kotlin { compilerOptions { } }` block is top-level**, not inside
   `android { }`. Nesting it fails at configuration time with a "method not
   found" that reads as though the Kotlin plugin were missing entirely.
+- **`supabase db query --linked` swallows `raise notice`.** A `do $$ … $$` block
+  that reports its findings with `raise notice` returns `"rows": []` and nothing
+  else, which reads exactly like a query that did nothing. To see anything, wrap
+  the logic in `create or replace function pg_temp.f() returns table (…)` and
+  `return query select …` for each step, then `select * from pg_temp.f();`. This
+  is how the location trigger was verified against the live database.
+- **The auth rate limit on the free tier is easy to trip.** Running
+  `pnpm test:rls` three times in a few minutes gets
+  `Request rate limit reached` from `signInWithPassword`, and it surfaces as ten
+  unrelated pairing/capsule tests failing in `beforeAll` — nothing to do with the
+  policy you just changed. Wait ~3 minutes and re-run, and prefer
+  `pnpm exec vitest run --config vitest.rls.config.ts supabase/tests/leak.test.ts`
+  to running the whole suite while iterating.
+- **`Date.now()` in a hook body fails `react-hooks/purity`.** The rule is right —
+  React can render twice and get two answers. Use `useNow(interval)` from
+  `state/useNow.ts`, which holds the clock in state and re-anchors to the wall
+  clock on each tick.
+- **`state/location.ts` deliberately does not import `state/session.ts`.**
+  `session.ts` has to call `useLocation.getState().clear()` on sign-out and
+  unpair, so the reverse import would be a cycle that resolves differently in the
+  production bundle than in dev. That is why `useDistanceReading` takes the
+  partner's name as an argument instead of reading it from the session store.
 - **The dev loop for the S9+ is `pnpm dev` over LAN** — Vite is configured with
   `host: true`, so the phone loads `http://<laptop-ip>:5173`. Both devices must
   be on the same router.

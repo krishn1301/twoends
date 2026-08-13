@@ -1,4 +1,10 @@
-import { computeStreak, localDateIn, weekMarks, type DayMark } from '@twoends/core';
+import {
+  computeStreak,
+  localDateIn,
+  readDistance,
+  weekMarks,
+  type DayMark,
+} from '@twoends/core';
 import { create } from 'zustand';
 
 import { loadCanvas, type SharedCanvas } from '../db/canvas.ts';
@@ -12,6 +18,7 @@ import {
 import { recentEntries, type JournalEntry } from '../db/journal.ts';
 import { recentSnaps, signedUrls, type Snap } from '../db/photos.ts';
 import { syncWidgets } from '../lib/widgets.ts';
+import { useLocation } from './location.ts';
 import { useSession, type Couple } from './session.ts';
 
 /**
@@ -94,6 +101,8 @@ export const useShared = create<SharedState>((set) => ({
       widget until the next load — the app itself is already correct.
     */
     const { profile, partner } = useSession.getState();
+    const { presence } = useLocation.getState();
+
     void syncWidgets({
       myId: profile?.id ?? null,
       myName: profile?.display_name ?? '',
@@ -106,6 +115,13 @@ export const useShared = create<SharedState>((set) => ({
       canvas,
       streak: { current: streak.current },
       week,
+      distance: readDistance({
+        mine: presence.mine,
+        theirs: presence.theirs,
+        precision: presence.precision,
+        theirName: partner?.display_name,
+        nowMs: Date.now(),
+      }),
     });
   },
 
