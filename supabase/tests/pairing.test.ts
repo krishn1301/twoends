@@ -245,4 +245,47 @@ describe('unpairing takes both people', () => {
       expect(data, `${table} survived the unpair`).toEqual([]);
     }
   });
+
+  /*
+    The one the sweep above cannot catch.
+
+    `presence` is keyed on profile_id, so it hangs off `profiles` and not off
+    `couples` — and unpairing deletes the couple, not the people. Every
+    couple-scoped table came back empty on a real phone while a coordinate sat
+    there untouched, which is why this is its own test rather than another entry
+    in that loop.
+  */
+  it('erases both partners’ coordinates, which no couple_id sweep would notice', async () => {
+    const a = await newUser('loc-a');
+    const b = await newUser('loc-b');
+
+    const { data: code } = await a.db.rpc('create_invite');
+    await b.db.rpc('redeem_invite', { p_code: code });
+
+    for (const person of [a, b]) {
+      const { error } = await person.db
+        .from('presence')
+        .upsert(
+          { profile_id: person.id, sharing: true, lat: 28.6139, lng: 77.209 },
+          { onConflict: 'profile_id' },
+        );
+      expect(error).toBeNull();
+    }
+
+    const before = await admin()
+      .from('presence')
+      .select('lat')
+      .in('profile_id', [a.id, b.id])
+      .not('lat', 'is', null);
+    expect(before.data, 'the fixture itself must store coordinates').toHaveLength(2);
+
+    await a.db.rpc('request_unpair');
+    expect((await b.db.rpc('confirm_unpair')).error).toBeNull();
+
+    const after = await admin().from('presence').select('lat, sharing').in('profile_id', [a.id, b.id]);
+    for (const row of after.data ?? []) {
+      expect(row.lat, 'a coordinate outlived the couple it was shared with').toBeNull();
+      expect(row.sharing).toBe(false);
+    }
+  });
 });

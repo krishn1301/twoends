@@ -4,6 +4,9 @@ import { ACCENTS, ACCENT_KEYS, getAccent, timeTogether, type AccentKey } from '@
 import { Avatar } from '@twoends/ui';
 
 import { removeAvatar, uploadAvatar } from '../db/avatars.ts';
+import { exportEverything, type ExportProgress } from '../db/exportAll.ts';
+import { cancelUnpair, confirmUnpair, requestUnpair, unpairState } from '../db/unpair.ts';
+import { saveFile } from '../lib/saveFile.ts';
 import { disablePush, enablePush, pushState, type PushState } from '../db/push.ts';
 import { supabase } from '../lib/supabase.ts';
 import { useAvatars } from '../state/avatars.ts';
@@ -40,6 +43,12 @@ export function Us() {
   const [name, setName] = useState(profile?.display_name ?? '');
   const [push, setPush] = useState<PushState>(() => pushState());
   const [pushBusy, setPushBusy] = useState(false);
+
+  const [exporting, setExporting] = useState<ExportProgress | null>(null);
+  const [exported, setExported] = useState<string | null>(null);
+  const [armed, setArmed] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [leftover, setLeftover] = useState<string[] | null>(null);
 
   const location = useLocation();
   const distance = useDistanceReading(partner?.display_name);
@@ -115,7 +124,60 @@ export function Us() {
     await refresh();
   }
 
+  async function runExport() {
+    if (!couple) return;
+    setExported(null);
+    setError(null);
+    setExporting({ step: 'Starting', ratio: null });
+
+    const { blob, filename, error } = await exportEverything(couple.id, setExporting);
+    if (!blob) {
+      setExporting(null);
+      setError(error ?? 'Could not build the export.');
+      return;
+    }
+
+    const saved = await saveFile(blob, filename);
+    setExporting(null);
+    if (saved.error) setError(saved.error);
+    else setExported(saved.location ? `Saved to ${saved.location}.` : `Saved as ${filename}.`);
+  }
+
+  async function askUnpair() {
+    setError(null);
+    const { error } = await requestUnpair();
+    if (error) setError(error);
+    setArmed(false);
+    await refresh();
+  }
+
+  async function callOff() {
+    setError(null);
+    const { error } = await cancelUnpair();
+    if (error) setError(error);
+    await refresh();
+  }
+
+  async function doUnpair() {
+    if (!couple) return;
+    setError(null);
+    setLeftover(null);
+    setDeleting('Starting');
+
+    const { error, leftover } = await confirmUnpair(couple.id, setDeleting);
+    setDeleting(null);
+
+    if (error) {
+      setError(error);
+      return;
+    }
+    // Shown before the refresh, because the refresh unmounts this screen.
+    if (leftover.length > 0) setLeftover(leftover);
+    else await refresh();
+  }
+
   const elapsed = couple?.started_on ? timeTogether(couple.started_on, now) : null;
+  const unpair = unpairState(couple?.unpair_requested_by, profile?.id);
 
   return (
     <div className="bg-void text-chalk min-h-full px-5 pt-6 pb-32">
@@ -388,6 +450,131 @@ export function Us() {
               in — it is used for nothing else.
             </p>
           </div>
+        )}
+
+        {/*
+          The two promises that are only real if they have a button.
+
+          "The data belongs to the couple" and "unpair means delete" are both in
+          docs/PRIVACY.md, and until now neither had a way to be invoked. A
+          promise nobody can exercise is a paragraph.
+        */}
+        <Group title="Your data">
+          <Row label="Export everything">
+            <button
+              type="button"
+              onClick={() => void runExport()}
+              disabled={exporting !== null || !couple}
+              className="text-ash h-11 text-sm disabled:opacity-40"
+            >
+              {exporting ? 'Working…' : 'Download'}
+            </button>
+          </Row>
+
+          <div className="px-4 py-3.5">
+            {exporting ? (
+              <>
+                <p className="text-sm font-medium">{exporting.step}</p>
+                <div className="bg-surface-2 mt-2.5 h-1 overflow-hidden rounded-full">
+                  <div
+                    className="h-full rounded-full transition-[width] duration-300"
+                    style={{
+                      background: mine,
+                      width: exporting.ratio === null ? '15%' : `${Math.round(exporting.ratio * 100)}%`,
+                    }}
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="text-ash text-sm leading-relaxed">
+                {exported ??
+                  'A ZIP of plain JSON and your photos at the size they were uploaded. Nothing in it needs this app to read it. Your location is deliberately left out.'}
+              </p>
+            )}
+          </div>
+        </Group>
+
+        {couple?.member_b && (
+          <Group title="Unpair">
+            {unpair.kind === 'waiting' ? (
+              <>
+                <Row label="Waiting for them">
+                  <button type="button" onClick={() => void callOff()} className="text-ash h-11 text-sm">
+                    Call it off
+                  </button>
+                </Row>
+                <div className="px-4 py-3.5">
+                  <p className="text-ash text-sm leading-relaxed">
+                    You have asked to unpair. Nothing is deleted until{' '}
+                    {partner?.display_name ?? 'they'} confirms on their own phone, and either of you
+                    can call it off until then.
+                  </p>
+                </div>
+              </>
+            ) : unpair.kind === 'asked' ? (
+              <>
+                <Row label={`${partner?.display_name ?? 'They'} asked to unpair`}>
+                  <button type="button" onClick={() => void callOff()} className="text-ash h-11 text-sm">
+                    Call it off
+                  </button>
+                </Row>
+                <div className="px-4 py-3.5">
+                  <p className="text-sm leading-relaxed">
+                    Confirming deletes everything the two of you made — every photo, answer,
+                    drawing and note — on both phones and on the server. It cannot be undone.
+                  </p>
+                  <p className="text-ash mt-2 text-sm leading-relaxed">
+                    Export first if you want to keep any of it.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void doUnpair()}
+                    disabled={deleting !== null}
+                    className="mt-3.5 h-12 w-full rounded-full text-sm font-medium disabled:opacity-40"
+                    style={{ background: '#e4566e', color: '#141110' }}
+                  >
+                    {deleting ?? 'Delete everything'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <Row label="Unpair and delete">
+                  <button
+                    type="button"
+                    onClick={() => (armed ? void askUnpair() : setArmed(true))}
+                    className="text-ash h-11 text-sm"
+                  >
+                    {armed ? 'Yes, ask them' : 'Start'}
+                  </button>
+                </Row>
+                <div className="px-4 py-3.5">
+                  <p className="text-ash text-sm leading-relaxed">
+                    {armed
+                      ? `This asks ${partner?.display_name ?? 'them'} to confirm. Nothing is deleted until they do.`
+                      : 'It takes both of you: one asks, the other confirms. Then everything the two of you made is deleted for good — not hidden, not archived.'}
+                  </p>
+                </div>
+              </>
+            )}
+
+            {leftover && (
+              /*
+                The delete ran and something is still there. Saying so is the
+                only honest option: a "done" that is not true is precisely the
+                failure this app's privacy claims cannot survive.
+              */
+              <div className="px-4 py-3.5">
+                <p className="text-sm font-medium" style={{ color: '#e4566e' }}>
+                  Some data survived the delete
+                </p>
+                <p className="text-ash mt-1.5 text-sm leading-relaxed">
+                  {leftover.join(', ')} still returns rows. Please report this — it is a bug in the
+                  delete, and it is the most serious kind this app can have.
+                </p>
+              </div>
+            )}
+          </Group>
         )}
 
         <button
