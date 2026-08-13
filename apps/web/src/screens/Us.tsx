@@ -324,10 +324,31 @@ export function Us() {
               )}
 
               <div className="px-4 py-3.5">
-                <p className="text-sm font-medium">
-                  {distance.kind === 'apart' ? `${distance.label} km` : distance.label}
-                </p>
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="text-sm font-medium">
+                    {distance.kind === 'apart' ? `${distance.label} km` : distance.label}
+                  </p>
+                  {/*
+                    A manual refresh, because location here is foreground-only
+                    and there is no widget on this platform to make a frozen
+                    number obvious. Without it the only way to update a reading
+                    is to leave the app and come back.
+                  */}
+                  {location.presence.sharing && (
+                    <button
+                      type="button"
+                      onClick={() => void (profile && location.enable(profile.id))}
+                      disabled={location.busy}
+                      className="text-ash text-sm disabled:opacity-40"
+                    >
+                      {location.busy ? 'Checking…' : 'Refresh'}
+                    </button>
+                  )}
+                </div>
                 <p className="text-ash mt-1 text-sm">{location.error ?? distance.note}</p>
+                {distance.since && !location.error && (
+                  <p className="text-ash mt-1 text-sm opacity-70">As of {distance.since}.</p>
+                )}
               </div>
 
               <div className="px-4 py-3.5">

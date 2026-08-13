@@ -5,6 +5,7 @@ import {
   COARSE_NOISE_KM,
   STALE_AFTER_MS,
   coarsen,
+  describeAge,
   formatKm,
   haversineKm,
   readDistance,
@@ -185,7 +186,35 @@ describe('readDistance', () => {
       readDistance({ ...base, mine: fresh(28.6, 77.2), theirs: fresh(19.1, 72.9) }),
     ];
     for (const r of readings) {
-      expect(Object.keys(r).sort()).toEqual(['km', 'kind', 'label', 'note'].sort());
+      expect(Object.keys(r).sort()).toEqual(['km', 'kind', 'label', 'note', 'since'].sort());
     }
+  });
+
+  it('ages the reading by the older of the two fixes, not the newer', () => {
+    const r = readDistance({
+      ...base,
+      mine: fresh(28.6, 77.2),
+      theirs: {
+        lat: 19.1,
+        lng: 72.9,
+        updatedAt: new Date(NOW - 5 * 3_600_000).toISOString(),
+      },
+    });
+    expect(r.since).toBe('5 hours ago');
+  });
+});
+
+describe('describeAge', () => {
+  it('rounds down, so nothing is claimed fresher than it is', () => {
+    expect(describeAge(119_000)).toBe('just now');
+    expect(describeAge(59 * 60_000)).toBe('59 minutes ago');
+    // 119 minutes is not "2 hours"; it is one hour and a lot of change.
+    expect(describeAge(119 * 60_000)).toBe('an hour ago');
+    expect(describeAge(47 * 3_600_000)).toBe('yesterday');
+    expect(describeAge(50 * 3_600_000)).toBe('2 days ago');
+  });
+
+  it('survives the infinite age an unparseable timestamp produces', () => {
+    expect(describeAge(Number.POSITIVE_INFINITY)).toBe('a long time ago');
   });
 });

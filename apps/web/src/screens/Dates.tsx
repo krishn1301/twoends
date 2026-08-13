@@ -6,6 +6,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 
 import { Button, Field, TextInput } from '../components/Field.tsx';
 import { Capsules } from './Capsules.tsx';
+import { SharedList } from './SharedList.tsx';
 import { addEntry, deleteEntry, type JournalEntry } from '../db/journal.ts';
 import { addCountdown, removeCountdown } from '../db/repository.ts';
 import { db } from '../db/schema.ts';
@@ -34,7 +35,7 @@ export function Dates() {
   const { pending } = useOutbox();
   const urls = useAvatars((s) => s.urls);
 
-  const [view, setView] = useState<'ahead' | 'behind' | 'sealed'>('ahead');
+  const [view, setView] = useState<'ahead' | 'behind' | 'list' | 'sealed'>('ahead');
   const entries = useShared((s) => s.entries);
   const load = useShared((s) => s.load);
 
@@ -74,6 +75,7 @@ export function Dates() {
             [
               ['ahead', 'Coming up'],
               ['behind', 'Memories'],
+              ['list', 'List'],
               ['sealed', 'Capsules'],
             ] as const
           ).map(([key, label]) => (
@@ -82,7 +84,7 @@ export function Dates() {
               type="button"
               onClick={() => setView(key)}
               aria-pressed={view === key}
-              className={`h-10 flex-1 rounded-full text-[0.82rem] font-medium transition-colors ${
+              className={`h-10 flex-1 rounded-full text-[0.78rem] font-medium transition-colors ${
                 view === key ? 'text-void' : 'text-ash'
               }`}
               style={view === key ? { background: mine } : undefined}
@@ -93,6 +95,13 @@ export function Dates() {
         </div>
 
         {view === 'sealed' && <Capsules />}
+
+        {/*
+          The list lives here rather than in the tab bar. Three destinations is
+          a deliberate cap — see TabBar — and "things we mean to do" is the same
+          thought as "things that are coming", one step less committed.
+        */}
+        {view === 'list' && <SharedList coupleId={couple?.id} tint={mine} />}
 
         {view === 'ahead' && (
           <Ahead coupleId={couple?.id} tint={mine} now={now} rows={countdowns ?? []} />

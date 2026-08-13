@@ -285,6 +285,7 @@ export function Home({ onOpen }: { onOpen?: (what: 'draw' | 'snap' | 'ask') => v
                 <Tile
                   eyebrow={distance.kind === 'apart' ? 'apart' : 'distance'}
                   headline={distance.note}
+                  footnote={distance.since ? `as of ${distance.since}` : undefined}
                 >
                   <div className="absolute inset-x-4 top-4 flex items-center">
                     <Avatar name={m.myName} accent={mine} size={28} />

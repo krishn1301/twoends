@@ -74,6 +74,7 @@ export function Rail({ children }: { children: ReactNode }) {
 export function Tile({
   eyebrow,
   headline,
+  footnote,
   ground,
   badge,
   wide,
@@ -84,6 +85,12 @@ export function Tile({
 }: {
   eyebrow?: string;
   headline?: string;
+  /**
+   * A quiet third line under the headline, for the caveat a number needs to be
+   * honest — how old a reading is, say. Clipped to one line: a card that grows
+   * to fit a caveat breaks the fixed height the whole rail depends on.
+   */
+  footnote?: string;
   ground?: string;
   badge?: ReactNode;
   /** Two columns wide instead of one. */
@@ -120,7 +127,7 @@ export function Tile({
 
       {badge && <div className="absolute top-3.5 left-3.5 z-10">{badge}</div>}
 
-      {(eyebrow ?? headline) && (
+      {(eyebrow ?? headline ?? footnote) && (
         <div className="absolute inset-x-0 bottom-0 z-10 p-3.5">
           {eyebrow && (
             <p
@@ -136,6 +143,14 @@ export function Tile({
               style={{ color: onDark ? '#FFFFFF' : '#141110' }}
             >
               {headline}
+            </p>
+          )}
+          {footnote && (
+            <p
+              className="mt-1 truncate text-[0.68rem] leading-none"
+              style={{ color: onDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.42)' }}
+            >
+              {footnote}
             </p>
           )}
         </div>

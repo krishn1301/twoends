@@ -51,6 +51,65 @@ export async function removeCountdown(id: string): Promise<void> {
 export const listCountdowns = (coupleId: string): Promise<Countdown[]> =>
   db.countdowns.where('couple_id').equals(coupleId).sortBy('target_at');
 
+// ── the shared list ──────────────────────────────────────────────────────────
+
+/**
+ * Things the two of you mean to do.
+ *
+ * `kind` splits one table into several lists rather than giving each its own —
+ * the rows are identical in shape, and a `watch` list and a `date` list differ
+ * only in the word at the top. Adding "places" later is a string, not a
+ * migration.
+ *
+ * Done is a timestamp rather than a boolean, on purpose: "we did this in March"
+ * is worth keeping, and a boolean throws that away the moment it is set.
+ */
+export const LIST_KINDS = ['date', 'watch', 'go', 'someday'] as const;
+export type ListKind = (typeof LIST_KINDS)[number];
+
+export async function addListItem(input: {
+  coupleId: string;
+  kind: ListKind;
+  title: string;
+}): Promise<string> {
+  const id = newId();
+  await enqueue('list_items', 'upsert', {
+    id,
+    couple_id: input.coupleId,
+    kind: input.kind,
+    title: input.title,
+    done_at: null,
+    created_at: new Date().toISOString(),
+  });
+  return id;
+}
+
+/**
+ * Ticks an item off, or un-ticks it.
+ *
+ * Either of you may tick either item, including one the other person added.
+ * A shared list where each person can only complete their own entries is two
+ * lists in a trench coat.
+ */
+export async function setListItemDone(id: string, done: boolean): Promise<void> {
+  const existing = await db.list_items.get(id);
+  if (!existing) return;
+  await enqueue('list_items', 'upsert', {
+    ...existing,
+    done_at: done ? new Date().toISOString() : null,
+  });
+}
+
+export async function renameListItem(id: string, title: string): Promise<void> {
+  const existing = await db.list_items.get(id);
+  if (!existing) return;
+  await enqueue('list_items', 'upsert', { ...existing, title });
+}
+
+export async function removeListItem(id: string): Promise<void> {
+  await enqueue('list_items', 'delete', { id });
+}
+
 // ── pulling ──────────────────────────────────────────────────────────────────
 
 /**

@@ -107,14 +107,23 @@ export function coarsen(point: Coordinate, grid: number = COARSE_GRID_DEG): Coor
   };
 }
 
+/**
+ * `since` is how old the *older* of the two fixes is, in words.
+ *
+ * It exists because location here is foreground-only: a reading is only as
+ * fresh as the last time one of you opened the app. On Android a widget makes
+ * that obvious — it visibly stops changing. On the PWA, which is all an iPhone
+ * gets, there is nothing to notice, so the screen has to say it. A distance
+ * with no age on it silently claims to be current.
+ */
 export type Reading =
   /** Neither of you has turned it on, or only one of you has. */
-  | { kind: 'off'; label: string; note: string; km: null }
+  | { kind: 'off'; label: string; note: string; km: null; since: null }
   /** On, but nobody has opened the app recently enough to trust the fix. */
-  | { kind: 'stale'; label: string; note: string; km: null }
+  | { kind: 'stale'; label: string; note: string; km: null; since: string }
   /** Close enough that the grid cannot tell you apart. */
-  | { kind: 'near'; label: string; note: string; km: number }
-  | { kind: 'apart'; label: string; note: string; km: number };
+  | { kind: 'near'; label: string; note: string; km: number; since: string }
+  | { kind: 'apart'; label: string; note: string; km: number; since: string };
 
 export interface DistanceInput {
   mine: Fix | null;
@@ -142,25 +151,53 @@ export function readDistance(input: DistanceInput): Reading {
       label: '—',
       note: mine ? `${them} hasn't turned it on` : 'Turn on location to see this',
       km: null,
+      since: null,
     };
   }
 
+  // The older of the two, because the reading is only as trustworthy as its
+  // worse half. Saying "2 minutes ago" when one side last checked in on Tuesday
+  // would be the most misleading thing this function could do.
   const age = Math.max(ageMs(mine, nowMs), ageMs(theirs, nowMs));
+  const since = describeAge(age);
+
   if (age > STALE_AFTER_MS) {
-    return { kind: 'stale', label: '—', note: 'No recent location', km: null };
+    return { kind: 'stale', label: '—', note: 'No recent location', km: null, since };
   }
 
   const km = haversineKm(mine, theirs);
 
   if (precision === 'precise' && km < SAME_PLACE_KM) {
-    return { kind: 'near', label: 'here', note: `Same place as ${them}`, km };
+    return { kind: 'near', label: 'here', note: `Same place as ${them}`, km, since };
   }
 
   if (precision === 'coarse' && km < COARSE_NOISE_KM) {
-    return { kind: 'near', label: 'same city', note: `Somewhere near ${them}`, km };
+    return { kind: 'near', label: 'same city', note: `Somewhere near ${them}`, km, since };
   }
 
-  return { kind: 'apart', label: formatKm(km, precision), note: `km from ${them}`, km };
+  return { kind: 'apart', label: formatKm(km, precision), note: `km from ${them}`, km, since };
+}
+
+/**
+ * Age in words, rounded down and deliberately vague.
+ *
+ * Down rather than to nearest, so nothing is ever claimed to be fresher than it
+ * is. Vague because the exact minute a partner last opened the app is a "last
+ * seen" timestamp by another name, and docs/PRIVACY.md rules those out — the
+ * point here is "can I trust this number", not surveillance of the other person.
+ */
+export function describeAge(ms: number): string {
+  if (!Number.isFinite(ms)) return 'a long time ago';
+
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 2) return 'just now';
+  if (minutes < 60) return `${minutes} minutes ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours === 1 ? 'an hour ago' : `${hours} hours ago`;
+
+  const days = Math.floor(hours / 24);
+  return days === 1 ? 'yesterday' : `${days} days ago`;
 }
 
 /**

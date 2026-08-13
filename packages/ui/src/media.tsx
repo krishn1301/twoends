@@ -145,9 +145,20 @@ export function Faces({
   lineColor: string;
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <Avatar name={myName} accent={myAccent} size={size} src={mySrc} />
-      <div className="relative flex flex-1 items-center justify-center">
+    /*
+      `items-start` rather than `items-center`, because each side is now a column
+      — face on top, name underneath — and centring the columns would drag the
+      dashed line and the distance badge down to the middle of the *column*
+      instead of the middle of the two faces. The line has to meet the faces, or
+      it stops reading as a line between two people.
+    */
+    <div className="flex items-start gap-3">
+      <Named name={myName} accent={myAccent} size={size} src={mySrc} />
+      {/* Exactly as tall as a face, so the badge sits on the faces' centre line. */}
+      <div
+        className="relative flex flex-1 items-center justify-center"
+        style={{ height: size }}
+      >
         <span
           className="absolute inset-x-0 top-1/2 border-t border-dashed"
           style={{ borderColor: lineColor }}
@@ -155,7 +166,43 @@ export function Faces({
         />
         {middle}
       </div>
-      <Avatar name={theirName} accent={theirAccent} size={size} src={theirSrc} />
+      <Named name={theirName} accent={theirAccent} size={size} src={theirSrc} />
+    </div>
+  );
+}
+
+/**
+ * A face with a name under it.
+ *
+ * The avatar alone falls back to a single initial, and two strangers' initials
+ * are not a way to tell who is who — least of all when both people have chosen
+ * a colour and neither has uploaded a photo yet. The name is the label; the
+ * circle is the picture.
+ *
+ * Width is pinned to the avatar so a long name wraps or truncates instead of
+ * pushing the dashed line off-centre, which would move the distance badge every
+ * time somebody renamed themselves.
+ */
+function Named({
+  name,
+  accent,
+  size,
+  src,
+}: {
+  name: string;
+  accent: string;
+  size: number;
+  src?: string | null;
+}) {
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-1.5" style={{ width: size }}>
+      <Avatar name={name} accent={accent} size={size} src={src} />
+      <span
+        className="w-full truncate text-center text-[0.7rem] leading-tight text-[#948A82]"
+        title={name}
+      >
+        {name}
+      </span>
     </div>
   );
 }
