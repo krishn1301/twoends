@@ -80,8 +80,31 @@ Commands: `pnpm db:push`, `pnpm db:types`, `pnpm test:rls`, `pnpm verify`.
 
 ## Current phase
 
-**Phase 9 (distance) built and proven server-side. Phase 7's last step — a
-widget actually on a launcher — is still outstanding.** Phases 0–6 shipped.
+**Phase 10 done: export and real delete both work, verified on the S9+.**
+Phase 9's distance feature is done. Phase 7's last step — a widget actually on
+a launcher — is still the one thing outstanding. Phases 0–6 shipped.
+
+### The APK runs on the S9+, and putting it there found three real bugs
+
+None of them could have been found from the PWA, and all three are recorded as
+gotchas below. Briefly: half the accent palette was rejected by a check
+constraint so a third of new users could not create a profile at all; the
+manifest declared no location permission so `navigator.geolocation` could never
+succeed in the native app; and a `presence` row survived a "successful" delete.
+
+### Phase 10 — export and delete
+
+- `packages/core/src/zip.ts` writes the archive by hand. Deflate is *not* in it:
+  core may not touch a platform API, so the caller passes in what
+  `CompressionStream('deflate-raw')` produced and entries fall back to stored.
+  Verified by opening the output with Windows' `Expand-Archive`, which is the
+  check the unit tests cannot make.
+- **`presence` is never exported.** It is the only table holding a coordinate.
+- `ExportPlugin.kt` writes to Downloads via MediaStore, because an `<a download>`
+  on a blob URL does nothing at all in an Android WebView.
+- Unpair: one asks, the other confirms, either can call it off. Storage is
+  deleted **first**, while the policies still match. Afterwards the app asks the
+  server what survived and says so if anything did.
 
 ### Distance apart — done
 
@@ -293,6 +316,33 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
 - **The Kotlin `kotlin { compilerOptions { } }` block is top-level**, not inside
   `android { }`. Nesting it fails at configuration time with a "method not
   found" that reads as though the Kotlin plugin were missing entirely.
+- **A TypeScript array and a check constraint do not know about each other.**
+  `packages/core` grew to twelve accents; `profiles.accent_key` allowed eight
+  until migration 14, so a third of new users had their profile insert rejected
+  and were told "Could not save that. Check your connection". Nothing failed at
+  build time and nothing could. The leak suite now writes every key in
+  `ACCENT_KEYS`, so adding a thirteenth without a migration goes red. **Any
+  enum-shaped column duplicated in TypeScript needs a test of this shape.**
+- **Capacitor's WebChromeClient can only request permissions the manifest
+  declares.** With only `INTERNET` there, `navigator.geolocation` fails silently
+  in the APK while working perfectly in a browser — a difference no amount of
+  PWA testing reveals. `ACCESS_COARSE_LOCATION` and `ACCESS_FINE_LOCATION` are
+  declared; `ACCESS_BACKGROUND_LOCATION` deliberately is not.
+- **With the system location toggle off, Android's WebView never calls back at
+  all** — it does not report `POSITION_UNAVAILABLE`, it times out. So the honest
+  message for a timeout has to mention the switch; "try again" would have failed
+  forever. Check with `adb shell settings get secure location_mode`.
+- **`presence` is keyed on `profile_id`, so no sweep by `couple_id` sees it.**
+  That is how a coordinate survived a delete that reported success. Migration 15
+  clears it inside `confirm_unpair`. Anything else keyed per-person rather than
+  per-couple needs the same separate treatment.
+- **The service worker caches the app inside the Capacitor WebView.** A freshly
+  installed APK can run the *previous* web bundle for one launch, which looks
+  exactly like an edit that did not take. `am force-stop` and relaunch once
+  before concluding anything is broken.
+- **`adb exec-out screencap -p > file.png` corrupts the PNG from PowerShell** —
+  the redirect adds a BOM and re-encodes. Use `adb shell screencap -p /sdcard/s.png`
+  then `adb pull -a`.
 - **`supabase db query --linked` swallows `raise notice`.** A `do $$ … $$` block
   that reports its findings with `raise notice` returns `"rows": []` and nothing
   else, which reads exactly like a query that did nothing. To see anything, wrap
