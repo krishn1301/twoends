@@ -200,7 +200,21 @@ function describe(cause: unknown): string {
   if (code === 1) {
     return 'Location is blocked for TwoEnds. You can allow it in your browser settings.';
   }
-  if (code === 2) return 'Could not get a location fix. Try again outside, or on Wi-Fi.';
-  if (code === 3) return 'Location took too long. Try again.';
+  /*
+    Both of these say "check location is on for the phone", because that is the
+    cause in practice and neither error code tells you so.
+
+    Found on a real device: with the system location toggle off, Android's
+    WebView does not report POSITION_UNAVAILABLE — it simply never calls back
+    and the request times out. "Location took too long. Try again." was
+    therefore shown to someone whose only problem was a switch, and trying again
+    would have failed forever.
+  */
+  if (code === 2) {
+    return 'Could not get a location fix. Check that Location is on for your phone, and try again outside or on Wi-Fi.';
+  }
+  if (code === 3) {
+    return 'Location took too long. Check that Location is switched on for your phone, then try again.';
+  }
   return 'Could not read your location.';
 }

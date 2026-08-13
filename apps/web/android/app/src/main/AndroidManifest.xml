@@ -128,4 +128,26 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+      Location, for the distance feature.
+
+      Capacitor's WebChromeClient answers the WebView's geolocation prompt by
+      requesting the runtime permission — but it can only request what is
+      declared here, so without these two lines `navigator.geolocation` fails
+      silently in the app while working perfectly in the browser. That is a
+      difference the PWA cannot show you and only a real device will.
+
+      COARSE is what the feature actually runs on: positions are rounded to a
+      ~11 km grid before they leave the phone. FINE is declared because both
+      partners may opt into precise, and Android 12+ then lets them choose
+      Approximate anyway from the system prompt — which the app handles, since
+      any fix at all is more than the grid needs.
+
+      Deliberately NOT declared: ACCESS_BACKGROUND_LOCATION. There is no
+      background location in this app, by design, and asking for the permission
+      would be the strongest possible signal that there is.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 </manifest>

@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { ACCENT_KEYS } from '@twoends/core';
+
 import {
   COUPLE_TABLES,
   SUPABASE_URL,
@@ -397,6 +399,36 @@ describe('location is opt-in, coarse, and erased when switched off', () => {
 
     const { data } = await mallory.db.from('presence').select('*');
     expect(data).toEqual([]);
+  });
+});
+
+/*
+  The app's palette and the database's constraint have to agree.
+
+  They diverged once and nobody noticed until a phone: core grew to twelve
+  accents, `profiles.accent_key` still allowed eight, and onboarding failed for
+  anyone whose photo hue landed on one of the missing four — reported to them as
+  a connection problem, which it was not.
+
+  Driven by ACCENT_KEYS rather than a hardcoded list on purpose. A thirteenth
+  accent added without a migration turns this red, which is the only way a
+  TypeScript array and a check constraint can be kept honest about each other.
+*/
+describe('every accent the app offers is one the database accepts', () => {
+  it.each([...ACCENT_KEYS])('%s is a writable accent_key', async (key) => {
+    const { error } = await alice.db
+      .from('profiles')
+      .update({ accent_key: key })
+      .eq('id', alice.id);
+    expect(error?.message ?? null).toBeNull();
+  });
+
+  it('still refuses a key that is not in the palette', async () => {
+    const { error } = await alice.db
+      .from('profiles')
+      .update({ accent_key: 'burgundy' })
+      .eq('id', alice.id);
+    expect(error).not.toBeNull();
   });
 });
 
