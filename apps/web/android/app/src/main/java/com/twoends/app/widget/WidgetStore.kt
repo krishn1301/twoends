@@ -56,17 +56,24 @@ object WidgetStore {
         val snapCaption: String?,
         val canvasFromThem: Boolean,
         /**
-         * The two lines the distance widget prints, already written by the app.
+         * The three lines the distance widget prints, already written by the app.
          *
          * Not a number, deliberately. Whether a reading is "412", "same city" or
          * "here" depends on the grid the coordinate was rounded to and on which
          * of the two people opted into precise — questions this process has no
-         * way to answer and no business asking. Both are null until both people
-         * have switched location on.
+         * way to answer and no business asking. All three are null until both
+         * people have switched location on.
+         *
+         * `distanceTitle` is the same reading with its unit reattached, for the
+         * heading; `distanceLabel` is the bare figure, for the strip where there
+         * is no room for a unit.
          */
         val distanceLabel: String?,
+        val distanceTitle: String?,
         val distanceNote: String?,
         val quiet: Boolean,
+        /** When the countdown was set, so the widget can draw how far through it is. */
+        val countdownFrom: String?,
     ) {
         val paired: Boolean get() = theirName.isNotEmpty()
     }
@@ -86,8 +93,10 @@ object WidgetStore {
         snapCaption = null,
         canvasFromThem = false,
         distanceLabel = null,
+        distanceTitle = null,
         distanceNote = null,
         quiet = false,
+        countdownFrom = null,
     )
 
     fun read(context: Context): Snapshot {
@@ -113,8 +122,10 @@ object WidgetStore {
                 snapCaption = json.optStringOrNull("snapCaption"),
                 canvasFromThem = json.optBoolean("canvasFromThem", false),
                 distanceLabel = json.optStringOrNull("distanceLabel"),
+                distanceTitle = json.optStringOrNull("distanceTitle"),
                 distanceNote = json.optStringOrNull("distanceNote"),
                 quiet = json.optBoolean("quiet", false),
+                countdownFrom = json.optStringOrNull("countdownFrom"),
             )
         } catch (_: Exception) {
             // A malformed snapshot must never crash a launcher. The widget shows

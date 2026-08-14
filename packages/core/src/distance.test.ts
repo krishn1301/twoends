@@ -6,6 +6,7 @@ import {
   STALE_AFTER_MS,
   coarsen,
   describeAge,
+  distanceHeadline,
   formatKm,
   haversineKm,
   readDistance,
@@ -201,6 +202,43 @@ describe('readDistance', () => {
       },
     });
     expect(r.since).toBe('5 hours ago');
+  });
+});
+
+describe('distanceHeadline', () => {
+  const base = { precision: 'coarse' as const, theirName: 'Kishu', nowMs: NOW };
+
+  it('reattaches the unit when you are apart', () => {
+    const r = readDistance({ ...base, mine: fresh(28.6, 77.2), theirs: fresh(19.1, 72.9) });
+    expect(r.kind).toBe('apart');
+    expect(distanceHeadline(r)).toBe(`${r.label} km`);
+    expect(distanceHeadline(r)).toMatch(/^[\d,]+ km$/);
+  });
+
+  it('says the phrase as-is when you are near, without a stray unit', () => {
+    const r = readDistance({ ...base, mine: fresh(28.6, 77.2), theirs: fresh(28.61, 77.21) });
+    expect(r.kind).toBe('near');
+    expect(distanceHeadline(r)).toBe('same city');
+    expect(distanceHeadline(r)).not.toContain('km');
+  });
+
+  it('is a dash when there is nothing to say, never a zero', () => {
+    // A widget reading "0 km" when location is off would be the worst possible
+    // failure of this feature — it asserts you are in the same place.
+    const off = readDistance({ ...base, mine: null, theirs: null });
+    expect(distanceHeadline(off)).toBe('—');
+
+    const stale = readDistance({
+      ...base,
+      mine: fresh(28.6, 77.2),
+      theirs: { lat: 19.1, lng: 72.9, updatedAt: 'not a date' },
+    });
+    expect(distanceHeadline(stale)).toBe('—');
+  });
+
+  it('never leaks a figure more precise than the label already showed', () => {
+    const r = readDistance({ ...base, mine: fresh(28.6, 77.2), theirs: fresh(19.1, 72.9) });
+    expect(distanceHeadline(r)).not.toContain('.');
   });
 });
 

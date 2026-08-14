@@ -15,5 +15,6 @@
     <string name="widget_anniversary_description">Days together, counting up</string>
     <string name="widget_countdown_description">Days until the next one</string>
     <string name="widget_streak_description">Your streak and this week</string>
-    <string name="widget_distance_description">How far apart, never where</string>
+    <string name="widget_distance_description">How far apart, with both your faces</string>
+    <string name="widget_distance_strip_description">How far apart, in a single row</string>
 </resources>

@@ -1,8 +1,9 @@
-import { getAccent, type DayMark, type Drawing, type Reading } from '@twoends/core';
+import { distanceHeadline, getAccent, type DayMark, type Drawing, type Reading } from '@twoends/core';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
 import { paintStroke } from './paintStroke.ts';
 import { db } from '../db/schema.ts';
+import { signedAvatarUrls } from '../db/avatars.ts';
 import { soonestCountdown } from '../db/repository.ts';
 import { signedUrls, type Snap } from '../db/photos.ts';
 import type { SharedCanvas } from '../db/canvas.ts';
@@ -32,11 +33,15 @@ interface WidgetSnapshot {
   week: string;
   countdownTitle: string | null;
   countdownAt: string | null;
+  /** When it was added, so the widget can show how far through the wait you are. */
+  countdownFrom: string | null;
   snapFromThem: boolean;
   snapCaption: string | null;
   canvasFromThem: boolean;
-  /** Both null until both people have location on. See core/distance.ts. */
+  /** All three null until both people have location on. See core/distance.ts. */
   distanceLabel: string | null;
+  /** The same reading as one heading — "870 km", "same city". */
+  distanceTitle: string | null;
   distanceNote: string | null;
   quiet: boolean;
 }
@@ -54,14 +59,23 @@ export const WIDGETS = [
   { id: 'anniversary', name: 'Days together', note: 'Counting up, in both your colours.' },
   { id: 'countdown', name: 'The next countdown', note: 'Days until the soonest one.' },
   { id: 'streak', name: 'Streak', note: 'The number and the week so far.' },
-  { id: 'distance', name: 'How far apart', note: 'Distance only. Never where.' },
+  { id: 'distance', name: 'How far apart', note: 'Both your faces, and the gap.' },
+  { id: 'distanceStrip', name: 'How far apart, small', note: 'The same, in one row.' },
 ] as const;
 
 export type WidgetId = (typeof WIDGETS)[number]['id'];
 
+/**
+ * The images the native side will accept, contractual with
+ * `WidgetsPlugin.ALLOWED_IMAGES`. A name not in this set is rejected rather than
+ * written, which is the right way round: a typo becomes a failed call instead of
+ * a file nothing ever reads.
+ */
+export type WidgetImage = 'snap' | 'canvas' | 'avatarMe' | 'avatarThem';
+
 interface WidgetsBridge {
   update(options: { snapshot: WidgetSnapshot }): Promise<void>;
-  putImage(options: { name: 'snap' | 'canvas'; data: string | null }): Promise<void>;
+  putImage(options: { name: WidgetImage; data: string | null }): Promise<void>;
   clear(): Promise<void>;
   canPin(): Promise<{ value: boolean }>;
   pin(options: { name: WidgetId }): Promise<{ value: boolean }>;
@@ -145,6 +159,16 @@ export interface WidgetInput {
    * into a position, and the rounding rules exist in one place only.
    */
   distance: Reading;
+  /**
+   * Both faces, as storage paths.
+   *
+   * Paths, not URLs, and they go no further than this module: the bitmap is
+   * fetched here and pushed as bytes. A path must never enter the snapshot —
+   * that is written to SharedPreferences, which is durable and survives longer
+   * than anyone expects, and a durable pointer at a private bucket buys nothing.
+   */
+  myAvatarPath: string | null;
+  theirAvatarPath: string | null;
 }
 
 /**
@@ -173,6 +197,7 @@ export async function syncWidgets(input: WidgetInput): Promise<void> {
     week: week.map(mark).join(''),
     countdownTitle: countdown?.title ?? null,
     countdownAt: countdown?.target_at ?? null,
+    countdownFrom: countdown?.created_at ?? null,
     snapFromThem: latest != null && latest.author_id !== myId,
     snapCaption: latest?.caption ?? null,
     canvasFromThem: canvas?.lastAuthorId != null && canvas.lastAuthorId !== myId,
@@ -183,6 +208,7 @@ export async function syncWidgets(input: WidgetInput): Promise<void> {
       that has simply stopped changing.
     */
     distanceLabel: hasFix ? input.distance.label : null,
+    distanceTitle: hasFix ? distanceHeadline(input.distance) : null,
     distanceNote: hasFix ? input.distance.note : null,
     quiet: false,
   };
@@ -191,9 +217,70 @@ export async function syncWidgets(input: WidgetInput): Promise<void> {
   await Widgets.update({ snapshot });
 
   await Promise.allSettled([
-    Widgets.putImage({ name: 'snap', data: await snapArt(latest) }),
-    Widgets.putImage({ name: 'canvas', data: canvasArt(canvas) }),
+    pushImage('snap', await snapArt(latest)),
+    pushImage('canvas', canvasArt(canvas)),
+    pushFaces(input.myAvatarPath, input.theirAvatarPath),
   ]);
+}
+
+/**
+ * The two faces, at most once per launch.
+ *
+ * `syncWidgets` runs on every foreground and after every send. Avatars change
+ * about twice a year, so re-signing and re-encoding them on that schedule would
+ * be pure waste — but there is no way to ask the native side what it is already
+ * holding, so the honest ceiling is "once per app launch". This map is empty on
+ * a cold start and that is deliberate: a launch costs two nine-kilobyte pushes
+ * and guarantees the home screen is not showing a face from a previous account.
+ */
+const pushedFaces = new Map<WidgetImage, string | null>();
+
+async function pushFaces(myPath: string | null, theirPath: string | null): Promise<void> {
+  const wanted: Array<[WidgetImage, string | null]> = [
+    ['avatarMe', myPath],
+    ['avatarThem', theirPath],
+  ];
+
+  const stale = wanted.filter(([name, path]) => pushedFaces.get(name) !== path);
+  if (stale.length === 0) return;
+
+  // One signing call for both, not one each. `signedAvatarUrls` already drops
+  // falsy paths and returns an empty map for an empty list, so the unpaired case
+  // costs nothing.
+  const urls = await signedAvatarUrls(stale.map(([, path]) => path).filter(Boolean) as string[]);
+
+  for (const [name, path] of stale) {
+    const art = await avatarArt(path ? urls.get(path) : undefined, path);
+    if (art === undefined) continue;
+
+    await pushImage(name, art);
+    // Recorded only on a push that actually happened, so a failure is retried on
+    // the next foreground rather than being remembered as done.
+    pushedFaces.set(name, path);
+  }
+}
+
+/**
+ * Sends one image, or deliberately does not.
+ *
+ * `putImage(name, null)` **deletes** the file — which is right when the thing is
+ * genuinely gone, and was catastrophic when it also meant "the fetch failed".
+ * `snapArt` returned null on any error, so every foreground without signal wiped
+ * the photo off the home screen, under a comment claiming the widget kept what
+ * it had. It did not.
+ *
+ * So the three cases are three values now:
+ *
+ *  - `string`    — here is the image, write it
+ *  - `null`      — there is no such image any more, delete it
+ *  - `undefined` — could not fetch it; leave whatever is on disk alone
+ *
+ * The last one is the whole point. A stale photo is a better home screen than an
+ * empty one, and offline is the normal case for a phone, not the exception.
+ */
+async function pushImage(name: WidgetImage, data: string | null | undefined): Promise<void> {
+  if (data === undefined) return;
+  await Widgets.putImage({ name, data });
 }
 
 /** Called on sign-out and unpair. See WidgetsPlugin.clear. */
@@ -208,16 +295,23 @@ export async function clearWidgets(): Promise<void> {
 
 // ── art ──────────────────────────────────────────────────────────────────────
 
-async function snapArt(snap: Snap | undefined): Promise<string | null> {
+/**
+ * The latest snap, downscaled.
+ *
+ * Returns `null` only when there is genuinely no snap — which is the one case
+ * where the widget *should* go back to its empty state. Every failure returns
+ * `undefined` so the photo already on the home screen survives. See `pushImage`.
+ */
+async function snapArt(snap: Snap | undefined): Promise<string | null | undefined> {
   if (!snap) return null;
 
   try {
     const urls = await signedUrls([snap.storage_path]);
     const url = urls.get(snap.storage_path);
-    if (!url) return null;
+    if (!url) return undefined;
 
     const response = await fetch(url);
-    if (!response.ok) return null;
+    if (!response.ok) return undefined;
 
     const bitmap = await createImageBitmap(await response.blob());
     const scale = Math.min(1, ART / Math.max(bitmap.width, bitmap.height));
@@ -227,15 +321,68 @@ async function snapArt(snap: Snap | undefined): Promise<string | null> {
     canvas.height = Math.round(bitmap.height * scale);
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
+    if (!ctx) return undefined;
     ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     bitmap.close();
 
     return canvas.toDataURL('image/jpeg', 0.82);
   } catch {
     // Offline, or a signed URL that expired between the list and the fetch.
-    // The widget keeps the photo it already has, which is the right outcome.
-    return null;
+    return undefined;
+  }
+}
+
+/**
+ * One face, square and small.
+ *
+ * 192px because the largest circle any widget draws is about 64dp, and the
+ * bitmaps are built at three times dp. The avatar in storage is already capped
+ * at 512 by `AVATAR_MAX_EDGE`, so this is a second downscale of something small
+ * — about nine kilobytes of base64 once encoded.
+ *
+ * Cropped square here rather than in Kotlin so the bytes that cross the bridge
+ * are the bytes that get drawn; `avatarBitmap` masks the circle out of it.
+ */
+const FACE_ART = 192;
+
+async function avatarArt(
+  url: string | undefined,
+  path: string | null,
+): Promise<string | null | undefined> {
+  // No photo at all — delete whatever is there, so removing your picture in Us
+  // puts the letter back on the home screen rather than leaving a ghost.
+  if (!path) return null;
+  if (!url) return undefined;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return undefined;
+
+    const bitmap = await createImageBitmap(await response.blob());
+    const edge = Math.min(bitmap.width, bitmap.height);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = FACE_ART;
+    canvas.height = FACE_ART;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return undefined;
+    ctx.drawImage(
+      bitmap,
+      (bitmap.width - edge) / 2,
+      (bitmap.height - edge) / 2,
+      edge,
+      edge,
+      0,
+      0,
+      FACE_ART,
+      FACE_ART,
+    );
+    bitmap.close();
+
+    return canvas.toDataURL('image/jpeg', 0.85);
+  } catch {
+    return undefined;
   }
 }
 

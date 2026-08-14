@@ -179,6 +179,24 @@ export function readDistance(input: DistanceInput): Reading {
 }
 
 /**
+ * The reading as one line, for a surface with no room for two.
+ *
+ * `readDistance` splits the answer across `label` and `note` because Home wants
+ * a badge with a number in it and a sentence beside it. A widget wants the whole
+ * thing in one heading — "870 km", not "870" over "km from Aanya" — and joining
+ * those two strings in Kotlin would put the phrasing in a second language, which
+ * is the one thing this module exists to prevent.
+ *
+ * Still no coordinate and still no raw figure: this is `label` with its unit
+ * reattached, which is exactly the information `label` already carried.
+ */
+export function distanceHeadline(reading: Reading): string {
+  if (reading.kind === 'apart') return `${reading.label} km`;
+  if (reading.kind === 'near') return reading.label;
+  return '—';
+}
+
+/**
  * Age in words, rounded down and deliberately vague.
  *
  * Down rather than to nearest, so nothing is ever claimed to be fresher than it

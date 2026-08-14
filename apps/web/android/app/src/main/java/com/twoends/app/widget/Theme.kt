@@ -4,8 +4,10 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
+import androidx.core.graphics.ColorUtils
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,17 +51,53 @@ import java.time.temporal.ChronoUnit
  */
 
 const val VOID = 0xFF000000.toInt()
+
+/**
+ * The warm near-black every raised surface in the app is built on — `#15120F`,
+ * straight out of `theme.css`. True black is for the page; a card is this.
+ */
+const val SURFACE = 0xFF15120F.toInt()
+
 val Chalk = Color(0xFFF3EDE7)
 val Ash = Color(0xFF948A82)
 
 // ── surfaces ─────────────────────────────────────────────────────────────────
 
 /**
+ * The size a bitmap is allowed to be before it crosses a Binder transaction.
+ *
+ * The per-dimension cap alone is not enough, and the hole is one the user can
+ * walk into: every provider declares `resizeMode="horizontal|vertical"`, so a
+ * widget dragged out to 4x4 asks for 990x990 at scale 3 — 3.9 MB, under the
+ * 1200 limit on both axes and far over what a transaction carrying a photo
+ * beside it will take. TransactionTooLarge does not degrade; the launcher shows
+ * its error tile instead of the widget.
+ *
+ * 1.2 megapixels is roughly a 1100x1100 square or a 1200x1000 strip — past what
+ * any home-screen cell can actually show.
+ */
+private const val MAX_PIXELS = 1_200_000
+
+/** Both dimensions inside their own cap, and the two of them inside the area. */
+internal fun fit(widthPx: Int, heightPx: Int): Pair<Int, Int> {
+    var w = widthPx.coerceIn(1, 1200)
+    var h = heightPx.coerceIn(1, 1200)
+
+    if (w * h > MAX_PIXELS) {
+        val shrink = kotlin.math.sqrt(MAX_PIXELS.toDouble() / (w.toDouble() * h))
+        w = (w * shrink).toInt().coerceAtLeast(1)
+        h = (h * shrink).toInt().coerceAtLeast(1)
+    }
+
+    return w to h
+}
+
+/**
  * A rounded background, drawn.
  *
- * Capped at 1200x1200 because a RemoteViews payload crosses a Binder
- * transaction, and an oversized bitmap there does not degrade — it throws
- * TransactionTooLarge and the widget shows the launcher's error tile.
+ * Capped because a RemoteViews payload crosses a Binder transaction, and an
+ * oversized bitmap there does not degrade — it throws TransactionTooLarge and
+ * the widget shows the launcher's error tile. See `fit`.
  */
 fun roundedBitmap(
     widthPx: Int,
@@ -68,8 +106,7 @@ fun roundedBitmap(
     to: Int,
     radiusPx: Float,
 ): Bitmap {
-    val w = widthPx.coerceIn(1, 1200)
-    val h = heightPx.coerceIn(1, 1200)
+    val (w, h) = fit(widthPx, heightPx)
     val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -126,6 +163,39 @@ fun Shell(
         Box(modifier = GlanceModifier.fillMaxSize().padding(14.dp)) { content() }
     }
 }
+
+/** The largest source rectangle with the target's aspect ratio, centred. */
+internal fun centreCrop(source: Bitmap, widthPx: Int, heightPx: Int): Rect {
+    val targetRatio = widthPx.toFloat() / heightPx
+    val sourceRatio = source.width.toFloat() / source.height
+
+    return if (sourceRatio > targetRatio) {
+        val cropWidth = (source.height * targetRatio).toInt()
+        val left = (source.width - cropWidth) / 2
+        Rect(left, 0, left + cropWidth, source.height)
+    } else {
+        val cropHeight = (source.width / targetRatio).toInt()
+        val top = (source.height - cropHeight) / 2
+        Rect(0, top, source.width, top + cropHeight)
+    }
+}
+
+/**
+ * The accent, tinted into the card rather than used at full strength.
+ *
+ * This is the Kotlin half of `color-mix(in oklab, accent 18%, #15120F)`, which
+ * is what every coloured surface in the app actually is. The distinction
+ * matters: the twelve accents are tuned to clear 4.5:1 *as text on black*, so
+ * using one as a background and putting white on it lands around 2:1 — worse
+ * than the plain black it replaced. Tinted, the card says whose it is and the
+ * text stays readable.
+ *
+ * A linear blend in sRGB rather than oklab. At 18% the two are within a shade of
+ * each other, and porting a perceptual colour space into a widget process to
+ * split that hair would be a poor trade.
+ */
+internal fun tint(accent: Int, strength: Float = 0.18f): Int =
+    ColorUtils.blendARGB(SURFACE, accent, strength)
 
 /** The lowercase label every card in the app carries above its headline. */
 @Composable

@@ -119,3 +119,65 @@ export function PlayIcon() {
     </svg>
   );
 }
+
+/**
+ * A heart, and the only one in the app.
+ *
+ * `scripts/icons.mjs` states the position plainly: the mark is deliberately not
+ * a heart, because every couple app on the store is one and a heart says nothing
+ * about what this one does. That still holds — this is not the mark. It appears
+ * in exactly one place, the gap between two faces on the distance widget, where
+ * it is not a logo but the thing sitting in the space between two people.
+ */
+export function Heart({
+  from,
+  to,
+  size = 13,
+  className = '',
+}: {
+  from: string;
+  to: string;
+  size?: number;
+  className?: string;
+}) {
+  /*
+    The colours are props, not CSS variables.
+
+    `theme.css` declares `--mine` and `--theirs` with a comment promising they
+    are "overridden per couple once both partners have picked" — and nothing in
+    the app has ever set them. A heart drawn from those would have come out teal
+    and rose for every couple in the world while looking, in the source, as
+    though it were theirs.
+
+    The id has to be unique per instance or two hearts on one screen share the
+    first one's gradient — an SVG `defs` id is document-global, not scoped.
+  */
+  const id = `heart-${from.replace('#', '')}-${to.replace('#', '')}`;
+
+  return (
+    <svg
+      width={size}
+      height={size * 0.92}
+      viewBox="0 0 13 12"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M6.5 11.2 1.9 6.7A3.1 3.1 0 0 1 6.5 2.5a3.1 3.1 0 0 1 4.6 4.2L6.5 11.2Z"
+        fill={`url(#${id})`}
+      />
+      <defs>
+        {/*
+          Across the two accents, the same idea as the launcher mark's overlap:
+          light is what you get when both are present. A gradient rather than a
+          true screen blend, because CSS has no screen blend inside a fill.
+        */}
+        <linearGradient id={id} x1="0" y1="0" x2="13" y2="12">
+          <stop stopColor={from} />
+          <stop offset="1" stopColor={to} />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}

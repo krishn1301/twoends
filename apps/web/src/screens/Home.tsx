@@ -8,7 +8,7 @@ import { daysUntil } from '@twoends/core';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 import { DailyCard } from '../components/DailyCard.tsx';
-import { Flame, Lock } from '../components/icons.tsx';
+import { Flame, Heart, Lock } from '../components/icons.tsx';
 import type { TabId } from '../components/TabBar.tsx';
 import { WEEK_LABELS, pad, useDesignModel } from '../design/model.ts';
 import { soonestCountdown } from '../db/repository.ts';
@@ -407,7 +407,14 @@ export function Home({
 
           {hasWidgets && (
             <div className="rise" style={{ animationDelay: '240ms' }}>
-              <WidgetsRail mine={mine} theirs={theirs} shared={shared} m={m} />
+              <WidgetsRail
+                mine={mine}
+                theirs={theirs}
+                shared={shared}
+                m={m}
+                mySrc={profile?.avatar_path ? avatarUrls.get(profile.avatar_path) : null}
+                theirSrc={partner?.avatar_path ? avatarUrls.get(partner.avatar_path) : null}
+              />
             </div>
           )}
 
@@ -449,11 +456,15 @@ function WidgetsRail({
   theirs,
   shared,
   m,
+  mySrc,
+  theirSrc,
 }: {
   mine: string;
   theirs: string;
   shared: string;
   m: { myName: string; theirName: string };
+  mySrc?: string | null;
+  theirSrc?: string | null;
 }) {
   const [canPin, setCanPin] = useState(false);
   const [asked, setAsked] = useState<string | null>(null);
@@ -468,7 +479,27 @@ function WidgetsRail({
     };
   }, []);
 
-  /** The face of each card. Everything else about them is identical. */
+  /*
+    A picture of what you would actually get.
+
+    This rail used to advertise a different design from the one the launcher
+    draws — a bare "12", four flat dots, nothing at all for the anniversary —
+    which made it a brochure for a product that had been replaced. Each card
+    below is now the widget in miniature, faces included, so what you tap for is
+    what arrives.
+  */
+  const pair = (size: number, gap: boolean) => (
+    <div className="flex items-center" style={{ marginLeft: gap ? 0 : -size * 0.22 }}>
+      <Avatar name={m.myName} accent={mine} size={size} src={mySrc} ring="#15120F" />
+      {gap && (
+        <span className="mx-1 flex-1 border-t border-dashed border-white/25" aria-hidden="true" />
+      )}
+      <span style={{ marginLeft: gap ? 0 : -size * 0.22 }}>
+        <Avatar name={m.theirName} accent={theirs} size={size} src={theirSrc} ring="#15120F" />
+      </span>
+    </div>
+  );
+
   const art: Record<WidgetId, ReactNode> = {
     snaps: (
       <>
@@ -478,35 +509,82 @@ function WidgetsRail({
           style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85), transparent)' }}
           aria-hidden="true"
         />
+        <span className="absolute top-3 right-3">
+          <Avatar name={m.theirName} accent={theirs} size={26} src={theirSrc} ring="#15120F" />
+        </span>
       </>
     ),
     canvas: (
-      <div className="absolute inset-x-4 top-3 bottom-16">
-        <Scribble color={mine} className="h-full w-full" />
-      </div>
+      <>
+        <div className="absolute inset-x-4 top-6 bottom-16">
+          <Scribble color={theirs} className="h-full w-full" />
+        </div>
+        <span className="absolute top-3 right-3">
+          <Avatar name={m.theirName} accent={theirs} size={26} src={theirSrc} ring="#15120F" />
+        </span>
+      </>
     ),
-    anniversary: null,
+    anniversary: <div className="absolute top-4 right-3.5">{pair(28, false)}</div>,
     countdown: (
-      <p className="counter absolute top-4 right-4 text-[1.8rem] leading-none font-medium text-white/30">
-        12
-      </p>
+      <>
+        <p className="counter absolute top-4 right-4 text-[1.8rem] leading-none font-medium text-white/35">
+          12
+        </p>
+        <div className="absolute inset-x-4 top-16 h-[3px] overflow-hidden rounded-full bg-white/12">
+          <span className="block h-full w-2/3 rounded-full" style={{ background: theirs }} />
+        </div>
+      </>
     ),
     streak: (
-      <div className="absolute inset-x-4 top-5 flex gap-1.5">
-        {[0, 1, 2, 3].map((i) => (
-          <span
-            key={i}
-            className="h-6 w-6 rounded-full"
-            style={{ background: i < 3 ? mine : 'rgba(255,255,255,0.08)' }}
-          />
-        ))}
-      </div>
+      <>
+        <div className="absolute top-3.5 left-3.5">{pair(26, false)}</div>
+        <div className="absolute inset-x-3.5 top-16 flex gap-1.5">
+          {[0, 1, 2, 3].map((i) => (
+            <span
+              key={i}
+              className="h-5 w-5 rounded-full"
+              style={{ background: i < 3 ? mine : 'rgba(255,255,255,0.08)' }}
+            />
+          ))}
+        </div>
+      </>
     ),
     distance: (
-      <div className="absolute inset-x-4 top-8 flex items-center">
-        <Avatar name={m.myName} accent={mine} size={30} />
-        <span className="mx-1.5 flex-1 border-t border-dashed border-white/25" />
-        <Avatar name={m.theirName} accent={theirs} size={30} />
+      <>
+        <p className="counter absolute top-4 left-4 text-[1.35rem] leading-none" style={{ color: theirs }}>
+          1150
+        </p>
+        <div className="absolute inset-x-4 top-[3.6rem] flex items-center">
+          <Avatar name={m.myName} accent={mine} size={30} src={mySrc} ring="#15120F" />
+          <span className="relative mx-1 flex-1">
+            <span className="block border-t border-white/25" aria-hidden="true" />
+            <Heart
+              from={mine}
+              to={theirs}
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+            />
+          </span>
+          <Avatar name={m.theirName} accent={theirs} size={30} src={theirSrc} ring="#15120F" />
+        </div>
+      </>
+    ),
+    distanceStrip: (
+      <div className="absolute inset-x-4 top-7 flex items-center gap-2.5">
+        <span className="relative flex items-center">
+          <Avatar name={m.myName} accent={mine} size={22} src={mySrc} ring="#15120F" />
+          <span className="relative mx-1 w-5">
+            <span className="block border-t border-white/25" aria-hidden="true" />
+            <Heart
+              from={mine}
+              to={theirs}
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+            />
+          </span>
+          <Avatar name={m.theirName} accent={theirs} size={22} src={theirSrc} ring="#15120F" />
+        </span>
+        <span className="counter text-[1.05rem] leading-none" style={{ color: theirs }}>
+          1150
+        </span>
       </div>
     ),
   };

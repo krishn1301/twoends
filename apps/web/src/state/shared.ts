@@ -111,6 +111,10 @@ export const useShared = create<SharedState>((set) => ({
       theirAccentKey: partner?.accent_key ?? 'rose',
       coupleId: couple.id,
       startedOn: couple.started_on ?? null,
+      // Both faces. The widgets were text on black until these two lines existed
+      // — every other field was already here.
+      myAvatarPath: profile?.avatar_path ?? null,
+      theirAvatarPath: partner?.avatar_path ?? null,
       snaps,
       canvas,
       streak: { current: streak.current },

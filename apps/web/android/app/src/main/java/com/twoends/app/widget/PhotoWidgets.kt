@@ -7,7 +7,6 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
-import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import androidx.compose.runtime.Composable
@@ -30,6 +29,7 @@ import androidx.glance.layout.Column
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
 import com.twoends.app.MainActivity
 
 /**
@@ -53,7 +53,8 @@ class SnapsWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val snapshot = WidgetStore.read(context)
         val photo = WidgetStore.bitmap(context, "snap")
-        provideContent { SnapsContent(snapshot, photo) }
+        val face = WidgetStore.bitmap(context, if (snapshot.snapFromThem) "avatarThem" else "avatarMe")
+        provideContent { SnapsContent(snapshot, photo, face) }
     }
 }
 
@@ -62,7 +63,7 @@ class SnapsReceiver : GlanceAppWidgetReceiver() {
 }
 
 @Composable
-private fun SnapsContent(snapshot: WidgetStore.Snapshot, photo: Bitmap?) {
+private fun SnapsContent(snapshot: WidgetStore.Snapshot, photo: Bitmap?, face: Bitmap?) {
     if (photo == null) {
         Empty(
             eyebrow = "snap",
@@ -76,6 +77,33 @@ private fun SnapsContent(snapshot: WidgetStore.Snapshot, photo: Bitmap?) {
     val who = if (snapshot.snapFromThem) snapshot.theirName else "you"
 
     PhotoShell(photo) {
+        Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.TopEnd) {
+            /*
+              Whose photo it is, as their face. Candle's canvas widget does the
+              same thing and it is the right instinct: the eyebrow below already
+              says the name, and a name is a thing you read while a face is a
+              thing you recognise.
+
+              Composed as its own node rather than painted into `frame()`, which
+              re-encodes the entire photograph on every redraw — doubling that
+              work for a badge that has not changed would be a bad trade for two
+              extra RemoteViews entries.
+            */
+            Image(
+                provider = ImageProvider(
+                    avatarBitmap(
+                        photo = face,
+                        accent = accent,
+                        initial = who,
+                        sizePx = 26 * 3,
+                        ring = 0x4DFFFFFF,
+                        ringPx = 3f,
+                    ),
+                ),
+                contentDescription = who,
+                modifier = GlanceModifier.size(26.dp),
+            )
+        }
         Column(modifier = GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.Bottom) {
             Eyebrow(who.lowercase(), Color(accent))
             Headline(snapshot.snapCaption ?: "Right now", size = 15, maxLines = 2)
@@ -91,7 +119,9 @@ class CanvasWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val snapshot = WidgetStore.read(context)
         val drawing = WidgetStore.bitmap(context, "canvas")
-        provideContent { CanvasContent(snapshot, drawing) }
+        val face =
+            WidgetStore.bitmap(context, if (snapshot.canvasFromThem) "avatarThem" else "avatarMe")
+        provideContent { CanvasContent(snapshot, drawing, face) }
     }
 }
 
@@ -109,7 +139,7 @@ class CanvasReceiver : GlanceAppWidgetReceiver() {
  * pushes the result.
  */
 @Composable
-private fun CanvasContent(snapshot: WidgetStore.Snapshot, drawing: Bitmap?) {
+private fun CanvasContent(snapshot: WidgetStore.Snapshot, drawing: Bitmap?, face: Bitmap?) {
     if (drawing == null) {
         Empty(
             eyebrow = "canvas",
@@ -120,15 +150,33 @@ private fun CanvasContent(snapshot: WidgetStore.Snapshot, drawing: Bitmap?) {
     }
 
     val accent = if (snapshot.canvasFromThem) snapshot.theirAccent else snapshot.myAccent
+    val who = if (snapshot.canvasFromThem) snapshot.theirName else snapshot.myName
 
-    Shell {
+    // Tinted with whoever drew last, so the card changes colour when they do.
+    Shell(from = tint(accent)) {
+        Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.TopEnd) {
+            Image(
+                provider = ImageProvider(
+                    avatarBitmap(
+                        photo = face,
+                        accent = accent,
+                        initial = who,
+                        sizePx = 26 * 3,
+                        ring = 0x33FFFFFF,
+                        ringPx = 3f,
+                    ),
+                ),
+                contentDescription = who,
+                modifier = GlanceModifier.size(26.dp),
+            )
+        }
         Column(modifier = GlanceModifier.fillMaxSize()) {
             Eyebrow(
                 if (snapshot.canvasFromThem) "${snapshot.theirName.lowercase()} drew" else "canvas",
                 Color(accent),
             )
             Box(
-                modifier = GlanceModifier.fillMaxSize().padding(top = 6.dp),
+                modifier = GlanceModifier.fillMaxSize().padding(top = 6.dp, end = 20.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Image(
@@ -205,18 +253,6 @@ private fun frame(source: Bitmap, widthPx: Int, heightPx: Int, radiusPx: Float):
     return out
 }
 
-/** The largest source rectangle with the target's aspect ratio, centred. */
-private fun centreCrop(source: Bitmap, widthPx: Int, heightPx: Int): Rect {
-    val targetRatio = widthPx.toFloat() / heightPx
-    val sourceRatio = source.width.toFloat() / source.height
-
-    return if (sourceRatio > targetRatio) {
-        val cropWidth = (source.height * targetRatio).toInt()
-        val left = (source.width - cropWidth) / 2
-        Rect(left, 0, left + cropWidth, source.height)
-    } else {
-        val cropHeight = (source.width / targetRatio).toInt()
-        val top = (source.height - cropHeight) / 2
-        Rect(0, top, source.width, top + cropHeight)
-    }
-}
+// `centreCrop` moved to Theme.kt — the avatar circles need the identical maths,
+// and two copies of a crop rectangle is how a face ends up framed differently
+// from the photograph beside it.

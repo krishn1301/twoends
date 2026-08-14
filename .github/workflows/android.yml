@@ -26,9 +26,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Deliberately no `version:`. pnpm/action-setup@v4 refuses outright when a
+      # version is given here *and* `packageManager` is set in package.json —
+      # "Multiple versions of pnpm specified" — and it fails in eight seconds,
+      # before the toolchain is even fetched. `packageManager` is the one that
+      # has to be right, because it is what a local `pnpm install` obeys too.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - uses: actions/setup-node@v4
         with:

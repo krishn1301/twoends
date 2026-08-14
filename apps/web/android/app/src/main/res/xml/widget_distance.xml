@@ -1,11 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  The square one: the distance across the top, both of you underneath.
+
+  110dp rather than the 70dp this started at, because two faces you can actually
+  recognise need the room — and because `targetCellHeight` below is an API 31
+  attribute that the phone this is built for ignores completely. On API 29 only
+  `minHeight` is read, and the launcher rounds it up to whole cells on a grid
+  that varies by device. So this number is the only one doing any work here, and
+  the composable branches on the size it is really handed.
+
+  `widget_distance_strip.xml` is the same widget in a row, offered separately so
+  the choice happens in the picker rather than by dragging a resize handle.
+-->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="140dp"
-    android:minHeight="70dp"
+    android:minHeight="110dp"
     android:targetCellWidth="2"
-    android:targetCellHeight="1"
-    android:minResizeWidth="110dp"
-    android:minResizeHeight="70dp"
+    android:targetCellHeight="2"
+    android:minResizeWidth="140dp"
+    android:minResizeHeight="90dp"
     android:description="@string/widget_distance_description"
     android:updatePeriodMillis="0"
     android:resizeMode="horizontal|vertical"

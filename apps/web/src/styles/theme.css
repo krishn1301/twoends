@@ -43,9 +43,15 @@
 
 :root {
   color-scheme: dark;
-  /* Overridden per couple once both partners have picked. */
-  --mine: #30c2bd;
-  --theirs: #e4566e;
+  /*
+    `--mine` and `--theirs` used to live here, with a comment saying they were
+    overridden per couple once both partners had picked. Nothing ever overrode
+    them, so anything drawn from them came out teal and rose for every couple
+    while looking, in the source, as though it were theirs. Removed rather than
+    wired up: the two accents are already threaded through as props everywhere
+    that needs them, and a second route to the same colour is a second thing to
+    keep in step.
+  */
 }
 
 html,

@@ -17,6 +17,8 @@ import com.twoends.app.widget.CanvasWidget
 import com.twoends.app.widget.CountdownReceiver
 import com.twoends.app.widget.CountdownWidget
 import com.twoends.app.widget.DistanceReceiver
+import com.twoends.app.widget.DistanceStripReceiver
+import com.twoends.app.widget.DistanceStripWidget
 import com.twoends.app.widget.DistanceWidget
 import com.twoends.app.widget.SnapsReceiver
 import com.twoends.app.widget.SnapsWidget
@@ -181,11 +183,22 @@ class WidgetsPlugin : Plugin() {
             CountdownWidget().updateAll(appContext)
             StreakWidget().updateAll(appContext)
             DistanceWidget().updateAll(appContext)
+            DistanceStripWidget().updateAll(appContext)
         }
     }
 
     private companion object {
-        val ALLOWED_IMAGES = setOf("snap", "canvas")
+        /*
+          The two faces are separate files rather than one composed pair.
+
+          Three widgets want the pair at three different geometries — side by
+          side on distance, overlapping on anniversary and streak, a single badge
+          on snaps and canvas. Compositing those in Kotlin costs a few
+          milliseconds of canvas work; pushing three variants from the WebView
+          would cost three fetches and three JPEG encodes on every foreground,
+          for faces that change roughly never.
+        */
+        val ALLOWED_IMAGES = setOf("snap", "canvas", "avatarMe", "avatarThem")
 
         /**
          * The names the web app uses, mapped to the receivers the launcher binds.
@@ -201,6 +214,7 @@ class WidgetsPlugin : Plugin() {
             "countdown" to CountdownReceiver::class.java.name,
             "streak" to StreakReceiver::class.java.name,
             "distance" to DistanceReceiver::class.java.name,
+            "distanceStrip" to DistanceStripReceiver::class.java.name,
         )
     }
 }
