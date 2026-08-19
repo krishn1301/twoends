@@ -188,6 +188,51 @@ export type Database = {
           },
         ]
       }
+      couple_cards: {
+        Row: {
+          author_id: string
+          body: string | null
+          couple_id: string
+          created_at: string
+          id: string
+          option_a: string
+          option_b: string
+        }
+        Insert: {
+          author_id: string
+          body?: string | null
+          couple_id: string
+          created_at?: string
+          id: string
+          option_a: string
+          option_b: string
+        }
+        Update: {
+          author_id?: string
+          body?: string | null
+          couple_id?: string
+          created_at?: string
+          id?: string
+          option_a?: string
+          option_b?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "couple_cards_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "couple_cards_couple_id_fkey"
+            columns: ["couple_id"]
+            isOneToOne: false
+            referencedRelation: "couples"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       couples: {
         Row: {
           adult_packs_enabled: boolean
@@ -258,26 +303,32 @@ export type Database = {
       game_picks: {
         Row: {
           card_id: string
-          choice: number
+          choice: number | null
           couple_id: string
           created_at: string
+          guess: number | null
           id: string
+          mode: string
           profile_id: string
         }
         Insert: {
           card_id: string
-          choice: number
+          choice?: number | null
           couple_id: string
           created_at?: string
+          guess?: number | null
           id?: string
+          mode?: string
           profile_id: string
         }
         Update: {
           card_id?: string
-          choice?: number
+          choice?: number | null
           couple_id?: string
           created_at?: string
+          guess?: number | null
           id?: string
+          mode?: string
           profile_id?: string
         }
         Relationships: [
@@ -742,6 +793,14 @@ export type Database = {
         }[]
       }
       generate_invite_code: { Args: never; Returns: string }
+      guess_tally: {
+        Args: { p_couple_id: string }
+        Returns: {
+          asked: number
+          got_right: number
+          profile_id: string
+        }[]
+      }
       i_have_answered: { Args: { p_prompt_day_id: string }; Returns: boolean }
       i_have_picked: {
         Args: { p_card_id: string; p_couple_id: string }
