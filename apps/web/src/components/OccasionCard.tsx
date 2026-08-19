@@ -1,4 +1,4 @@
-import { occasionCopy, type Occasion } from '@twoends/core';
+import { occasionCopy, occasionHeadline, type Occasion } from '@twoends/core';
 
 import { Monogram } from './Monogram.tsx';
 
@@ -68,7 +68,7 @@ export function OccasionCard({
         )}
 
         <h1 className="font-display text-[2.6rem] leading-[1.05] font-semibold tracking-tight text-white">
-          {headline(occasion, theirName)}
+          {occasionHeadline(occasion, theirName)}
         </h1>
 
         {copy && (
@@ -91,30 +91,4 @@ export function OccasionCard({
       </p>
     </div>
   );
-}
-
-/**
- * The one line that is a fact rather than a sentiment.
- *
- * Spelling small numbers and leaving large ones as digits, because "One year" is
- * how somebody says it and "10000 days" is how somebody reads it. The boundary
- * is where the word gets longer than the number.
- */
-function headline(occasion: Occasion, theirName: string | null | undefined): string {
-  switch (occasion.kind) {
-    case 'anniversary':
-      return occasion.years === 1 ? 'One year' : `${occasion.years} years`;
-
-    case 'birthday':
-      // Named when it is theirs, because that is the useful half — you know when
-      // your own is, and the reason to say it is so the other one is reminded.
-      if (occasion.whose !== 'theirs') return 'Your birthday';
-      return theirName ? `${theirName}’s birthday` : 'Their birthday';
-
-    case 'milestone':
-      return `${occasion.days?.toLocaleString('en-GB')} days`;
-
-    default:
-      return '';
-  }
 }

@@ -564,6 +564,25 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   disposable" rule is wrong: one anonymous account here is the `member_a` of a
   real couple, and another pair's 15 canvases and photos sit entirely in accounts
   with no email attached.
+- **The app now wishes them without being opened.** `supabase/functions/occasions`
+  runs hourly via `pg_cron` + `pg_net`, acts on a couple only when it is 09:00
+  *where they live*, and pushes the anniversary, either birthday and the day
+  milestones. **It imports `occasionFor` from `packages/core` rather than
+  restating it** — the CLI follows the relative import and uploads the whole
+  package, which works only because core has no platform imports. That rule was
+  written in Phase 0 for unrelated reasons and this is what it bought.
+- **A scheduled function that can only be tested by firing for real will fire for
+  real by accident.** A test invocation dated on a birthday put a genuine push on
+  a genuine phone — and logged it, which would have silenced the true one a year
+  later, because occasion pushes are once per person per key forever. It takes
+  `dryRun` now, defaulted to true whenever a clock override is given, and the log
+  row was deleted. `at` alone can no longer reach a device.
+- **`Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')` inside a function is not
+  necessarily the key in `.env.local`**, so comparing a caller's bearer token
+  against it fails in a way that reads as a broken caller. The scheduler carries
+  `OCCASIONS_SECRET` instead — set with `supabase secrets set`, stored for cron in
+  Vault as `occasions_secret`, and never in a committed file. A scheduler that
+  only has to say “run” should not hold a key that reads every row.
 - **The CI signature check tested for a signature Android stopped writing.** It
   grepped `META-INF` for a `.RSA`/`.EC`/`.DSA` file and called their absence “no
   signature block” — those are *v1* JAR signatures, and AGP stops emitting them

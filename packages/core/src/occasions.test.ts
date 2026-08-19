@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { MILESTONES, fillsTheScreen, minutesFor, occasionFor } from './occasions.ts';
+import {
+  MILESTONES,
+  fillsTheScreen,
+  minutesFor,
+  occasionFor,
+  occasionHeadline,
+} from './occasions.ts';
 
 /*
   The couple this was built for, because their dates are the hard case rather
@@ -213,5 +219,34 @@ describe('most days are nothing', () => {
     expect(
       occasionFor({ startedOn: '2026-04-16T00:00:00Z', localDate: '2027-04-16' })?.kind,
     ).toBe('anniversary');
+  });
+});
+
+describe('the headline three surfaces share', () => {
+  /*
+    The card, the notification that arrives before anybody opens the app, and
+    the widget. Two of those reach somebody who is not looking at the app, so a
+    second copy of this wording would show up as a phone saying one thing beside
+    a screen saying another.
+  */
+  const on = (localDate: string) => occasionFor({ ...THEM, localDate })!;
+
+  it('spells small numbers and leaves large ones as digits', () => {
+    expect(occasionHeadline(on('2027-04-16'))).toBe('One year');
+    expect(occasionHeadline(on('2028-04-16'))).toBe('2 years');
+    expect(occasionHeadline(on('2027-08-29'))).toBe('500 days');
+  });
+
+  it('names them on their birthday and not on yours', () => {
+    // You know when your own is. The reason to say it out loud is so the other
+    // one is reminded, which is why only that direction carries a name.
+    expect(occasionHeadline(on('2027-04-18'), 'Sansu')).toBe('Sansu’s birthday');
+    expect(occasionHeadline(on('2027-01-13'), 'Sansu')).toBe('Your birthday');
+  });
+
+  it('says something rather than nothing without a name', () => {
+    // The push has a name to hand; a widget may not.
+    expect(occasionHeadline(on('2027-04-18'))).toBe('Their birthday');
+    expect(occasionHeadline(on('2027-04-18'), null)).toBe('Their birthday');
   });
 });

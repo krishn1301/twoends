@@ -185,3 +185,37 @@ function split(value: string | null | undefined): { year: number; month: number;
   const [, year, month, day] = match;
   return { year: Number(year), month: Number(month), day: Number(day) };
 }
+
+/**
+ * The one line that is a fact rather than a sentiment.
+ *
+ * In core because three things say it now: the card that takes the screen, the
+ * notification that arrives before anybody opens the app, and the widget. Two of
+ * those reach somebody who is not looking at the app, so a copy that drifted
+ * would be a phone saying "one year today" beside a card saying something else.
+ *
+ * Small numbers are spelled and large ones are digits, because "One year" is how
+ * somebody says it and "10,000 days" is how somebody reads it.
+ */
+export function occasionHeadline(
+  occasion: Occasion,
+  theirName?: string | null,
+): string {
+  switch (occasion.kind) {
+    case 'anniversary':
+      return occasion.years === 1 ? 'One year' : `${occasion.years} years`;
+
+    case 'birthday':
+      // Named when it is theirs, because that is the useful half: you know when
+      // your own is, and the reason to say it out loud is so the other one is
+      // reminded.
+      if (occasion.whose !== 'theirs') return 'Your birthday';
+      return theirName ? `${theirName}\u2019s birthday` : 'Their birthday';
+
+    case 'milestone':
+      return `${occasion.days?.toLocaleString('en-GB')} days`;
+
+    default:
+      return '';
+  }
+}
