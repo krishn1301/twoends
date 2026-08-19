@@ -27,6 +27,19 @@ interface WidgetSnapshot {
   myAccent: string;
   theirAccent: string;
   startedOn: string | null;
+  /*
+    Sent as dates, not as a finished label, and this is the one place in the
+    snapshot where that is the right way round.
+
+    Everything about distance crosses as a written string, because whether a
+    reading is "412" or "same city" depends on questions the widget process has
+    no business asking. A birthday is not that: it is a fixed date, and the
+    whole reason the widget should say "today" at all is that it can be right on
+    a morning nobody has opened the app. A label computed at push time would go
+    stale exactly when it matters.
+  */
+  myBirthday: string | null;
+  theirBirthday: string | null;
   streak: number;
   doneToday: boolean;
   /** Seven characters, Monday first. See WidgetStore.Snapshot. */
@@ -149,6 +162,8 @@ export interface WidgetInput {
   theirAccentKey: string;
   coupleId: string;
   startedOn: string | null;
+  myBirthday: string | null;
+  theirBirthday: string | null;
   snaps: Snap[];
   canvas: SharedCanvas | null;
   streak: { current: number };
@@ -192,6 +207,8 @@ export async function syncWidgets(input: WidgetInput): Promise<void> {
     myAccent: getAccent(input.myAccentKey).onDark,
     theirAccent: getAccent(input.theirAccentKey).onDark,
     startedOn: input.startedOn,
+    myBirthday: input.myBirthday,
+    theirBirthday: input.theirBirthday,
     streak: streak.current,
     doneToday: week[mondayFirstIndex()] === 'done',
     week: week.map(mark).join(''),

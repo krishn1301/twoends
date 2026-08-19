@@ -116,6 +116,10 @@ export const useShared = create<SharedState>((set) => ({
       theirAccentKey: partner?.accent_key ?? 'rose',
       coupleId: couple.id,
       startedOn: couple.started_on ?? null,
+      // Anchors, so a widget can work out that today is the day without the app
+      // having been opened — which is the only morning it matters on.
+      myBirthday: profile?.birthday ?? null,
+      theirBirthday: partner?.birthday ?? null,
       // Both faces. The widgets were text on black until these two lines existed
       // — every other field was already here.
       myAvatarPath: profile?.avatar_path ?? null,

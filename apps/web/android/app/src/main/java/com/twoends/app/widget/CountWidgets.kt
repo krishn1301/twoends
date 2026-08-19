@@ -76,13 +76,34 @@ private fun AnniversaryContent(
       Nothing is being cropped by anything, which is why the same arrangement
       would be wrong on the distance widget and is right on this one.
     */
+    /*
+      The eyebrow is where the widget says what day it is.
+
+      Worked out here from the anchors rather than read out of a label the app
+      wrote, because the whole reason this is worth doing is the morning nobody
+      opens the app — and a label written at push time is a label written
+      yesterday. `occasionToday` is a second copy of the rule in
+      `occasions.ts`; the comment on it says so, and says what that costs.
+
+      It replaces "together" rather than adding a line, so nothing moves and the
+      widget is the same shape on the day as on every other day. A widget that
+      grows a row once a year is a widget that overlaps its neighbour once a
+      year, on a home screen nobody has re-arranged since.
+    */
+    val occasion = occasionToday(
+        startedOn = snapshot.startedOn,
+        myBirthday = snapshot.myBirthday,
+        theirBirthday = snapshot.theirBirthday,
+        theirName = snapshot.theirName,
+    )
+
     Shell(from = snapshot.myAccent, to = snapshot.theirAccent) {
         Row(
             modifier = GlanceModifier.fillMaxSize(),
             verticalAlignment = Alignment.Bottom,
         ) {
             Column(modifier = GlanceModifier.defaultWeight()) {
-                Eyebrow("together", Color.White)
+                Eyebrow(occasion ?: "together", Color.White)
                 Counter("$days", size = 32, color = Color.White)
                 Headline(if (days == 1L) "day" else "days", size = 12, color = Color.White)
             }

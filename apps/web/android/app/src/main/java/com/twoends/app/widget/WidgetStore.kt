@@ -42,6 +42,18 @@ object WidgetStore {
         val myAccent: Int,
         val theirAccent: Int,
         val startedOn: String?,
+        /**
+         * Dates, not a finished label.
+         *
+         * Everything about distance crosses this bridge as a written string,
+         * because whether a reading is "412" or "same city" depends on
+         * questions this process has no business asking. A birthday is not
+         * that. It is a fixed date, and the entire reason a widget should say
+         * "today" is that it can be right on a morning nobody opened the app —
+         * which a label computed at push time could not be.
+         */
+        val myBirthday: String?,
+        val theirBirthday: String?,
         val streak: Int,
         val doneToday: Boolean,
         /**
@@ -84,6 +96,8 @@ object WidgetStore {
         myAccent = 0xFFE8A87C.toInt(),
         theirAccent = 0xFFB6A6E8.toInt(),
         startedOn = null,
+        myBirthday = null,
+        theirBirthday = null,
         streak = 0,
         doneToday = false,
         week = ".......",
@@ -113,6 +127,8 @@ object WidgetStore {
                 myAccent = parseColor(json.optString("myAccent"), EMPTY.myAccent),
                 theirAccent = parseColor(json.optString("theirAccent"), EMPTY.theirAccent),
                 startedOn = json.optStringOrNull("startedOn"),
+                myBirthday = json.optStringOrNull("myBirthday"),
+                theirBirthday = json.optStringOrNull("theirBirthday"),
                 streak = json.optInt("streak", 0),
                 doneToday = json.optBoolean("doneToday", false),
                 week = json.optString("week", ".......").padEnd(7, '.').take(7),

@@ -564,6 +564,19 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   disposable" rule is wrong: one anonymous account here is the `member_a` of a
   real couple, and another pair's 15 canvases and photos sit entirely in accounts
   with no email attached.
+- **The widgets say it too, and that half needs no server.** `occasionToday` in
+  `Theme.kt` works the day out from the anchors at draw time, so it is right on a
+  morning nobody opened the app — which a label written into the snapshot at push
+  time could never be. It is a **second copy of the rule in `occasions.ts`**, a
+  Kotlin one, because a widget cannot run TypeScript.
+  `packages/core/test/widget-occasions.test.ts` reads `Theme.kt` and fails if the
+  milestone lists or the precedence order drift apart. Nobody would notice
+  otherwise: both copies keep working and the only symptom is a home screen
+  disagreeing with the app about day 1000, once, years from now.
+- **Birthdays cross into the widget process as dates, not as a phrase** — the
+  opposite of the distance rule, deliberately. Distance crosses as finished
+  strings because a coordinate is dangerous and the rounding has one home. A
+  birthday is a fixed date and the whole point is being right without a redraw.
 - **The app now wishes them without being opened.** `supabase/functions/occasions`
   runs hourly via `pg_cron` + `pg_net`, acts on a couple only when it is 09:00
   *where they live*, and pushes the anniversary, either birthday and the day

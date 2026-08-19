@@ -276,3 +276,80 @@ private fun parseDate(value: String?): LocalDate? {
         null
     }
 }
+
+// ── what today is ────────────────────────────────────────────────────────────
+
+/**
+ * The day counts worth saying out loud.
+ *
+ * **A second copy of `MILESTONES` in `packages/core/src/occasions.ts`, and the
+ * cost is real.** A widget cannot run TypeScript, and the alternative — the app
+ * writing a finished label into the snapshot — fails on exactly the morning this
+ * exists for, because a label is computed when the app was last opened and this
+ * has to be right when it has not been opened for a week. So the numbers are
+ * written twice, and if one list changes both must.
+ *
+ * 365 and 730 are absent here for the same reason they are absent there: "365
+ * days" and "one year" are the same sentence said twice, and for a couple who
+ * started on 16 April they fall on the same morning.
+ */
+private val MILESTONES = longArrayOf(100, 500, 1000, 2000, 3000, 5000, 10_000)
+
+/**
+ * What today is, or null on the ordinary days that are most of them.
+ *
+ * Precedence is decided rather than inherited from the order of the checks:
+ * anniversary, then a birthday, then a milestone. It matters because the couple
+ * this was built for has three of them inside four days every April, and the
+ * mirror of this rule in `occasions.ts` resolves them the same way. The minute
+ * is not here at all — sixty seconds is not something a launcher redraws for.
+ *
+ * Computed from the anchors at draw time, so a widget the launcher has not
+ * touched since yesterday still says the right thing this morning.
+ */
+fun occasionToday(
+    startedOn: String?,
+    myBirthday: String?,
+    theirBirthday: String?,
+    theirName: String,
+    today: LocalDate = LocalDate.now(),
+): String? {
+    val started = parseAnchor(startedOn)
+
+    if (started != null) {
+        val years = today.year - started.year
+        // Not the day you started: nought years together is not an anniversary.
+        if (years >= 1 && today.monthValue == started.monthValue && today.dayOfMonth == started.dayOfMonth) {
+            return if (years == 1) "one year today" else "$years years today"
+        }
+    }
+
+    parseAnchor(theirBirthday)?.let {
+        if (today.monthValue == it.monthValue && today.dayOfMonth == it.dayOfMonth) {
+            return "${theirName.lowercase()}’s birthday"
+        }
+    }
+
+    parseAnchor(myBirthday)?.let {
+        if (today.monthValue == it.monthValue && today.dayOfMonth == it.dayOfMonth) {
+            return "your birthday"
+        }
+    }
+
+    if (started != null) {
+        val days = ChronoUnit.DAYS.between(started, today)
+        if (MILESTONES.contains(days)) return "$days days today"
+    }
+
+    return null
+}
+
+/** A `YYYY-MM-DD` anchor, or null. Birthdays and start dates are plain dates. */
+private fun parseAnchor(value: String?): LocalDate? {
+    if (value.isNullOrEmpty()) return null
+    return try {
+        LocalDate.parse(value.take(10))
+    } catch (_: DateTimeParseException) {
+        null
+    }
+}
