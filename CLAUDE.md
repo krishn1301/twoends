@@ -577,6 +577,23 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   opposite of the distance rule, deliberately. Distance crosses as finished
   strings because a coordinate is dangerous and the rounding has one home. A
   birthday is a fixed date and the whole point is being right without a redraw.
+- **A PostgREST query for a column that does not exist returns null, not an
+  error you will see** — unless you read `error`. This has now happened twice in
+  this project and cost an hour both times: once selecting `couple_id` from
+  `profiles` (membership lives on `couples`), which made every user look
+  profile-less, and once selecting `created_at` from `push_tokens` (it is
+  `updated_at`), which made four registered devices look like zero and produced a
+  confident, wrong statement about who could receive a notification. **Any
+  throwaway probe script must print `error`.** A silent empty result reads
+  exactly like a true empty result.
+- **The monthly anniversary fires on the same day every month**, last in the
+  precedence so it never displaces a birthday, a milestone or the year itself.
+  It knowingly softens the sparseness argument the rest of `occasions.ts` makes:
+  twelve a year against the “one interruption in the first year, not eleven” that
+  cut the milestone list. A month is a unit people already count in; a hundred
+  days is not. **A month too short to contain their day lands on its last** —
+  skipping would quietly give a couple who started on the 31st seven a year
+  instead of twelve, with nothing on screen to explain the gap.
 - **The app now wishes them without being opened.** `supabase/functions/occasions`
   runs hourly via `pg_cron` + `pg_net`, acts on a couple only when it is 09:00
   *where they live*, and pushes the anniversary, either birthday and the day

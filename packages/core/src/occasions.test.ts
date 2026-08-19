@@ -250,3 +250,100 @@ describe('the headline three surfaces share', () => {
     expect(occasionHeadline(on('2027-04-18'), null)).toBe('Their birthday');
   });
 });
+
+describe('the same day, every month', () => {
+  /*
+    Twelve times a year, which is the most frequent thing here by a long way and
+    the reason it is last in the precedence. It never elbows out a birthday, a
+    milestone or the anniversary itself.
+  */
+  const monthly = (localDate: string) => occasionFor({ ...THEM, localDate });
+
+  it('fires a month after they started, and every month after', () => {
+    expect(monthly('2026-05-16')).toMatchObject({ kind: 'monthly', months: 1 });
+    expect(monthly('2026-08-16')).toMatchObject({ kind: 'monthly', months: 4 });
+    expect(monthly('2027-07-16')).toMatchObject({ kind: 'monthly', months: 15 });
+  });
+
+  it('is not the day they started', () => {
+    // Nought months together is not an occasion, and it would be a strange
+    // first thing for the app to say to somebody.
+    expect(monthly('2026-04-16')).toBeNull();
+  });
+
+  it('is silent on every other day of the month', () => {
+    expect(monthly('2026-05-15')).toBeNull();
+    expect(monthly('2026-05-17')).toBeNull();
+  });
+
+  it('gives the morning to the anniversary when both land on it', () => {
+    // 16 April 2027 is twelve months and one year. One of those is rarer.
+    expect(monthly('2027-04-16')).toMatchObject({ kind: 'anniversary', years: 1 });
+  });
+
+  it('never counts a whole number of years, because that day is taken', () => {
+    for (const date of ['2027-04-16', '2028-04-16', '2029-04-16']) {
+      const occasion = occasionFor({ ...THEM, localDate: date });
+      expect(occasion?.kind, date).toBe('anniversary');
+    }
+  });
+
+  it('yields to a birthday and to a milestone', () => {
+    // Someone who started on the 18th, whose partner was also born on an 18th.
+    const clash = { startedOn: '2026-01-18', theirBirthday: '2000-05-18' };
+    expect(occasionFor({ ...clash, localDate: '2026-05-18' })?.kind).toBe('birthday');
+
+    // Day 100 from 9 January is 19 April, and they started on the 19th.
+    const milestone = { startedOn: '2027-01-19' };
+    expect(occasionFor({ ...milestone, localDate: '2027-04-29' })?.kind).toBe('milestone');
+  });
+
+  it('lands on the last day of a month too short to have theirs', () => {
+    /*
+      Four months a year have no 31st, and February has no 30th. Skipping would
+      quietly hand a couple who started on the 31st seven monthlies a year
+      instead of twelve, with nothing on screen to explain the gap.
+    */
+    const thirtyFirst = { startedOn: '2026-01-31' };
+    expect(occasionFor({ ...thirtyFirst, localDate: '2026-02-28' })).toMatchObject({
+      kind: 'monthly',
+      months: 1,
+    });
+    expect(occasionFor({ ...thirtyFirst, localDate: '2026-04-30' })).toMatchObject({
+      kind: 'monthly',
+      months: 3,
+    });
+    // And on the months that do have a 31st, it is the 31st.
+    expect(occasionFor({ ...thirtyFirst, localDate: '2026-03-31' })?.kind).toBe('monthly');
+    expect(occasionFor({ ...thirtyFirst, localDate: '2026-03-30' })).toBeNull();
+  });
+
+  it('handles a leap February', () => {
+    const thirtyFirst = { startedOn: '2027-12-31' };
+    expect(occasionFor({ ...thirtyFirst, localDate: '2028-02-29' })).toMatchObject({
+      kind: 'monthly',
+      months: 2,
+    });
+  });
+
+  it('fires exactly twelve times a year, minus the one the anniversary takes', () => {
+    let count = 0;
+    for (let i = 0; i < 365; i++) {
+      const day = new Date(Date.UTC(2027, 0, 1) + i * 86_400_000).toISOString().slice(0, 10);
+      if (occasionFor({ startedOn: '2026-04-16', localDate: day })?.kind === 'monthly') count++;
+    }
+    expect(count).toBe(11);
+  });
+
+  it('counts months alone for the first year and years after', () => {
+    expect(occasionHeadline(monthly('2026-05-16')!)).toBe('One month');
+    expect(occasionHeadline(monthly('2026-11-16')!)).toBe('7 months');
+    expect(occasionHeadline(monthly('2027-05-16')!)).toBe('1 year 1 month');
+    expect(occasionHeadline(monthly('2027-11-16')!)).toBe('1 year 7 months');
+    expect(occasionHeadline(monthly('2028-05-16')!)).toBe('2 years 1 month');
+  });
+
+  it('takes the screen, like the other three', () => {
+    expect(fillsTheScreen('monthly')).toBe(true);
+  });
+});

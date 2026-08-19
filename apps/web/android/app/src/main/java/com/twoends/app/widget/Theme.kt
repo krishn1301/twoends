@@ -341,6 +341,34 @@ fun occasionToday(
         if (MILESTONES.contains(days)) return "$days days today"
     }
 
+    /*
+      The same day of the month, every month. Last, because it comes round
+      twelve times a year and must never be the reason a birthday or a
+      thousandth day went unsaid — the same ordering as `occasions.ts`.
+
+      A month too short to contain their day lands on its last instead:
+      skipping would quietly give a couple who started on the 31st seven of
+      these a year rather than twelve, with nothing to explain the gap.
+    */
+    if (started != null) {
+        val months = (today.year - started.year) * 12 + (today.monthValue - started.monthValue)
+        val day = minOf(started.dayOfMonth, today.lengthOfMonth())
+
+        if (months >= 1 && today.dayOfMonth == day) {
+            if (months < 12) {
+                return if (months == 1) "one month today" else "$months months today"
+            }
+
+            // A whole number of years cannot reach here: that morning belongs to
+            // the anniversary branch above.
+            val years = months / 12
+            val rest = months % 12
+            val yearPart = if (years == 1) "one year" else "$years years"
+            return if (rest == 0) "$yearPart today"
+            else "$yearPart $rest month${if (rest == 1) "" else "s"} today"
+        }
+    }
+
     return null
 }
 

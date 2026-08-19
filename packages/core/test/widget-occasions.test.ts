@@ -63,10 +63,21 @@ describe('the widget agrees with core about what today is', () => {
     const anniversary = body.indexOf('years today');
     const birthday = body.indexOf('’s birthday');
     const milestone = body.indexOf('days today');
+    const monthly = body.indexOf('months today');
 
     expect(anniversary, 'the anniversary branch is missing').toBeGreaterThan(-1);
     expect(birthday).toBeGreaterThan(anniversary);
     expect(milestone).toBeGreaterThan(birthday);
+    expect(monthly, 'the monthly branch is missing or too early').toBeGreaterThan(milestone);
+  });
+
+  it('clamps a monthly to the last day of a short month, as core does', () => {
+    /*
+      The rule that decides whether a couple who started on the 31st get seven
+      of these a year or twelve. Both copies have to make the same choice, and
+      it is invisible on either side until February.
+    */
+    expect(source(), 'the widget does not clamp to the last day').toContain('lengthOfMonth()');
   });
 
   it('never announces the minute', () => {

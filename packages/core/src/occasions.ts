@@ -16,7 +16,7 @@
 
 import { localMidnight } from './togetherness.ts';
 
-export type OccasionKind = 'anniversary' | 'birthday' | 'milestone' | 'minute';
+export type OccasionKind = 'anniversary' | 'birthday' | 'milestone' | 'monthly' | 'minute';
 
 export interface Occasion {
   kind: OccasionKind;
@@ -30,6 +30,8 @@ export interface Occasion {
   years?: number;
   /** Days together, on a milestone. */
   days?: number;
+  /** Whole months together, on a monthly. Twelve and its multiples never occur. */
+  months?: number;
   /** Whose birthday. `mine` and `theirs` are from the reader's point of view. */
   whose?: 'mine' | 'theirs';
 }
@@ -167,12 +169,58 @@ export function occasionFor(input: OccasionInput): Occasion | null {
     }
   }
 
+  /*
+    The same day of the month, every month.
+
+    Last of the four that take the screen, and that ordering is the point: it
+    comes round twelve times a year, so it must never be the reason a birthday
+    or a thousandth day went unsaid. On 16 April the yearly one wins, which is
+    also why `months` is never twelve or a multiple of it.
+
+    This does sit against the argument the rest of this module makes for
+    sparseness — milestones were cut to "one interruption in the first year, not
+    eleven" for exactly this reason. Once a month was judged to be on the right
+    side of that line and eleven times in a hundred days was not; the difference
+    is that a month is a unit people already count in.
+  */
+  if (started) {
+    const months = monthsBetween(started, today);
+    if (months >= 1 && today.day === monthlyDay(started.day, today.year, today.month)) {
+      return { kind: 'monthly', key: `monthly:${input.localDate}`, months };
+    }
+  }
+
   const now = input.minutesOfDay;
   if (now != null && minutesFor(input.startedOn).some((t) => t.hour * 60 + t.minute === now)) {
     return { kind: 'minute', key: `minute:${input.localDate}:${now}` };
   }
 
   return null;
+}
+
+/** Whole months from one date to another, ignoring the day-of-month. */
+function monthsBetween(
+  from: { year: number; month: number },
+  to: { year: number; month: number },
+): number {
+  return (to.year - from.year) * 12 + (to.month - from.month);
+}
+
+/**
+ * Which day of *this* month a monthly falls on.
+ *
+ * A couple who started on the 31st have no 31st in February, and there are four
+ * months a year with no 31st at all. Skipping would quietly give them seven
+ * monthlies a year instead of twelve, and nothing on screen would explain why —
+ * so a month that is too short lands on its last day instead.
+ *
+ * The same arithmetic that makes 29 February work, which is the case people
+ * actually notice.
+ */
+function monthlyDay(startedDay: number, year: number, month: number): number {
+  // Day 0 of the next month is the last day of this one.
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return Math.min(startedDay, lastDay);
 }
 
 /** `YYYY-MM-DD` into numbers, or null if it is not one. */
@@ -214,6 +262,22 @@ export function occasionHeadline(
 
     case 'milestone':
       return `${occasion.days?.toLocaleString('en-GB')} days`;
+
+    /*
+      Months on their own for the first year, then years and months — because
+      "nineteen months" is a thing somebody has to do arithmetic on and "one
+      year seven months" is not. A whole number of years never reaches here:
+      that morning belongs to the anniversary.
+    */
+    case 'monthly': {
+      const total = occasion.months ?? 0;
+      if (total < 12) return total === 1 ? 'One month' : `${total} months`;
+
+      const years = Math.floor(total / 12);
+      const months = total % 12;
+      const yearPart = years === 1 ? '1 year' : `${years} years`;
+      return months === 0 ? yearPart : `${yearPart} ${months} month${months === 1 ? '' : 's'}`;
+    }
 
     default:
       return '';

@@ -56,6 +56,10 @@
       "eyebrow": "somebody counted",
       "line": "You were not keeping score. It went up anyway."
     },
+    "monthly": {
+      "eyebrow": "the same day, again",
+      "line": "It came round. It will keep coming round."
+    },
     "minute": {
       "line": "The clock just said your date back to you."
     }

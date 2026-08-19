@@ -19,7 +19,9 @@
  * it — the modules are TypeScript and nothing in this repo ships compiled JS.
  */
 const root = new URL('../packages/core/src/', import.meta.url);
-const { occasionFor, minutesFor } = await import(new URL('occasions.ts', root).href);
+const { occasionFor, minutesFor, occasionHeadline } = await import(
+  new URL('occasions.ts', root).href,
+);
 const { occasionCopy, heldCopy } = await import(new URL('dedication.ts', root).href);
 
 const [startedOn, myBirthday, theirBirthday] = process.argv.slice(2);
@@ -62,14 +64,12 @@ for (let i = 0; i < 4000 && found < 10; i++) {
 
   found++;
   const away = i === 0 ? 'today' : `${i} day${i === 1 ? '' : 's'} away`;
-  const what =
-    occasion.kind === 'anniversary'
-      ? `${occasion.years} year${occasion.years === 1 ? '' : 's'}`
-      : occasion.kind === 'birthday'
-        ? occasion.whose === 'mine'
-          ? 'your birthday'
-          : 'their birthday'
-        : `${occasion.days} days`;
+  /*
+    Asked of `occasionHeadline` rather than restated here. This script grew its
+    own copy of the wording and promptly went out of date the day a fourth kind
+    of occasion existed, printing "undefined days" for every one of them.
+  */
+  const what = occasionHeadline(occasion, 'them');
 
   console.log(`  ${localDate}  ${away.padEnd(16)} ${what.padEnd(16)} ${occasion.key}`);
   console.log(`      "${occasionCopy(occasion.kind, occasion.whose)?.line ?? '(unwritten)'}"`);
