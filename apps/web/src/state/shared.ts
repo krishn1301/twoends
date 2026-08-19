@@ -16,7 +16,7 @@ import {
   type SealedCapsule,
 } from '../db/capsules.ts';
 import { recentEntries, type JournalEntry } from '../db/journal.ts';
-import { recentSnaps, signedUrls, type Snap } from '../db/photos.ts';
+import { loadComments, recentSnaps, signedUrls, type Snap, type SnapComment } from '../db/photos.ts';
 import { syncWidgets } from '../lib/widgets.ts';
 import { useLocation } from './location.ts';
 import { useSession, type Couple } from './session.ts';
@@ -35,6 +35,8 @@ import { useSession, type Couple } from './session.ts';
 interface SharedState {
   snaps: Snap[];
   urls: Map<string, string>;
+  /** What either of you said about each snap, keyed by photo id. */
+  comments: Map<string, SnapComment[]>;
   canvas: SharedCanvas | null;
   entries: JournalEntry[];
   sealed: SealedCapsule[];
@@ -54,6 +56,7 @@ interface SharedState {
 export const useShared = create<SharedState>((set) => ({
   snaps: [],
   urls: new Map(),
+  comments: new Map(),
   canvas: null,
   entries: [],
   sealed: [],
@@ -63,13 +66,14 @@ export const useShared = create<SharedState>((set) => ({
   loaded: false,
 
   load: async (couple) => {
-    const [snaps, canvas, days, entries, sealed, opened] = await Promise.all([
+    const [snaps, canvas, days, entries, sealed, opened, comments] = await Promise.all([
       recentSnaps(couple.id),
       loadCanvas(couple.id),
       completedDays(couple.id),
       recentEntries(couple.id),
       sealedCapsules(),
       openedCapsules(couple.id),
+      loadComments(couple.id),
     ]);
 
     const urls = await signedUrls(snaps.map((s) => s.storage_path));
@@ -84,6 +88,7 @@ export const useShared = create<SharedState>((set) => ({
     set({
       snaps,
       urls,
+      comments,
       canvas,
       entries,
       sealed,

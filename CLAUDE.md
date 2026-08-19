@@ -83,9 +83,28 @@ Commands: `pnpm db:push`, `pnpm db:types`, `pnpm test:rls`, `pnpm verify`,
 
 ## Current phase
 
-**Phase 13 built. Phases 0–12 shipped.** What is left of 13 is the device pass:
-the widget preview art and the corrected heart exist only as files until an APK
-has been on the S9+.
+**Phase 14 built. Phases 0–13 shipped and confirmed on a paired device.**
+
+### Phase 14 — the 18+ switch, a game about knowing each other, and comments
+
+- **The 18+ packs are reachable.** Six prompts and a topic pack had shipped in
+  every bundle since the first prompt file and been served to nobody:
+  `adultEnabled` was a parameter with a default of `false` that no caller ever
+  set. Consent lives on the person now — `profiles.adult_opt_in_at`, written only
+  by its owner, because `update own profile` is scoped to `id = auth.uid()`.
+  `couples.adult_packs_enabled` stays, derived by a trigger, and is what the app
+  gates on: one value read from one row by both phones.
+- **“Do you know me?”** — a third mode in Play. Five cards, you answer *as* the
+  other person, and the reveal shows both directions at once. One nullable column
+  on `game_picks` rather than a new table, plus `couple_cards` for ones they
+  wrote. A written card holds **no answer**: the author's answer is an ordinary
+  pick, so the existing reveal policy hides it until the other person guesses.
+- **Comments on snaps.** A photo used to arrive with nothing to do about it, so
+  the reply happened on WhatsApp. Deliberately *not* a both-must-move reveal, and
+  cascaded from `photos` so nothing outlives the picture it is about.
+
+`pnpm check` green, **219 tests**. RLS: 8 for the opt-in, 12 for the game, 8 for
+comments, all against the live project.
 
 ### Phase 13 — a dedication, and things to find
 
@@ -545,6 +564,33 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   disposable" rule is wrong: one anonymous account here is the `member_a` of a
   real couple, and another pair's 15 canvases and photos sit entirely in accounts
   with no email attached.
+- **The CI signature check tested for a signature Android stopped writing.** It
+  grepped `META-INF` for a `.RSA`/`.EC`/`.DSA` file and called their absence “no
+  signature block” — those are *v1* JAR signatures, and AGP stops emitting them
+  once minSdk is 24 or higher, because v2 signs the whole archive and lives in
+  the APK Signing Block rather than in a zip entry. Ask `apksigner verify`. The
+  fault sat there unseen because the step before it — missing repository secrets
+  — failed in eight seconds on every run, so it had never once executed. **The
+  APK workflow needs `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and
+  `VITE_VAPID_PUBLIC_KEY` as Actions secrets**; all three are public by design.
+- **A reveal that opens on “you have a row” breaks the moment a row can hold two
+  things.** In the guessing game somebody could write the choice half, read the
+  partner's row the reveal now hands them, and come back to fill in a guess they
+  could no longer get wrong. Row-level security cannot see columns, so instead a
+  `mode = 'guess'` row is not allowed to exist without a guess in it — then “has a
+  row” means “has guessed” again and the policy is correct unchanged.
+- **Row-level security cannot hide a column.** A `truth` column on `couple_cards`
+  would be readable by both members the instant it was written. The author's
+  answer is an ordinary `game_picks` row instead, which the reveal policy already
+  protects. Any “secret field on a shared row” idea has this shape.
+- **Not every feature wants the both-must-move reveal**, and copying it from the
+  nearest migration is the easy mistake. Answers, picks and guesses hide because
+  seeing theirs first would change what you write. A comment on a photo has
+  nothing to change, so it appears immediately — and there is a test asserting
+  that, so nobody “fixes” it later.
+- **Anything attached to a photo must cascade from it.** Photos carry
+  `expires_at` and are swept after thirty days; a comment left behind would
+  survive a deletion the app reported as done.
 - **The occasions are so sparse that you cannot read them in place.** The next
   one for the couple this was built for is *five months away* — day 100 passed in
   July — and the one thing you must not do to check the words is move the date

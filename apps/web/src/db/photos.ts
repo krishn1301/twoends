@@ -113,3 +113,68 @@ export async function deleteSnap(snap: Snap): Promise<void> {
   await supabase.storage.from('photos').remove([snap.storage_path]);
   await supabase.from('photos').delete().eq('id', snap.id);
 }
+
+// ── saying something about one ───────────────────────────────────────────────
+
+export interface SnapComment {
+  id: string;
+  photo_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+}
+
+/**
+ * Every comment on the snaps currently loaded, keyed by photo.
+ *
+ * Visible immediately, with nothing to wait for. That is the opposite of the
+ * rule everywhere else in this app, and it is the right one here: answers and
+ * picks hide until both people move because seeing theirs first would change
+ * what you write, and a photo has nothing to change. Making somebody take a
+ * turn before they can say your hair looks good would be a mechanic borrowed
+ * from a feature it does not fit.
+ */
+export async function loadComments(coupleId: string): Promise<Map<string, SnapComment[]>> {
+  const { data } = await supabase
+    .from('snap_comments')
+    .select('id, photo_id, author_id, body, created_at')
+    .eq('couple_id', coupleId)
+    .order('created_at', { ascending: true });
+
+  const byPhoto = new Map<string, SnapComment[]>();
+  for (const row of (data as SnapComment[] | null) ?? []) {
+    const list = byPhoto.get(row.photo_id) ?? [];
+    list.push(row);
+    byPhoto.set(row.photo_id, list);
+  }
+  return byPhoto;
+}
+
+/**
+ * Straight to Supabase rather than through the outbox.
+ *
+ * Arguable, and decided the same way `asks.ts` and the game were: what makes a
+ * comment worth writing is that they see it, so one queued on a phone with no
+ * signal has not been sent in any sense the writer would recognise. The screen
+ * says it could not reach them instead of showing a comment that is not there.
+ */
+export async function addComment(input: {
+  coupleId: string;
+  photoId: string;
+  authorId: string;
+  body: string;
+}): Promise<{ error: string | null }> {
+  const { error } = await supabase.from('snap_comments').insert({
+    couple_id: input.coupleId,
+    photo_id: input.photoId,
+    author_id: input.authorId,
+    body: input.body.trim(),
+  });
+
+  return { error: error?.message ?? null };
+}
+
+/** Only your own. The policy refuses anything else, and so does the screen. */
+export async function deleteComment(id: string): Promise<void> {
+  await supabase.from('snap_comments').delete().eq('id', id);
+}

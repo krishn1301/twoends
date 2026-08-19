@@ -3,7 +3,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAccent } from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 
-import { deleteSnap, keepSnap, uploadSnap, type Snap } from '../db/photos.ts';
+import {
+  addComment,
+  deleteComment,
+  deleteSnap,
+  keepSnap,
+  uploadSnap,
+  type Snap,
+  type SnapComment,
+} from '../db/photos.ts';
 import { notifyPartner } from '../db/push.ts';
 import { formatBytes, shrinkForUpload } from '../lib/image.ts';
 import { useSession } from '../state/session.ts';
@@ -30,6 +38,7 @@ export function Snaps() {
   // One store, so the pile here and the card on Home never disagree.
   const snaps = useShared((s) => s.snaps);
   const urls = useShared((s) => s.urls);
+  const comments = useShared((s) => s.comments);
   const load = useShared((s) => s.load);
   const markKept = useShared((s) => s.markKept);
   const dropLocally = useShared((s) => s.dropSnap);
@@ -263,6 +272,19 @@ export function Snaps() {
                         </button>
                       )}
                     </figcaption>
+
+                    {couple && profile && (
+                      <Comments
+                        snap={snap}
+                        comments={comments.get(snap.id) ?? []}
+                        coupleId={couple.id}
+                        me={{ id: profile.id, name: profile.display_name }}
+                        partnerName={partner?.display_name ?? 'them'}
+                        myTint={mine}
+                        theirTint={theirs}
+                        onChanged={refresh}
+                      />
+                    )}
                   </figure>
                 );
               })}
@@ -312,5 +334,157 @@ function Bin() {
         strokeLinejoin="round"
       />
     </svg>
+  );
+}
+
+/**
+ * What the two of you said about one photo.
+ *
+ * Under the picture rather than behind a tap, because the whole reason this
+ * exists is that a snap used to arrive with nothing to do about it — and a
+ * reply hidden one tap away is a reply most people never find. The field is
+ * always there and always empty; a comment is a small thing to say and asking
+ * for it should look small.
+ *
+ * Nothing here waits for the other person. Every other opinion in this app is
+ * hidden until both have moved, because seeing theirs first would change what
+ * you write. There is nothing to change about a photograph.
+ */
+function Comments({
+  snap,
+  comments,
+  coupleId,
+  me,
+  partnerName,
+  myTint,
+  theirTint,
+  onChanged,
+}: {
+  snap: Snap;
+  comments: SnapComment[];
+  coupleId: string;
+  me: { id: string; name: string };
+  partnerName: string;
+  myTint: string;
+  theirTint: string;
+  onChanged: () => void;
+}) {
+  const [body, setBody] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+
+  async function say() {
+    const text = body.trim();
+    if (!text || busy) return;
+
+    setBusy(true);
+    setFailed(null);
+
+    const { error } = await addComment({
+      coupleId,
+      photoId: snap.id,
+      authorId: me.id,
+      body: text,
+    });
+
+    setBusy(false);
+    if (error) {
+      setFailed('Could not send that — it needs signal to reach them.');
+      return;
+    }
+
+    // Cleared only on success, so a failed send leaves the words in the box
+    // rather than making somebody type them again.
+    setBody('');
+    onChanged();
+  }
+
+  async function remove(id: string) {
+    await deleteComment(id);
+    onChanged();
+  }
+
+  return (
+    <div className="border-t border-white/8 px-4 py-3">
+      {comments.length > 0 && (
+        <ul className="mb-2.5 flex flex-col gap-2">
+          {comments.map((comment) => {
+            const isMine = comment.author_id === me.id;
+            return (
+              <li key={comment.id} className="flex items-start gap-2.5">
+                <Avatar
+                  name={isMine ? me.name : partnerName}
+                  accent={isMine ? myTint : theirTint}
+                  size={22}
+                />
+                <span className="min-w-0 flex-1 text-[0.9rem] leading-snug">
+                  {comment.body}
+                  <span className="text-ash ml-1.5 text-xs whitespace-nowrap">
+                    {ago(comment.created_at)}
+                  </span>
+                </span>
+                {/*
+                  Yours only. Taking back something they said about your photo
+                  is not a thing this app does — the same rule the snap itself
+                  follows a few lines up.
+                */}
+                {isMine && (
+                  <button
+                    type="button"
+                    onClick={() => void remove(comment.id)}
+                    aria-label="Delete this comment"
+                    className="text-ash/60 h-6 shrink-0 px-1 text-xs"
+                  >
+                    ×
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void say();
+        }}
+        className="flex items-center gap-2"
+      >
+        {/*
+          Wrapped, both of them. `Button` carries `w-full` in its base classes,
+          so one placed directly in a flex row takes the whole row and collapses
+          the input to nothing — which looks exactly like a dead field, because
+          the caret is there and the typing works and you can see none of it.
+          This is the second time that has happened in this codebase.
+        */}
+        <div className="min-w-0 flex-1">
+          <input
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            maxLength={300}
+            placeholder={`Say something to ${partnerName}`}
+            aria-label="Say something about this photo"
+            className="bg-surface-2 text-chalk placeholder:text-ash/60 h-11 w-full rounded-full px-4 text-[0.9rem] outline-none focus:ring-2 focus:ring-white/25"
+          />
+        </div>
+        <div className="shrink-0">
+          <button
+            type="submit"
+            disabled={busy || body.trim().length === 0}
+            className="h-11 rounded-full px-4 text-[0.85rem] font-medium disabled:opacity-35"
+            style={{ background: myTint, color: '#15120F' }}
+          >
+            {busy ? '…' : 'Say it'}
+          </button>
+        </div>
+      </form>
+
+      {failed && (
+        <p className="mt-2 text-xs" style={{ color: '#e4566e' }}>
+          {failed}
+        </p>
+      )}
+    </div>
   );
 }
