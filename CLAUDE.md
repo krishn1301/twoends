@@ -545,6 +545,17 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   disposable" rule is wrong: one anonymous account here is the `member_a` of a
   real couple, and another pair's 15 canvases and photos sit entirely in accounts
   with no email attached.
+- **The occasions are so sparse that you cannot read them in place.** The next
+  one for the couple this was built for is *five months away* — day 100 passed in
+  July — and the one thing you must not do to check the words is move the date
+  they are checked against, which tests the edit. `pnpm occasions` imports
+  `occasions.ts` and `dedication.ts` themselves and walks the calendar forwards,
+  printing what fires, when, and with which sentence. Takes a start date and two
+  birthdays as arguments for any other couple. The clock egg is the one thing
+  visible today: 04:16 and 16:04.
+- **All four real birthdays are stored**, so the birthday occasion has data. It
+  was collected at onboarding and used for nothing until now, and it would have
+  been easy to build the feature on a column that was always null.
 - **Anything after an `mt-auto` block is off the bottom of the screen.** The
   dedication on the pre-pairing screen was placed under the button group, which
   carries `mt-auto` — so the group was pushed to the bottom and the line after it
