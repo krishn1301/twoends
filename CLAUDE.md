@@ -537,6 +537,17 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   disposable" rule is wrong: one anonymous account here is the `member_a` of a
   real couple, and another pair's 15 canvases and photos sit entirely in accounts
   with no email attached.
+- **Anything after an `mt-auto` block is off the bottom of the screen.** The
+  dedication on the pre-pairing screen was placed under the button group, which
+  carries `mt-auto` — so the group was pushed to the bottom and the line after it
+  went past the edge of a view that does not scroll. It rendered, it was in the
+  DOM, and nobody could ever see it. Put it *inside* the pinned block.
+- **A fresh APK install mints an anonymous account before anybody does anything.**
+  Five of the eleven accounts in the dev project were that — no profile, no
+  couple, one per install. Harmless, but it means “delete the abandoned anonymous
+  accounts” is a recurring chore rather than a one-off, and that a sweep must key
+  on ids rather than on “anonymous with no partner”, which also matches a real
+  person halfway through onboarding.
 - **A hidden gesture must not change the element it is on.** `Tile` renders an
   `<article>` unless given `onClick`, and giving it one to hold the anniversary
   counter would announce it to a screen reader as actionable and give it a focus

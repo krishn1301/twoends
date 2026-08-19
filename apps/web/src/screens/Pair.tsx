@@ -217,17 +217,24 @@ export function Pair() {
               <Button variant="quiet" accent={tint} onClick={() => setMode('join')}>
                 I have a code
               </Button>
-            </div>
 
-            {/*
-              The dedication, on the one screen every single person sees before
-              they have anybody — which is the whole argument for putting it
-              here rather than only behind a pairing. It sits under the buttons,
-              in the place a flyleaf sits: nothing depends on reading it.
-            */}
-            <p className="counter text-ash/50 mt-8 text-center text-[0.7rem] tracking-[0.3em] uppercase">
-              {SIGNATURE.mark}
-            </p>
+              {/*
+                The dedication, on the one screen every single person sees
+                before they have anybody — which is the whole argument for
+                putting it here rather than only behind a pairing. It sits under
+                the buttons, in the place a flyleaf sits: nothing depends on
+                reading it.
+
+                Inside this block rather than after it, because the block
+                carries `mt-auto` — anything following it is pushed past the
+                bottom edge of a screen that does not scroll, which is exactly
+                where the first version of this went and where the device found
+                it.
+              */}
+              <p className="counter text-ash/40 mt-5 text-center text-[0.7rem] tracking-[0.3em] uppercase">
+                {SIGNATURE.mark}
+              </p>
+            </div>
           </>
         )}
 
