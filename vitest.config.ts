@@ -7,7 +7,13 @@ export default defineConfig({
     // `document` in scope. When Phase 3 adds component tests they get their own
     // jsdom project rather than relaxing this globally.
     environment: 'node',
-    include: ['packages/**/*.test.ts', 'apps/**/*.test.ts'],
+    /*
+      `scripts/` is in here for one file: the rule deciding which accounts a
+      sweep of the live development project may delete. That decision used to
+      be a comment in a destructive script, and the only way to check it was to
+      run it.
+    */
+    include: ['packages/**/*.test.ts', 'apps/**/*.test.ts', 'scripts/**/*.test.mjs'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/dist-*/**'],
   },
 });

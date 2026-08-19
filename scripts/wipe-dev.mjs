@@ -1,84 +1,38 @@
 #!/usr/bin/env node
 /**
- * Empties the development project: every user, every storage object.
+ * Deliberately does nothing, and says why.
  *
- *     pnpm wipe:dev
+ * This used to empty the development project: every user, every storage object,
+ * guarded only by `SUPABASE_ENV=development` — which is permanently set, because
+ * `pnpm test:rls` refuses to run without it. That was written when the project
+ * held nothing but fixtures, and it was correct then.
  *
- * Deleting the users cascades through profiles, couples and everything
- * couple-scoped. Storage does not cascade — objects are reached by path, not by
- * foreign key — so they are removed explicitly, which is the same reason
- * unpairing has to delete them from the client before the rows go.
+ * The project now holds three real couples. Nothing about the script changed;
+ * only the data did, which is the whole problem with a destructive command whose
+ * safety comes from a fact nobody restates. Running it from memory would have
+ * deleted four months of one relationship and fifteen canvases of another.
  *
- * Refuses to run unless `.env.local` says this is a development project. There
- * is no undo, and the difference between the two projects is one line in a file.
+ * It is kept rather than removed so that typing the remembered command gets an
+ * explanation instead of "command not found" — or, worse, instead of somebody
+ * reaching for `supabase db reset` because the tool they wanted disappeared.
  */
-import { readFileSync } from 'node:fs';
+console.error(`
+wipe:dev is gone, on purpose.
 
-import { createClient } from '@supabase/supabase-js';
+It deleted every user in the project. That was fine when the project held
+fixtures; it now holds three real couples, and the only thing standing between
+the command and them was a flag that is permanently on.
 
-const env = {};
-for (const line of readFileSync(new URL('../.env.local', import.meta.url), 'utf8').split('\n')) {
-  const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*$/.exec(line);
-  if (m) env[m[1]] = m[2];
-}
+What you probably want:
 
-if (env.SUPABASE_ENV !== 'development') {
-  console.error('\nRefusing to wipe: .env.local is not marked SUPABASE_ENV=development.\n');
-  process.exit(1);
-}
+  pnpm sweep:dev            what testing left behind, listed, nothing changed
+  pnpm sweep:dev --commit   remove it
 
-const admin = createClient(env.VITE_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false },
-});
+That deletes only accounts it can prove were made by testing -- the leak suite's
+@twoends.test users, and the empty anonymous ones a fresh APK install mints
+before anybody types a name. Everything else is printed and left alone.
 
-console.log(`\nWiping ${env.VITE_SUPABASE_URL}\n`);
-
-// ── storage ──────────────────────────────────────────────────────────────────
-
-for (const bucket of ['photos', 'covers', 'avatars']) {
-  const { data: folders, error } = await admin.storage.from(bucket).list('', { limit: 1000 });
-  if (error) {
-    console.log(`  ${bucket}: ${error.message}`);
-    continue;
-  }
-
-  let removed = 0;
-  for (const folder of folders ?? []) {
-    const { data: files } = await admin.storage.from(bucket).list(folder.name, { limit: 1000 });
-    const paths = (files ?? []).map((f) => `${folder.name}/${f.name}`);
-    if (paths.length === 0) continue;
-
-    const { error: rmError } = await admin.storage.from(bucket).remove(paths);
-    if (rmError) console.log(`  ${bucket}: ${rmError.message}`);
-    else removed += paths.length;
-  }
-  console.log(`  ${bucket}: removed ${removed} object(s)`);
-}
-
-// ── users, and everything that cascades from them ────────────────────────────
-
-const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
-if (error) {
-  console.error(`\n${error.message}\n`);
-  process.exit(1);
-}
-
-for (const user of data.users) {
-  await admin.auth.admin.deleteUser(user.id);
-}
-console.log(`  auth: deleted ${data.users.length} user(s)`);
-
-// ── prove it ─────────────────────────────────────────────────────────────────
-
-const counts = {};
-for (const table of ['profiles', 'couples', 'photos', 'canvases', 'answers', 'countdowns']) {
-  const { count } = await admin.from(table).select('id', { count: 'exact', head: true });
-  counts[table] = count ?? 0;
-}
-
-console.log('\nRemaining rows:', counts);
-console.log(
-  Object.values(counts).every((n) => n === 0)
-    ? '\nClean. Prompts are left alone — they are shared content, not anyone’s data.\n'
-    : '\nSomething survived. Look above.\n',
-);
+If you genuinely want an empty project, make a new one. It is free and it takes
+a minute, and it cannot be confused with this one.
+`);
+process.exit(1);

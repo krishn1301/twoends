@@ -77,7 +77,8 @@ commit.
   never the backend. Supabase's free tier _is_ the hosting and costs no local
   disk.
 
-Commands: `pnpm db:push`, `pnpm db:types`, `pnpm test:rls`, `pnpm verify`.
+Commands: `pnpm db:push`, `pnpm db:types`, `pnpm test:rls`, `pnpm verify`,
+`pnpm sweep:dev`.
 `.env.local` holds the keys and is gitignored.
 
 ## Current phase
@@ -523,11 +524,18 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   "Signups not allowed for otp" is humanised into a sentence that says *check the
   address letter by letter*. Nobody needs it — first open is anonymous and
   `SaveAccount` attaches the address later.
-- **The dev project now holds real people, and `pnpm wipe:dev` does not know that.**
-  It deletes every user and every storage object, guarded only by
-  `SUPABASE_ENV=development` — which is permanently set because `pnpm test:rls`
-  refuses to run without it. That guard was written when the project held nothing
-  but fixtures. It now holds three real couples.
+- **`pnpm wipe:dev` is gone; it is `pnpm sweep:dev` now.** The old one deleted
+  every user and every storage object, guarded only by `SUPABASE_ENV=development`
+  — which is permanently set because `pnpm test:rls` refuses to run without it.
+  That was correct when the project held fixtures and lethal once it held three
+  real couples, and *nothing about the script changed; only the data did*. The
+  rule is inverted now: `sweep:dev` deletes only what it can prove testing made
+  (`@twoends.test` users, and anonymous accounts with no profile and no couple),
+  prints everyone it spares and why, dry-runs unless given `--commit`, and aborts
+  if the classification would take a couple with it. The decision lives in
+  `scripts/lib/sweep.mjs` **with tests**, because a rule about which live rows to
+  destroy should not be checkable only by running it. `wipe:dev` still exists and
+  refuses, so the remembered command explains itself rather than vanishing.
 - **`profiles.id references auth.users on delete cascade` and `couples.member_a
   references profiles on delete cascade`**, so deleting one anonymous auth user
   can take a whole couple row and everything keyed to its `couple_id` with it —
@@ -561,7 +569,7 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   `scripts/lib/png.mjs` folds them down instead. The range starts at 0x20, not
   0x00: a stray NUL is read as the end of the keyword and splits one chunk into a
   different, wrong one.
-- **`eslint` rejects ` ` inside a regex literal** (`no-control-regex`), which
+- **`eslint` rejects `\u0000` inside a regex literal** (`no-control-regex`), which
   is how the Latin-1 filter above ended up starting at 0x20. That turned out to
   be the correct range anyway, but the lint error is what forced the question.
 - **`localStorage` failure has no single right default.** `emailOffered()` treats

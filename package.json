@@ -26,6 +26,7 @@
     "widgets:art": "node scripts/widget-previews.mjs",
     "deploy": "node scripts/deploy.mjs",
     "db:seed": "node scripts/seed-prompts.mjs",
+    "sweep:dev": "node scripts/sweep-dev.mjs",
     "wipe:dev": "node scripts/wipe-dev.mjs"
   },
   "devDependencies": {
