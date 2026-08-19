@@ -72,7 +72,7 @@ for (let i = 0; i < 4000 && found < 10; i++) {
         : `${occasion.days} days`;
 
   console.log(`  ${localDate}  ${away.padEnd(16)} ${what.padEnd(16)} ${occasion.key}`);
-  console.log(`      "${occasionCopy(occasion.kind)?.line ?? '(unwritten)'}"`);
+  console.log(`      "${occasionCopy(occasion.kind, occasion.whose)?.line ?? '(unwritten)'}"`);
 }
 
 if (found === 0) console.log('  nothing in the next eleven years, which would be a bug.');

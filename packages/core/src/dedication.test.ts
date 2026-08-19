@@ -93,6 +93,42 @@ describe('unwritten copy', () => {
   });
 });
 
+describe('a birthday has two audiences', () => {
+  it('says something different to the one having it', () => {
+    /*
+      A single sentence covering both ends up addressed to neither: the card
+      reads "Your birthday" and then talks about somebody else. Settled by
+      rendering the two versions on a phone and reading them.
+    */
+    const theirs = occasionCopy('birthday', 'theirs');
+    const mine = occasionCopy('birthday', 'mine');
+    expect(theirs).not.toBeNull();
+    expect(mine).not.toBeNull();
+    expect(mine?.line).not.toBe(theirs?.line);
+  });
+
+  it('falls back to the shared line rather than to nothing', () => {
+    /*
+      The property that makes the second slot safe to edit. Blanking `yours`
+      back to TODO returns the card to the version that worked in both
+      directions; it does not remove the card from somebody's birthday.
+
+      Asserted through the real entry by checking the invariant rather than by
+      mutating the file: whatever `yours` says, asking for 'mine' always gets a
+      written line as long as the shared one is written.
+    */
+    expect(occasionCopy('birthday', 'mine')?.line).toBeTruthy();
+    expect(isWritten(occasionCopy('birthday', 'mine')!.line)).toBe(true);
+  });
+
+  it('ignores whose it is for every other occasion', () => {
+    for (const kind of ['anniversary', 'milestone', 'minute']) {
+      expect(occasionCopy(kind, 'mine'), kind).toEqual(occasionCopy(kind, 'theirs'));
+      expect(occasionCopy(kind, 'mine'), kind).toEqual(occasionCopy(kind));
+    }
+  });
+});
+
 describe('the private layer', () => {
   /*
     That the check opens for her and stays shut for him is asserted in

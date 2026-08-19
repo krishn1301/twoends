@@ -35,7 +35,12 @@ export function OccasionCard({
   theirAccent: string | null | undefined;
   onDismiss: () => void;
 }) {
-  const copy = occasionCopy(occasion.kind);
+  /*
+    `whose` only changes anything for a birthday, and only when the day is the
+    reader's own — see `occasionCopy`. Passing it unconditionally keeps the one
+    place that knows about the distinction inside core rather than here.
+  */
+  const copy = occasionCopy(occasion.kind, occasion.whose);
 
   return (
     <div

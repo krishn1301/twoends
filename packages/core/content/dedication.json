@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Every word in the app that is not UI copy lives here. These are drafts in the app's own voice, written to be replaced — rewrite any of them and nothing else has to change. Anything reading TODO is unwritten and will not ship: packages/core/src/dedication.test.ts fails on it, and occasionCopy() returns null rather than showing a placeholder on somebody's anniversary.",
+  "note": "Every word in the app that is not UI copy lives here. An occasion may carry a `yours` object, used when the day is the reader's own rather than their partner's; blank it back to TODO and the card falls back to the shared line above it rather than to nothing. These are drafts in the app's own voice, written to be replaced — rewrite any of them and nothing else has to change. Anything reading TODO is unwritten and will not ship: packages/core/src/dedication.test.ts fails on it, and occasionCopy() returns null rather than showing a placeholder on somebody's anniversary.",
 
   "signature": {
     "mark": "K for S",
@@ -45,8 +45,12 @@
       "line": "Everything since started here."
     },
     "birthday": {
-      "eyebrow": "day one, for one of you",
-      "line": "One of you started today. Everything else is downstream of that."
+      "eyebrow": "day one, for one of them",
+      "line": "They started today. Nothing else here would be here otherwise.",
+      "yours": {
+        "eyebrow": "somebody had today circled",
+        "line": "Somebody has had today circled for weeks. It is not you."
+      }
     },
     "milestone": {
       "eyebrow": "somebody counted",

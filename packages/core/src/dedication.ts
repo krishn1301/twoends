@@ -23,6 +23,11 @@ import { deterministicId, type Prompt } from './daily.ts';
  * read TypeScript to do it.
  */
 
+export interface OccasionCopy {
+  eyebrow?: string;
+  line: string;
+}
+
 interface DedicationFile {
   version: number;
   note: string;
@@ -32,7 +37,7 @@ interface DedicationFile {
     opening: string;
     promises: Array<{ title: string; body: string }>;
   };
-  occasions: Record<string, { eyebrow?: string; line: string }>;
+  occasions: Record<string, OccasionCopy & { yours?: OccasionCopy }>;
   counter: { held: string };
   hers: { note: string; line: string; questions: string[] };
 }
@@ -53,11 +58,24 @@ export const isWritten = (text: string): boolean => !text.trim().startsWith(UNWR
  * Null rather than a placeholder on purpose. A card that appears on somebody's
  * anniversary saying "TODO" is worse than no card, and the whole point of a
  * once-a-year moment is that there is no second chance to get it right.
+ *
+ * `whose` exists for one occasion. A birthday has two audiences and only one of
+ * them is having it, and a single sentence covering both ends up addressed to
+ * neither — the card says **Your birthday** and then declines to say anything to
+ * you. Seeing the two rendered side by side is what settled it.
+ *
+ * The fallback is the part that makes this safe to edit: an unwritten `yours`
+ * drops back to the shared line rather than to nothing, so blanking it returns
+ * the card to the version that worked in both directions instead of removing it.
  */
-export function occasionCopy(kind: string): { eyebrow?: string; line: string } | null {
+export function occasionCopy(kind: string, whose?: 'mine' | 'theirs'): OccasionCopy | null {
   const entry = file.occasions[kind];
-  if (!entry || !isWritten(entry.line)) return null;
-  return entry;
+  if (!entry) return null;
+
+  const own = whose === 'mine' ? entry.yours : undefined;
+  if (own && isWritten(own.line)) return own;
+
+  return isWritten(entry.line) ? { eyebrow: entry.eyebrow, line: entry.line } : null;
 }
 
 /** What the anniversary counter says when held, or null while unwritten. */
