@@ -23,6 +23,7 @@
     "verify": "pnpm check && pnpm test:rls",
     "devlink": "node scripts/devlink.mjs",
     "icons": "node scripts/icons.mjs",
+    "widgets:art": "node scripts/widget-previews.mjs",
     "deploy": "node scripts/deploy.mjs",
     "db:seed": "node scripts/seed-prompts.mjs",
     "wipe:dev": "node scripts/wipe-dev.mjs"

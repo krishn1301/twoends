@@ -1,4 +1,4 @@
-import { buildZip, type ZipEntry } from '@twoends/core';
+import { SIGNATURE, buildZip, type ZipEntry } from '@twoends/core';
 
 import { supabase } from '../lib/supabase.ts';
 
@@ -177,6 +177,14 @@ function readme(data: Record<string, unknown[]>): string {
     '  Invite codes and notification tokens. Those are credentials, not memories.',
     '',
     'Nothing here needs TwoEnds to read it. That is the point.',
+    '',
+    /*
+      The only prose in the shipped product written *to* the couple rather than
+      for the interface, which makes it the right place for the last of the
+      signatures - and the one most likely to still exist in ten years, since an
+      export is a file somebody keeps rather than an app somebody updates.
+    */
+    `${SIGNATURE.mark} — ${SIGNATURE.line} ${SIGNATURE.year}`,
     '',
   ].join('\n');
 }

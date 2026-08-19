@@ -4,10 +4,13 @@ import { DrawSurface } from '../components/DrawSurface.tsx';
 
 import { useEffect, useState, type ReactNode } from 'react';
 
-import { daysUntil } from '@twoends/core';
+import { COLOPHON, daysUntil, fillsTheScreen, heldCopy, occasionCopy } from '@twoends/core';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 import { DailyCard } from '../components/DailyCard.tsx';
+import { Monogram } from '../components/Monogram.tsx';
+import { OccasionCard } from '../components/OccasionCard.tsx';
+import { Sheet } from '../components/Sheet.tsx';
 import { Flame, Heart, Lock } from '../components/icons.tsx';
 import type { TabId } from '../components/TabBar.tsx';
 import { WEEK_LABELS, pad, useDesignModel } from '../design/model.ts';
@@ -20,11 +23,15 @@ import {
   widgetsSupported,
   type WidgetId,
 } from '../lib/widgets.ts';
+import { useLongPress, useBothPressed, useTapRun } from '../lib/gestures.ts';
 import { useAvatars } from '../state/avatars.ts';
 import { useDistanceReading, useLocation } from '../state/location.ts';
+import { useOccasion } from '../state/occasion.ts';
+import { markSeenToday, seenToday } from '../state/seenToday.ts';
 import { useNow } from '../state/useNow.ts';
 import { useSession } from '../state/session.ts';
 import { useShared } from '../state/shared.ts';
+import { Colophon } from './Colophon.tsx';
 
 /**
  * Home.
@@ -124,6 +131,51 @@ export function Home({
   // this correctly says so.
   const hasWidgets = widgetsSupported();
 
+  /*
+    Four things on this screen do something nobody has been told about. None of
+    them changes what it looks like, and none of them changes what it *is* —
+    see `lib/gestures.ts` for why a hidden gesture must not turn a card into a
+    button.
+  */
+  const [colophon, setColophon] = useState(false);
+  const [heldCounter, setHeldCounter] = useState(false);
+  const [markShown, setMarkShown] = useState(false);
+
+  const wordmark = useTapRun(5, () => setColophon(true));
+  const counterHold = useLongPress(
+    () => setHeldCounter(true),
+    { onRelease: () => setHeldCounter(false) },
+  );
+  const faces = useBothPressed(
+    () => setMarkShown(true),
+    { onRelease: () => setMarkShown(false) },
+  );
+
+  /*
+    Today, if today is anything. Kept out of `useDesignModel` on purpose: that
+    module is identity and arithmetic now, and the last thing it held which
+    looked like data and was not sat on this screen for five phases.
+  */
+  const occasion = useOccasion();
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  const bigDay =
+    occasion && fillsTheScreen(occasion.kind) && occasion.key !== dismissed && !seenToday(occasion.key)
+      ? occasion
+      : null;
+
+  const held = heldCopy();
+  const hoursTogether = m.elapsed.days * 24 + m.elapsed.hours;
+
+  /*
+    The minute their date makes on a clock — 04:16 and 16:04 for a couple who
+    started on the 16th of April. It is the one occasion that is not a whole day,
+    so it is never announced and never takes the screen: it lasts sixty seconds
+    under the two faces and is either noticed or it is not. `useOccasion` ticks
+    on the minute boundary rather than every second, so this appears and goes on
+    time without the page re-rendering 86,400 times a day to catch it.
+  */
+  const minuteLine = occasion?.kind === 'minute' ? occasionCopy('minute')?.line : null;
+
   const mine = m.myAccent.onDark;
   const theirs = m.theirAccent.onDark;
   const shared = `linear-gradient(145deg, ${mine}, ${theirs})`;
@@ -132,7 +184,17 @@ export function Home({
     <div className="bg-void text-chalk min-h-full">
       <div className="mx-auto max-w-md pt-4 pb-32">
         <header className="mb-6 flex items-center justify-between px-5">
-          <span className="font-display text-2xl leading-none font-semibold tracking-tight">
+          {/*
+            Five taps opens the colophon. Left as a `span` rather than promoted
+            to a button: a focus ring and an "About, button" announcement would
+            make it a menu item, and this is meant to be found rather than
+            offered. The page it opens has an ordinary row in Us as well, so
+            nothing is only reachable this way.
+          */}
+          <span
+            {...wordmark}
+            className="font-display text-2xl leading-none font-semibold tracking-tight"
+          >
             twoends
           </span>
           <span
@@ -144,9 +206,29 @@ export function Home({
           </span>
         </header>
 
-        {/* The pair, before anything else. */}
-        <div className="rise mb-6 px-5">
+        {/*
+          The pair, before anything else.
+
+          A thumb on each face at the same time slides them into the app's own
+          mark — which *is* the two of you overlapping, and which nothing in the
+          app has ever said out loud. One face held alone does nothing however
+          long you hold it; the gesture is the meaning.
+        */}
+        <div className="rise relative mb-6 px-5">
+          {markShown && (
+            <div className="bg-void absolute inset-0 z-10 flex items-center justify-center">
+              <Monogram
+                mine={m.myName}
+                theirs={m.theirName}
+                myAccent={profile?.accent_key}
+                theirAccent={partner?.accent_key}
+                size={72}
+              />
+            </div>
+          )}
           <Faces
+            myPress={faces.first}
+            theirPress={faces.second}
             myName={m.myName}
             myAccent={mine}
             mySrc={profile?.avatar_path ? avatarUrls.get(profile.avatar_path) : null}
@@ -182,6 +264,15 @@ export function Home({
               )
             }
           />
+
+          {minuteLine && (
+            <p
+              className="mt-3 text-center text-[0.8rem] leading-relaxed"
+              style={{ color: mine }}
+            >
+              {minuteLine}
+            </p>
+          )}
         </div>
 
         {/* The one thing the screen is asking for — real data, not a fixture. */}
@@ -268,22 +359,46 @@ export function Home({
             <Section title="Together" action="All" onAction={() => onGo?.('dates')}>
               <Rail>
                 <Tile wide ground={shared} eyebrow="anniversary">
-                  <div className="absolute inset-x-4 top-1/2 -translate-y-[60%]">
-                    <p className="counter text-[1.9rem] leading-none font-medium text-white">
-                      {m.elapsed.days}
-                      <span className="opacity-50">:</span>
-                      {pad(m.elapsed.hours)}
-                      <span className="opacity-50">:</span>
-                      {pad(m.elapsed.minutes)}
-                      <span className="opacity-50">:</span>
-                      {pad(m.elapsed.seconds)}
-                    </p>
-                    <p className="mt-2 flex gap-[2.1rem] text-[0.6rem] tracking-[0.2em] text-white/70 uppercase">
-                      <span>day</span>
-                      <span>hr</span>
-                      <span>min</span>
-                      <span>sec</span>
-                    </p>
+                  {/*
+                    Held down, the counter stops counting days and counts hours
+                    instead. The handlers go on this inner div rather than on the
+                    Tile: a `Tile` given an `onClick` becomes a `<button>`, and a
+                    card that announces itself as actionable to a screen reader
+                    is not a hidden thing. Nothing here changes shape or colour,
+                    so a person who never presses it never learns it was there.
+                  */}
+                  <div
+                    {...counterHold}
+                    className="absolute inset-x-4 top-1/2 -translate-y-[60%] select-none"
+                  >
+                    {heldCounter && held ? (
+                      <>
+                        <p className="counter text-[1.9rem] leading-none font-medium text-white">
+                          {hoursTogether.toLocaleString('en-GB')}
+                        </p>
+                        <p className="mt-2 text-[0.6rem] leading-relaxed tracking-[0.14em] text-white/70 lowercase">
+                          {held}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="counter text-[1.9rem] leading-none font-medium text-white">
+                          {m.elapsed.days}
+                          <span className="opacity-50">:</span>
+                          {pad(m.elapsed.hours)}
+                          <span className="opacity-50">:</span>
+                          {pad(m.elapsed.minutes)}
+                          <span className="opacity-50">:</span>
+                          {pad(m.elapsed.seconds)}
+                        </p>
+                        <p className="mt-2 flex gap-[2.1rem] text-[0.6rem] tracking-[0.2em] text-white/70 uppercase">
+                          <span>day</span>
+                          <span>hr</span>
+                          <span>min</span>
+                          <span>sec</span>
+                        </p>
+                      </>
+                    )}
                   </div>
                 </Tile>
 
@@ -432,6 +547,33 @@ export function Home({
           </div>
         </div>
       </div>
+
+      {/*
+        A day that is not an ordinary day, once, on the first open of it. The
+        record of having shown it is written on dismissal rather than on render,
+        so a card closed by the app being killed mid-animation still comes back.
+      */}
+      {bigDay && (
+        <OccasionCard
+          occasion={bigDay}
+          mine={mine}
+          theirs={theirs}
+          myName={m.myName}
+          theirName={m.theirName}
+          myAccent={profile?.accent_key}
+          theirAccent={partner?.accent_key}
+          onDismiss={() => {
+            markSeenToday(bigDay.key);
+            setDismissed(bigDay.key);
+          }}
+        />
+      )}
+
+      {colophon && (
+        <Sheet title={COLOPHON.title} onClose={() => setColophon(false)}>
+          <Colophon />
+        </Sheet>
+      )}
     </div>
   );
 }

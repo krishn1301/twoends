@@ -17,14 +17,17 @@
  * three circles of maths, and because it means the icon regenerates from source:
  * changing the accent pair is an edit here, not a hunt through binary files.
  *
- * A minimal PNG encoder lives at the bottom. PNGs are a signature, three chunks
- * and a CRC, and `node:zlib` does the only hard part. Adding an image library to
- * a project whose whole premise is zero dependencies with a paid tier would be a
- * poor trade for 60 lines.
+ * The PNG encoder used to live at the bottom of this file and now lives in
+ * `scripts/lib/png.mjs`, because `widget-previews.mjs` needs the same one. It is
+ * still hand-written: a PNG is a signature, three chunks and a CRC, and
+ * `node:zlib` does the only hard part. Adding an image library to a project
+ * whose whole premise is zero dependencies with a paid tier would be a poor
+ * trade for 60 lines.
  */
-import { deflateSync } from 'node:zlib';
-import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+
+import { png, write } from './lib/png.mjs';
+import { signatureText } from './lib/signature.mjs';
 
 const WEB = fileURLToPath(new URL('../apps/web/public/', import.meta.url));
 const RES = fileURLToPath(new URL('../apps/web/android/app/src/main/res/', import.meta.url));
@@ -97,7 +100,8 @@ function render(size, { round = false } = {}) {
     }
   }
 
-  return png(px, size, size);
+  // The dedication rides in a `tEXt` chunk. See `lib/signature.mjs`.
+  return png(px, size, size, { text: signatureText() });
 }
 
 function colourAt(u, v, round) {
@@ -114,65 +118,7 @@ function colourAt(u, v, round) {
   return [...VOID, 1];
 }
 
-// ── a very small PNG encoder ─────────────────────────────────────────────────
-
-const CRC_TABLE = (() => {
-  const t = new Int32Array(256);
-  for (let n = 0; n < 256; n++) {
-    let c = n;
-    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    t[n] = c;
-  }
-  return t;
-})();
-
-function crc32(buf) {
-  let c = -1;
-  for (const b of buf) c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
-  return (c ^ -1) >>> 0;
-}
-
-function chunk(type, data) {
-  const len = Buffer.alloc(4);
-  len.writeUInt32BE(data.length);
-  const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(body));
-  return Buffer.concat([len, body, crc]);
-}
-
-function png(rgba, width, height) {
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(width, 0);
-  ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = 8; // bit depth
-  ihdr[9] = 6; // truecolour with alpha
-  // 10..12 stay zero: deflate, adaptive filtering, no interlace.
-
-  // One filter byte per scanline. Filter 0 (none) — the image is smooth enough
-  // that deflate handles it, and this keeps the encoder honest.
-  const stride = width * 4;
-  const raw = Buffer.alloc(height * (stride + 1));
-  for (let y = 0; y < height; y++) {
-    raw[y * (stride + 1)] = 0;
-    rgba.copy(raw, y * (stride + 1) + 1, y * stride, (y + 1) * stride);
-  }
-
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk('IHDR', ihdr),
-    chunk('IDAT', deflateSync(raw, { level: 9 })),
-    chunk('IEND', Buffer.alloc(0)),
-  ]);
-}
-
 // ── emit ─────────────────────────────────────────────────────────────────────
-
-const write = (dir, name, buffer) => {
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(new URL(name, `file://${dir.replace(/\\/g, '/')}`), buffer);
-  console.log(`  ${name.padEnd(24)} ${buffer.length.toString().padStart(7)} bytes`);
-};
 
 console.log('web');
 for (const [name, size] of [

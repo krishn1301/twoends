@@ -1,6 +1,7 @@
 import raw from '../content/prompts.json' with { type: 'json' };
 
 import { deterministicId, type Prompt } from './daily.ts';
+import { herPrompts } from './dedication.ts';
 
 /**
  * The prompt packs, loaded from JSON at build time.
@@ -51,14 +52,31 @@ export const ALL_PROMPTS: Prompt[] = PROMPT_PACKS.flatMap((p) => p.prompts);
  * Adult packs are opt-in and off by default, and the distance pack only appears
  * for people who said they are apart — a question about the hardest hour to be
  * apart is a strange thing to ask someone sharing a bed.
+ *
+ * **Every option here is a property of the couple, never of the reader.** The
+ * daily question is `promptForDay(couple id, date, thisList)`, so the two phones
+ * only agree while they build the same list. An option that varied by who was
+ * holding the phone would hand them different questions on the same morning and
+ * break the reveal that is the entire feature — silently, and only for the pair
+ * it was meant as a gift to.
  */
 export function promptsFor(options: {
   relationshipType?: string | null;
   adultEnabled?: boolean;
+  /** True for the one couple this app was written for. See `isHerCouple`. */
+  hasHer?: boolean;
 }): Prompt[] {
-  return PROMPT_PACKS.filter((pack) => {
+  const packs = PROMPT_PACKS.filter((pack) => {
     if (pack.isAdult) return options.adultEnabled === true;
     if (pack.key === 'distance') return options.relationshipType === 'long_distance';
     return true;
   }).flatMap((pack) => pack.prompts);
+
+  /*
+    Appended rather than declared in `prompts.json`, because that file is what
+    `scripts/seed-prompts.mjs` pushes to Postgres and every row it writes has a
+    null `couple_id` — which migration 11 makes readable by any signed-in user.
+    A hidden pack put there would be published to everybody with an account.
+  */
+  return options.hasHer ? [...packs, ...herPrompts()] : packs;
 }

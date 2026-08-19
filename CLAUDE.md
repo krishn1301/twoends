@@ -82,8 +82,53 @@ Commands: `pnpm db:push`, `pnpm db:types`, `pnpm test:rls`, `pnpm verify`.
 
 ## Current phase
 
-**Phase 11 done. Phase 7 is finally closed too: all six widgets have been placed
-on a real launcher and drawn with real data.** Phases 0–10 shipped.
+**Phase 13 built. Phases 0–12 shipped.** What is left of 13 is the device pass:
+the widget preview art and the corrected heart exist only as files until an APK
+has been on the S9+.
+
+### Phase 13 — a dedication, and things to find
+
+The app was built for one person and nothing in it said so. Three registers,
+kept apart deliberately, because confusing them is the only way this goes wrong:
+a **dedication everyone sees** (`K for S`), **eggs anyone can find** that are
+personalised to whoever finds them, and **one line only she ever sees**.
+
+- `packages/core/src/occasions.ts` — what today is. Precedence **anniversary →
+  birthday → milestone → minute**, decided rather than inherited from `if` order,
+  because this couple has three occasions inside four days every April. 365 and
+  730 were removed from `MILESTONES` rather than resolved against the
+  anniversary: a rule that cannot fire twice beats a rule about which one wins.
+- **The clock egg.** Hour = month, minute = day, *and* the reverse when the day
+  is 23 or less. Month-as-hour is the reading that always exists but is always
+  before midday; for this couple that is 04:16, which nobody is awake for. The
+  second reading is the one they will catch.
+- `packages/core/content/dedication.json` — every non-UI word, in one file. A
+  string still reading `TODO` makes its card **not appear**, rather than appear
+  empty; `occasionCopy()` returns null. The eight drafts in there are written to
+  be replaced and nothing else has to change when they are.
+- `apps/web/src/lib/gestures.ts` — the app's first gestures. Five taps on the
+  wordmark opens the colophon, holding the anniversary counter switches it to
+  hours, and a thumb on each face slides them into the app's own mark.
+- `apps/web/src/screens/Colophon.tsx` — the six promises from `docs/PRIVACY.md`,
+  written fresh for a reader rather than a maintainer. An app that makes those
+  promises only in a repo is making them to developers.
+- The invisible ones: a `tEXt` chunk in every generated PNG, a comment in
+  `index.html`, and a line in the export README.
+
+**Two bugs the design caught before the code existed, both invisible in review:**
+
+1. **A per-reader prompt pack desynchronises the two phones.** The daily question
+   is `promptForDay(couple id, date, list)`, so the *list* has to be identical on
+   both handsets. Gating her questions on `isHer(myProfileId)` — the obvious way
+   to write it — would have given the two of them different questions on the same
+   morning, with no error anywhere and no answer ever unlocking the other. It is
+   gated on the *couple* (`isHerCouple(member_a, member_b)`) for that reason.
+2. **An unseeded prompt cannot be answered at all.** `prompt_days.prompt_id` is
+   `references prompts on delete restrict`, and the private pack is deliberately
+   never seeded — `scripts/seed-prompts.mjs` writes a null `couple_id`, which
+   migration 11 makes readable by every signed-in user. So `submitAnswer` now
+   creates the row couple-scoped first. The policy does the work the hash only
+   pretends to.
 
 ### Phase 11 — Play, and four things a person found by using the app
 
@@ -450,6 +495,78 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
 
   A green *suite* assembled from separate green *files* is a legitimate result
   here. What is not legitimate is reading a rate-limit failure as a pass.
+- **A sign-in link's destination lived in a dashboard field, not in this repo.**
+  Neither `signInWithOtp` nor `updateUser` passed `emailRedirectTo`, so every
+  link in every inbox went wherever Supabase's **Site URL** pointed. When that is
+  wrong the symptom is a GitHub Pages *"There isn't a GitHub Pages site here"* —
+  the bare `krishn1301.github.io` with no `/twoends/` — and there is no commit,
+  test or error message anywhere to grep for. It reads as "the email is broken".
+  Both calls now pass `signInReturnUrl()` (`lib/supabase.ts`), built from
+  `window.location.origin + import.meta.env.BASE_URL`, so the page says where it
+  is and the dashboard field stops mattering. **Every origin used this way must
+  also be in the project's Redirect URLs allow list** — a disallowed one is
+  silently ignored and falls back to the Site URL, which is the same bug wearing
+  a config that looks right. Verified: allow-listed origins come back exactly,
+  `https://example.com/evil` falls back.
+  **On iOS the URL bar shows only the host**, so a screenshot of the failure
+  cannot tell you whether the path was there. The 404 *body* can: GitHub's
+  "isn't a GitHub Pages site here" means no repo at that path at all, whereas a
+  missing path *under* `/twoends/` serves the deployed `404.html`, which is a
+  copy of `index.html` and therefore renders the app.
+- **`shouldCreateUser: true` on the sign-in screen made typos into new accounts.**
+  The screen's own first line is "signing back in to an account you already
+  have", and it then silently built a fresh empty one for anybody who mistyped.
+  Four accounts in the live project were that: the owner's own differed from his
+  real one by a leading `1`, a friend never got past it, and one couple redid the
+  entire onboarding four minutes later. A new account is indistinguishable from a
+  successful sign-in until you notice your partner is gone. It is `false` now, and
+  "Signups not allowed for otp" is humanised into a sentence that says *check the
+  address letter by letter*. Nobody needs it — first open is anonymous and
+  `SaveAccount` attaches the address later.
+- **The dev project now holds real people, and `pnpm wipe:dev` does not know that.**
+  It deletes every user and every storage object, guarded only by
+  `SUPABASE_ENV=development` — which is permanently set because `pnpm test:rls`
+  refuses to run without it. That guard was written when the project held nothing
+  but fixtures. It now holds three real couples.
+- **`profiles.id references auth.users on delete cascade` and `couples.member_a
+  references profiles on delete cascade`**, so deleting one anonymous auth user
+  can take a whole couple row and everything keyed to its `couple_id` with it —
+  including a *paired* partner who has an email and did nothing wrong. `member_b`
+  is `on delete set null` and merely empties the slot. Any account sweep has to
+  print the couples it is about to destroy before it runs, and an "anonymous means
+  disposable" rule is wrong: one anonymous account here is the `member_a` of a
+  real couple, and another pair's 15 canvases and photos sit entirely in accounts
+  with no email attached.
+- **A hidden gesture must not change the element it is on.** `Tile` renders an
+  `<article>` unless given `onClick`, and giving it one to hold the anniversary
+  counter would announce it to a screen reader as actionable and give it a focus
+  ring — the exact opposite of hidden, and a promise to a keyboard user that a
+  keyboard cannot keep. The handlers in `lib/gestures.ts` go on an inner `div`
+  instead and the markup is unchanged.
+- **A `tEXt` chunk goes between `IHDR` and `IEND` and must be Latin-1.** Every
+  other string in this project has an em dash or a curly apostrophe in it, and
+  `Buffer.from(s, 'latin1')` truncates each one to a byte of nonsense rather than
+  failing — producing a file that still opens and still says the wrong thing.
+  `scripts/lib/png.mjs` folds them down instead. The range starts at 0x20, not
+  0x00: a stray NUL is read as the end of the keyword and splits one chunk into a
+  different, wrong one.
+- **`eslint` rejects ` ` inside a regex literal** (`no-control-regex`), which
+  is how the Latin-1 filter above ended up starting at 0x20. That turned out to
+  be the correct range anyway, but the lint error is what forced the question.
+- **`localStorage` failure has no single right default.** `emailOffered()` treats
+  it as *already asked*, because the cost of being wrong is nagging on every
+  launch. `seenToday()` treats it as *not yet seen*, because missing your first
+  anniversary is worse than being shown it twice. Two files, opposite defaults,
+  both deliberate — there is a test asserting the second one so nobody
+  “fixes” it into matching the first.
+- **A clip-path id is global to the document, not to the component.** Two
+  `Monogram`s render at once — one under Sign out and one on the colophon it
+  opens — and both would use the first one's clip. `useId()`.
+- **The real profile ids had leaked into `src/dedication.test.ts`**, one file away
+  from the module whose whole purpose is keeping them out of the source. They now
+  live only in `test/dedication-source.test.ts`, which says why it is allowed to
+  hold them and asserts the hash really is her and really is not him — without
+  that, one mistyped character closes the private layer silently and forever.
 - **`Date.now()` in a hook body fails `react-hooks/purity`.** The rule is right —
   React can render twice and get two answers. Use `useNow(interval)` from
   `state/useNow.ts`, which holds the clock in state and re-anchors to the wall

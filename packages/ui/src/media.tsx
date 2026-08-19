@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react';
 
 /**
  * Faces, photographs and hand-made marks.
@@ -154,6 +154,8 @@ export function Faces({
   middle,
   size = 62,
   lineColor,
+  myPress,
+  theirPress,
 }: {
   myName: string;
   myAccent: string;
@@ -164,6 +166,17 @@ export function Faces({
   middle?: ReactNode;
   size?: number;
   lineColor: string;
+  /**
+   * Pointer handlers for one face and the other.
+   *
+   * Handlers rather than an `onClick` per side, because the only caller needs
+   * to know when *both* are held at once — see `useBothPressed`. Passing them
+   * in keeps this component with no state and no idea what the gesture means,
+   * which is right: it draws two people, and what pressing them does is Home's
+   * business.
+   */
+  myPress?: HTMLAttributes<HTMLDivElement>;
+  theirPress?: HTMLAttributes<HTMLDivElement>;
 }) {
   return (
     /*
@@ -174,7 +187,7 @@ export function Faces({
       it stops reading as a line between two people.
     */
     <div className="flex items-start gap-3">
-      <Named name={myName} accent={myAccent} size={size} src={mySrc} />
+      <Named name={myName} accent={myAccent} size={size} src={mySrc} press={myPress} />
       {/* Exactly as tall as a face, so the badge sits on the faces' centre line. */}
       <div
         className="relative flex flex-1 items-center justify-center"
@@ -187,7 +200,7 @@ export function Faces({
         />
         {middle}
       </div>
-      <Named name={theirName} accent={theirAccent} size={size} src={theirSrc} />
+      <Named name={theirName} accent={theirAccent} size={size} src={theirSrc} press={theirPress} />
     </div>
   );
 }
@@ -209,14 +222,20 @@ function Named({
   accent,
   size,
   src,
+  press,
 }: {
   name: string;
   accent: string;
   size: number;
   src?: string | null;
+  press?: HTMLAttributes<HTMLDivElement>;
 }) {
   return (
-    <div className="flex shrink-0 flex-col items-center gap-1.5" style={{ width: size }}>
+    <div
+      {...press}
+      className="flex shrink-0 flex-col items-center gap-1.5"
+      style={{ width: size }}
+    >
       <Avatar name={name} accent={accent} size={size} src={src} />
       <span
         className="w-full truncate text-center text-[0.7rem] leading-tight text-[#948A82]"

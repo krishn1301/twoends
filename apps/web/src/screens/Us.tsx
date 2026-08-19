@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { ACCENTS, ACCENT_KEYS, getAccent, timeTogether, type AccentKey } from '@twoends/core';
+import { ACCENTS, ACCENT_KEYS, COLOPHON, SIGNATURE, getAccent, timeTogether, type AccentKey } from '@twoends/core';
 import { Avatar } from '@twoends/ui';
+
+import { Monogram } from '../components/Monogram.tsx';
+import { Sheet } from '../components/Sheet.tsx';
+import { Colophon } from './Colophon.tsx';
 
 import { removeAvatar, uploadAvatar } from '../db/avatars.ts';
 import { exportEverything, type ExportProgress } from '../db/exportAll.ts';
@@ -38,6 +42,7 @@ export function Us() {
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [colophon, setColophon] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(profile?.display_name ?? '');
@@ -577,6 +582,25 @@ export function Us() {
           </Group>
         )}
 
+        {/*
+          The promises the app makes, where somebody can actually read them.
+          A row rather than only the monogram below, because the monogram is
+          meant to be found and this is meant to be available — the six things
+          on that page are the answer to "what is the catch", and an answer
+          nobody can reach is not one.
+        */}
+        <Group title="About">
+          <Row label={COLOPHON.title}>
+            <button
+              type="button"
+              onClick={() => setColophon(true)}
+              className="text-ash h-11 text-sm"
+            >
+              Read
+            </button>
+          </Row>
+        </Group>
+
         <button
           type="button"
           onClick={() => void signOut()}
@@ -584,7 +608,37 @@ export function Us() {
         >
           Sign out
         </button>
+
+        {/*
+          The last thing on the last screen, in the space that was empty under
+          Sign out. A dedication belongs where a book puts one — not in the way
+          of anything, and not hidden either. Tapping it opens the page that
+          explains the mark.
+        */}
+        <button
+          type="button"
+          onClick={() => setColophon(true)}
+          aria-label={COLOPHON.title}
+          className="mx-auto mt-6 mb-2 flex flex-col items-center gap-2 py-2 opacity-70"
+        >
+          <Monogram
+            mine={profile?.display_name}
+            theirs={partner?.display_name}
+            myAccent={profile?.accent_key}
+            theirAccent={partner?.accent_key}
+            size={44}
+          />
+          <span className="counter text-ash text-[0.7rem] tracking-[0.3em] uppercase">
+            {SIGNATURE.mark}
+          </span>
+        </button>
       </div>
+
+      {colophon && (
+        <Sheet title={COLOPHON.title} onClose={() => setColophon(false)}>
+          <Colophon />
+        </Sheet>
+      )}
     </div>
   );
 }

@@ -168,21 +168,36 @@ private fun heartPath(cx: Float, cy: Float, size: Float): Path {
       There is no `FillType.UNION` — union is a `Path.Op`, for the `path.op()`
       API, and reaching for it here compiles to nothing but a wrong guess. With
       winding fill, sub-paths wound the same way merge into one silhouette, which
-      is exactly what three overlapping shapes need. Every `Direction.CW` below
-      is load-bearing for that reason.
+      is exactly what overlapping shapes need. The `Direction.CW` below is
+      load-bearing for that reason.
     */
     path.fillType = Path.FillType.WINDING
 
-    val r = size / 4f
-    // The two lobes sit on the upper half; the point falls `size/2` below centre.
-    path.addCircle(cx - r, cy - r * 0.6f, r, Path.Direction.CW)
-    path.addCircle(cx + r, cy - r * 0.6f, r, Path.Direction.CW)
+    /*
+      Two lobes and a triangle, not two lobes and a rotated square.
 
-    val square = Path()
-    val half = r * 1.42f
-    square.addRect(cx - half, cy - half, cx + half, cy + half, Path.Direction.CW)
-    square.transform(Matrix().apply { setRotate(45f, cx, cy - r * 0.6f) })
-    path.addPath(square)
+      The square version drew a rounded diamond: at `half = r * 1.42` the square
+      is wide enough to swallow both circles entirely, so the lobes contribute
+      nothing and what is left is the square's own silhouette. It was only
+      obvious once the same construction was rendered large in the preview
+      script — at 20px on a widget a bad heart and a good one both read as "a
+      small pink blob", which is exactly the sort of thing that survives review.
+
+      A triangle cannot swallow the lobes: its top edge is the line through both
+      centres, so the circles always sit proud of it.
+    */
+    val r = size / 4f
+    val top = cy - r * 0.55f
+
+    path.addCircle(cx - r, top, r, Path.Direction.CW)
+    path.addCircle(cx + r, top, r, Path.Direction.CW)
+
+    val point = Path()
+    point.moveTo(cx - 2f * r, top)
+    point.lineTo(cx + 2f * r, top)
+    point.lineTo(cx, cy + size * 0.42f)
+    point.close()
+    path.addPath(point)
 
     return path
 }

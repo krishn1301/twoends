@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { Button, Field, TextInput } from '../components/Field.tsx';
-import { supabase } from '../lib/supabase.ts';
+import { signInReturnUrl, supabase } from '../lib/supabase.ts';
 import { useSession } from '../state/session.ts';
 
 const ACCENT = '#30c2bd';
@@ -19,6 +19,19 @@ const AUTH_ERRORS: Array<[RegExp, string]> = [
     /rate limit/i,
     'Too many codes requested. Wait a few minutes and try again — nothing is wrong with your account.',
   ],
+  /*
+    Supabase's phrasing for "shouldCreateUser is false and this address has no
+    account" is "Signups not allowed for otp", which reads like the app is
+    closed. What actually happened is almost always a typo, and the useful thing
+    to say is which address was tried — the whole failure is that it differs from
+    the right one by a character or two, and reading it back is what makes that
+    visible. Matched before /invalid/ because the message contains "not allowed",
+    not because of anything to do with validity.
+  */
+  [
+    /signups not allowed|signup.*disabled|user not found/i,
+    'No account uses that address. Check it letter by letter — a sign-in cannot create an account, so a small typo looks exactly like this.',
+  ],
   [/invalid|expired/i, 'That code did not work. It may have expired — ask for a new one.'],
   [/valid email|invalid format/i, 'That does not look like an email address.'],
   [/network|fetch/i, 'Could not reach the server. Check your connection and try again.'],
@@ -26,6 +39,19 @@ const AUTH_ERRORS: Array<[RegExp, string]> = [
 
 function humaniseAuth(message: string): string {
   return AUTH_ERRORS.find(([pattern]) => pattern.test(message))?.[1] ?? message;
+}
+
+/**
+ * Running as an installed web app on an iPhone.
+ *
+ * `standalone` is a non-standard Safari property and the only reliable signal
+ * there is; iOS does not support `display-mode: standalone` in a media query the
+ * way every other platform does. Used for one sentence of guidance, never to
+ * gate a feature — if the detection is wrong the screen still works.
+ */
+function isInstalledOnIOS(): boolean {
+  const standalone = (window.navigator as Navigator & { standalone?: boolean }).standalone;
+  return standalone === true;
 }
 
 /**
@@ -43,6 +69,8 @@ export function SignIn() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [sentTo, setSentTo] = useState<string | null>(null);
+  /** True when they arrived with a code rather than asking us to send one. */
+  const [given, setGiven] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +81,31 @@ export function SignIn() {
 
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { shouldCreateUser: true },
+      options: {
+        /*
+          This screen says, at the top, "signing back in to an account you
+          already have" — and then created a new one for anybody who mistyped.
+          Four accounts in this project are that mistake: an address off by one
+          character, a fresh empty app, and no way to tell from the inside that
+          anything went wrong. The owner's own is among them; he has one account
+          holding four months of a relationship and another, made minutes later,
+          holding nothing, and the two differ by a leading digit.
+
+          Silence is what makes it so bad. A new account looks exactly like a
+          successful sign-in until you notice your partner is gone. Refusing
+          costs a person one clear sentence; accepting costs them everything they
+          wrote, with no error to search for.
+
+          Nobody needs this to start: the app signs you in anonymously on first
+          open and `SaveAccount` attaches the address afterwards. This route is
+          only ever for coming back.
+        */
+        shouldCreateUser: false,
+        // `emailRedirectTo` rather than the dashboard's Site URL — see the note
+        // on `signInReturnUrl`. Undefined in the Android app, where the fallback
+        // is the right answer and this origin would be `http://localhost`.
+        emailRedirectTo: signInReturnUrl(),
+      },
     });
 
     setBusy(false);
@@ -116,6 +168,35 @@ export function SignIn() {
             <Button accent={ACCENT} disabled={busy || email.trim().length < 3}>
               {busy ? 'Sending…' : 'Email me a link'}
             </Button>
+            {/*
+              A way in for a code you were given rather than sent.
+
+              The code field already existed on the next screen, but the only
+              route to it was the button above — and that button calls
+              `signInWithOtp`, which mints a fresh token and invalidates any code
+              issued beforehand. So a recovery code handed over by hand was
+              always dead by the time there was anywhere to type it. It looked
+              like the code was wrong; the code was fine and the door was.
+
+              This matters more than it sounds. On the free tier the email
+              carries a link and no code, and a link can only ever open a
+              browser — never an installed iOS web app, which has its own storage
+              and its own empty session. For anyone on an iPhone home screen this
+              is the only route in that works at all.
+            */}
+            <Button
+              type="button"
+              variant="quiet"
+              accent={ACCENT}
+              disabled={email.trim().length < 3}
+              onClick={() => {
+                setError(null);
+                setSentTo(email.trim());
+                setGiven(true);
+              }}
+            >
+              I already have a code
+            </Button>
             <Button type="button" variant="quiet" accent={ACCENT} onClick={cancelSignIn}>
               Back
             </Button>
@@ -133,18 +214,32 @@ export function SignIn() {
               path the moment custom SMTP is configured — and because it is how
               `pnpm devlink` gets a tester in without any email at all.
             */}
-            <div className="bg-surface mb-2 rounded-2xl p-4">
-              <p className="text-[0.95rem] leading-relaxed">
-                Check {sentTo} and open the link — it signs you straight in.
-              </p>
-              <p className="text-ash mt-2 text-sm leading-relaxed">
-                Open it on this device. It works once and expires in an hour.
-              </p>
-            </div>
+            {!given && (
+              <div className="bg-surface mb-2 rounded-2xl p-4">
+                <p className="text-[0.95rem] leading-relaxed">
+                  Check {sentTo} and open the link — it signs you straight in.
+                </p>
+                <p className="text-ash mt-2 text-sm leading-relaxed">
+                  Open it on this device. It works once and expires in an hour.
+                </p>
+                {/*
+                  The trap, said out loud, because it is invisible until you are
+                  already in it: an iPhone home-screen app has its own storage,
+                  so a link opened in Safari signs you into Safari and the icon
+                  on the home screen stays empty.
+                */}
+                {isInstalledOnIOS() && (
+                  <p className="mt-2 text-sm leading-relaxed" style={{ color: ACCENT }}>
+                    You are in the installed app — the link will open your browser and sign you
+                    in there instead. Ask for a code and type it here.
+                  </p>
+                )}
+              </div>
+            )}
 
             <Field
-              label="Or paste a code, if you have one"
-              hint="Only some sign-ins send a code."
+              label={given ? `The code for ${sentTo}` : 'Or paste a code, if you have one'}
+              hint={given ? 'Six or eight digits. It works once.' : 'Only some sign-ins send a code.'}
               error={error}
             >
               {/*
@@ -173,6 +268,7 @@ export function SignIn() {
               accent={ACCENT}
               onClick={() => {
                 setSentTo(null);
+                setGiven(false);
                 setCode('');
                 setError(null);
               }}

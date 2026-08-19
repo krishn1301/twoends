@@ -1,6 +1,8 @@
 import {
+  HER_PACK,
   dayState,
   deterministicId,
+  isHerCouple,
   localDateIn,
   promptForDay,
   promptsFor,
@@ -50,6 +52,13 @@ export function todaysPrompt(
   const pack = promptsFor({
     relationshipType: couple.relationship_type,
     adultEnabled,
+    /*
+      Read off the couple row rather than off whoever is holding the phone. Both
+      devices have the same two member ids, so both build the same list and both
+      derive the same question — which is the only reason the reveal works at
+      all. See the note on `promptsFor`.
+    */
+    hasHer: isHerCouple(couple.member_a, couple.member_b),
   });
 
   return {
@@ -138,6 +147,39 @@ export async function submitAnswer(
 
   const prompt = existing.data ? { id: existing.data.prompt_id } : derived;
   if (!prompt) return { error: 'No question today.' };
+
+  /*
+    A question that ships in the bundle but was never seeded needs its row made
+    before anything can point at it. `prompt_days.prompt_id` is
+    `references prompts on delete restrict`, so without this the first person to
+    answer gets a foreign key violation and the day is simply dead for both of
+    them — on a morning chosen to be a good one, which is the worst possible
+    time to find out.
+
+    Only the private pack is in this state, and deliberately: seeding it the
+    ordinary way would write a null `couple_id`, which migration 11 makes
+    readable by every signed-in user. Written couple-scoped instead, so the row
+    is covered by "read our own questions" and genuinely is theirs — the policy
+    doing the work the hash only pretends to.
+
+    `author_id` has to be the caller because the insert policy demands it. It is
+    never displayed: `isCustom` keys on the pack, not the author, so this still
+    reads as a question the app asked rather than one of them wrote.
+  */
+  if (!existing.data && derived && derived.pack === HER_PACK) {
+    const seeded = await supabase.from('prompts').upsert(
+      {
+        id: derived.id,
+        body: derived.body,
+        pack: derived.pack,
+        is_adult: derived.isAdult,
+        couple_id: couple.id,
+        author_id: myId,
+      },
+      { onConflict: 'id', ignoreDuplicates: true },
+    );
+    if (seeded.error) return { error: seeded.error.message };
+  }
 
   // Idempotent: whoever answers first creates the row, and the second person's
   // identical insert is ignored rather than failing.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { deviceTimezone, getAccent, nearestAccent, type AccentKey } from '@twoends/core';
+import { SIGNATURE, deviceTimezone, getAccent, nearestAccent, type AccentKey } from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 
 import { Button, Field, TextInput } from '../components/Field.tsx';
@@ -218,6 +218,16 @@ export function Pair() {
                 I have a code
               </Button>
             </div>
+
+            {/*
+              The dedication, on the one screen every single person sees before
+              they have anybody — which is the whole argument for putting it
+              here rather than only behind a pairing. It sits under the buttons,
+              in the place a flyleaf sits: nothing depends on reading it.
+            */}
+            <p className="counter text-ash/50 mt-8 text-center text-[0.7rem] tracking-[0.3em] uppercase">
+              {SIGNATURE.mark}
+            </p>
           </>
         )}
 

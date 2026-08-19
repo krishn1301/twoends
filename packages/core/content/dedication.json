@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "note": "Every word in the app that is not UI copy lives here. These are drafts in the app's own voice, written to be replaced — rewrite any of them and nothing else has to change. Anything reading TODO is unwritten and will not ship: packages/core/src/dedication.test.ts fails on it, and occasionCopy() returns null rather than showing a placeholder on somebody's anniversary.",
+
+  "signature": {
+    "mark": "K for S",
+    "line": "Built for one person, then opened up.",
+    "year": "2026"
+  },
+
+  "colophon": {
+    "title": "What this is",
+    "opening": "A small shared space for two people. Everything in it is free and always will be — there is no paid tier to find later, no advertising, and nothing here is counting you.",
+    "promises": [
+      {
+        "title": "It stays free",
+        "body": "Every question pack, every widget, every game. There is no tier above this one."
+      },
+      {
+        "title": "Unpairing really deletes",
+        "body": "Both of you confirm, and then the photos, the drawings, the answers and the letters are gone from the server and from the phone. Afterwards the app asks what survived and tells you if anything did."
+      },
+      {
+        "title": "Location is off until you turn it on",
+        "body": "Each of you decides separately and either can switch it off without telling the other first. It is read only while the app is open, rounded to roughly your city, and the most it ever shows is how far apart you are — never where either of you is."
+      },
+      {
+        "title": "Your answer is yours until they answer too",
+        "body": "Neither of you can read the other's reply to the day's question, or their pick in a game, before writing your own. That is enforced by the database rather than by this app politely looking away."
+      },
+      {
+        "title": "You can take all of it with you",
+        "body": "One tap in Us gives you a file with every row and every picture, at full size, that opens without this app existing."
+      },
+      {
+        "title": "Nobody is watching",
+        "body": "No analytics, no tracking, no third parties. The fonts are served from here rather than borrowed from somewhere that would learn you had opened it."
+      }
+    ]
+  },
+
+  "occasions": {
+    "anniversary": {
+      "eyebrow": "the day itself",
+      "line": "Everything since started here."
+    },
+    "birthday": {
+      "eyebrow": "day one, for one of you",
+      "line": "One of you started today. Everything else is downstream of that."
+    },
+    "milestone": {
+      "eyebrow": "somebody counted",
+      "line": "You were not keeping score. It went up anyway."
+    },
+    "minute": {
+      "line": "The clock just said your date back to you."
+    }
+  },
+
+  "counter": {
+    "held": "hours — the same thing said in a way that sounds like more"
+  },
+
+  "hers": {
+    "note": "Only ever shown to one person, or to the couple she is half of. See packages/core/src/dedication.ts for how each is decided, and read the comment there before adding to this — it is obfuscated, not secret.",
+    "line": "The K is me and the S is you. There was never a version of this that was about anything else.",
+    "questions": [
+      "What is the smallest thing the other one does that you would miss most?",
+      "When did you first think this might be serious? Be specific about the room.",
+      "What do you know about them that they have never said out loud to anyone?"
+    ]
+  }
+}

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { getAccent } from '@twoends/core';
 
 import { Button, Field, TextInput } from '../components/Field.tsx';
-import { supabase } from '../lib/supabase.ts';
+import { signInReturnUrl, supabase } from '../lib/supabase.ts';
 import { markEmailOffered } from '../state/emailOffer.ts';
 import { useSession } from '../state/session.ts';
 
@@ -46,7 +46,15 @@ export function SaveAccount({ onDone }: { onDone: () => void }) {
 
     // Attaches an email to the *existing* anonymous account rather than making
     // a new one, so the pairing and everything written so far survive.
-    const { error } = await supabase.auth.updateUser({ email: email.trim() });
+    //
+    // This sends a link too, and it needs the same destination as the sign-in
+    // one for the same reason — see `signInReturnUrl`. It is easy to fix one and
+    // forget this one, because the two flows look nothing alike from the outside
+    // and only one of them is called "sign in".
+    const { error } = await supabase.auth.updateUser(
+      { email: email.trim() },
+      { emailRedirectTo: signInReturnUrl() },
+    );
 
     setBusy(false);
     if (error) setError(error.message);
