@@ -1,16 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import {
+  ROUND,
   THIS_OR_THAT,
+  cardsLeft,
   deckOrder,
   getAccent,
+  guessRound,
+  knowingLabel,
+  knownLabel,
   matchLabel,
   topicPacksFor,
+  type GuessCard,
   type Side,
 } from '@twoends/core';
 import { Avatar, Pill } from '@twoends/ui';
 
-import { Button } from '../components/Field.tsx';
+import { Button, Field, TextInput } from '../components/Field.tsx';
 import { askQuestion, askToday } from '../db/asks.ts';
 import { todaysPrompt } from '../db/daily.ts';
 import { notifyPartner } from '../db/push.ts';
@@ -47,7 +53,7 @@ export function Play() {
   const profile = useSession((s) => s.profile);
   const partner = useSession((s) => s.partner);
 
-  const [view, setView] = useState<'match' | 'talk'>('match');
+  const [view, setView] = useState<'match' | 'guess' | 'talk'>('match');
 
   const mine = getAccent(profile?.accent_key ?? 'teal').onDark;
   const theirs = getAccent(partner?.accent_key ?? 'rose').onDark;
@@ -66,6 +72,7 @@ export function Play() {
           {(
             [
               ['match', 'This or that'],
+              ['guess', 'Know me?'],
               ['talk', 'Talk about'],
             ] as const
           ).map(([key, label]) => (
@@ -74,7 +81,7 @@ export function Play() {
               type="button"
               onClick={() => setView(key)}
               aria-pressed={view === key}
-              className={`h-10 flex-1 rounded-full text-[0.82rem] font-medium transition-colors ${
+              className={`h-10 flex-1 rounded-full text-[0.78rem] font-medium transition-colors ${
                 view === key ? 'text-void' : 'text-ash'
               }`}
               style={view === key ? { background: mine } : undefined}
@@ -85,6 +92,7 @@ export function Play() {
         </div>
 
         {view === 'match' && <Match myTint={mine} theirTint={theirs} />}
+        {view === 'guess' && <Guess myTint={mine} theirTint={theirs} />}
         {view === 'talk' && <Talk tint={mine} />}
       </div>
     </div>
@@ -545,5 +553,488 @@ function Talk({ tint }: { tint: string }) {
         today&rsquo;s question instead.
       </p>
     </>
+  );
+}
+
+// ── do you know me? ──────────────────────────────────────────────────────────
+
+/**
+ * Answering as the other person.
+ *
+ * The mode opens on an explanation and a button rather than on a card, for two
+ * reasons. It is the only game here with a right answer, so it needs one
+ * sentence of teaching that "this or that" does not. And a round has to stay
+ * still while you play it: the five cards are drawn from the ones neither of
+ * you has touched, so recomputing that every render would delete the first card
+ * from the round the moment you answered it.
+ *
+ * The round is dealt by a tap — a user action, not an effect — and then held.
+ */
+function Guess({ myTint, theirTint }: { myTint: string; theirTint: string }) {
+  const couple = useSession((s) => s.couple);
+  const profile = useSession((s) => s.profile);
+  const partner = useSession((s) => s.partner);
+  const avatarUrls = useAvatars((s) => s.urls);
+  const loadAvatars = useAvatars((s) => s.load);
+
+  const board = useGame((s) => s.board);
+  const written = useGame((s) => s.written);
+  const error = useGame((s) => s.error);
+  const loadGame = useGame((s) => s.load);
+  const sendGuess = useGame((s) => s.guess);
+
+  const coupleId = couple?.id;
+  const myId = profile?.id;
+  const theirName = partner?.display_name ?? 'them';
+
+  /** The five, frozen. Null before the first deal and between rounds. */
+  const [round, setRound] = useState<GuessCard[] | null>(null);
+  const [at, setAt] = useState(0);
+  /** Your own answer, held between the two taps a deck card asks for. */
+  const [pending, setPending] = useState<Side | null>(null);
+  const [composing, setComposing] = useState(false);
+
+  useEffect(() => {
+    if (coupleId && myId) void loadGame(coupleId, myId);
+  }, [coupleId, myId, loadGame]);
+
+  useEffect(() => {
+    void loadAvatars([profile?.avatar_path, partner?.avatar_path]);
+  }, [loadAvatars, profile?.avatar_path, partner?.avatar_path]);
+
+  useEffect(() => {
+    if (!coupleId || !myId) return;
+    const channel = supabase
+      .channel(`guess:${coupleId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'game_picks', filter: `couple_id=eq.${coupleId}` },
+        () => void loadGame(coupleId, myId),
+      );
+    void channel.subscribe();
+    return () => void supabase.removeChannel(channel);
+  }, [coupleId, myId, loadGame]);
+
+  /** Every card you already have a row on, in either game. */
+  const done = useMemo(() => {
+    const ids = new Set<string>();
+    for (const [id, state] of board) {
+      if (state.mine != null || state.myGuess != null) ids.add(id);
+    }
+    return ids;
+  }, [board]);
+
+  const left = cardsLeft({ deck: THIS_OR_THAT, written, done, myId: myId ?? '' });
+
+  function deal() {
+    setRound(
+      guessRound({
+        deck: THIS_OR_THAT,
+        written,
+        seed: coupleId ?? '',
+        done,
+        myId: myId ?? '',
+        size: ROUND,
+      }),
+    );
+    setAt(0);
+    setPending(null);
+  }
+
+  // ── the opening, and the end of a round ────────────────────────────────────
+
+  if (!round || round.length === 0 || at >= round.length) {
+    const finished = round != null && round.length > 0;
+    return (
+      <>
+        {finished && round && (
+          <Scoreboard round={round} board={board} theirName={theirName} tint={myTint} />
+        )}
+
+        <div className="bg-surface rounded-[28px] p-5">
+          <p className="font-display text-[1.25rem] leading-snug font-semibold">
+            {finished ? 'Another five?' : `How well do you know ${theirName}?`}
+          </p>
+          <p className="text-ash mt-1.5 text-sm leading-relaxed">
+            Five cards, and you answer as {theirName} — not what you would pick, what they
+            would. Nothing shows until they have answered too.
+          </p>
+          {left === 0 && (
+            <p className="text-ash mt-2 text-sm leading-relaxed">
+              That is every card there is. Write one of your own and there will be more.
+            </p>
+          )}
+          <div className="mt-4 flex flex-col gap-2.5">
+            <Button accent={myTint} disabled={left === 0} onClick={deal}>
+              {left === 0 ? 'No cards left' : `Deal five${left < 12 ? ` · ${left} left` : ''}`}
+            </Button>
+            <Button variant="quiet" accent={myTint} onClick={() => setComposing(true)}>
+              Write one about yourself
+            </Button>
+          </div>
+        </div>
+
+        {composing && <Compose tint={myTint} onDone={() => setComposing(false)} />}
+      </>
+    );
+  }
+
+  // ── a card ─────────────────────────────────────────────────────────────────
+
+  const card = round[at]!;
+  const state = board.get(card.id) ?? {
+    mine: null,
+    theirs: null,
+    myGuess: null,
+    theirGuess: null,
+  };
+
+  /** They wrote it about themselves, so there is no answer of yours to give. */
+  const isTheirs = card.authorId != null && card.authorId !== myId;
+  const answered = state.myGuess != null;
+  const revealed = answered && state.theirs != null;
+  const wasRight = revealed && state.myGuess === state.theirs;
+
+  /** Which of the two questions this card is asking right now. */
+  const asking: 'mine' | 'guess' = isTheirs || pending != null || answered ? 'guess' : 'mine';
+
+  function tap(side: Side) {
+    if (!coupleId || !myId || answered) return;
+
+    if (asking === 'mine') {
+      setPending(side);
+      return;
+    }
+
+    /*
+      Both halves leave together. The reveal opens as soon as a row exists, so
+      sending your own answer first would hand you theirs with the guess still
+      to make — which is why a `mode = 'guess'` row carries a constraint that
+      the guess is present. This is the client half of that rule; the database
+      half is the one that actually holds.
+    */
+    void sendGuess({
+      coupleId,
+      myId,
+      cardId: card.id,
+      guess: side,
+      choice: isTheirs ? undefined : (pending ?? undefined),
+    });
+    setPending(null);
+  }
+
+  return (
+    <>
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <span className="text-ash counter text-sm">
+          {at + 1} / {round.length}
+        </span>
+        <span className="flex items-center gap-2">
+          {card.authorId != null && <Pill>{isTheirs ? `${theirName} wrote this` : 'yours'}</Pill>}
+          {answered && !revealed && (
+            <Pill>
+              <span
+                className="inline-block h-1.5 w-1.5 animate-pulse rounded-full"
+                style={{ background: theirTint }}
+                aria-hidden="true"
+              />
+              waiting on {theirName}
+            </Pill>
+          )}
+        </span>
+      </div>
+
+      {card.body && (
+        <p className="font-display mb-3 text-[1.15rem] leading-snug font-semibold">{card.body}</p>
+      )}
+
+      <p className="text-ash mb-3 text-sm">
+        {answered
+          ? 'You said:'
+          : asking === 'mine'
+            ? 'First — what would you pick?'
+            : `Now: what would ${theirName} pick?`}
+      </p>
+
+      <div className="flex flex-col gap-3">
+        {([0, 1] as const).map((side) => (
+          <Option
+            key={side}
+            label={side === 0 ? card.a : card.b}
+            /*
+              Before the card is sent the highlight follows whichever half is
+              being asked, so a tap you just made stays visible rather than
+              vanishing when the question changes under it. Afterwards it means
+              what it means everywhere else on this screen: your face on your
+              answer, theirs on theirs.
+            */
+            chosenByMe={answered ? state.myGuess === side : asking === 'guess' && pending === side}
+            chosenByThem={revealed && state.theirs === side}
+            myTint={myTint}
+            theirTint={theirTint}
+            me={{
+              name: profile?.display_name ?? 'you',
+              src: profile?.avatar_path ? avatarUrls.get(profile.avatar_path) : null,
+            }}
+            them={{
+              name: theirName,
+              src: partner?.avatar_path ? avatarUrls.get(partner.avatar_path) : null,
+            }}
+            onClick={() => tap(side)}
+          />
+        ))}
+      </div>
+
+      {/*
+        Being wrong is the interesting result and must not be dressed as
+        failure. So the line leads with what they actually said and leaves the
+        verdict to half a sentence after it, rather than a cross.
+      */}
+      <p className="mt-4 min-h-6 text-center text-[0.95rem]">
+        {error ? (
+          <span style={{ color: '#e4566e' }}>{error}</span>
+        ) : revealed ? (
+          wasRight ? (
+            <span style={{ color: myTint }}>{theirName} said that too. You knew it.</span>
+          ) : (
+            <span className="text-ash">
+              {theirName} said &ldquo;{state.theirs === 0 ? card.a : card.b}&rdquo;. Worth asking
+              why.
+            </span>
+          )
+        ) : answered ? (
+          <span className="text-ash">Sent. You find out when {theirName} answers.</span>
+        ) : asking === 'mine' ? (
+          <span className="text-ash">Yours first. Then the interesting one.</span>
+        ) : (
+          <span className="text-ash">Being wrong is the good half of this.</span>
+        )}
+      </p>
+
+      <div className="mt-6 flex gap-2.5">
+        <button
+          type="button"
+          onClick={() => {
+            setPending(null);
+            setAt(Math.max(0, at - 1));
+          }}
+          disabled={at === 0}
+          className="bg-surface text-ash h-12 flex-1 rounded-full text-[0.95rem] font-medium disabled:opacity-35"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setPending(null);
+            setAt(at + 1);
+          }}
+          disabled={!answered}
+          className="bg-surface-2 text-chalk h-12 flex-1 rounded-full text-[0.95rem] font-medium disabled:opacity-35"
+        >
+          {at === round.length - 1 ? 'Finish' : 'Next'}
+        </button>
+      </div>
+    </>
+  );
+}
+
+interface BoardState {
+  mine: Side | null;
+  theirs: Side | null;
+  myGuess: Side | null;
+  theirGuess: Side | null;
+}
+
+/**
+ * The end of a round, in both directions at once.
+ *
+ * Two numbers, never one. A score that only measures how well you know them is
+ * a report card, and nobody wants one of those from their partner — seeing that
+ * they missed two of yours is what makes missing two of theirs funny rather
+ * than pointed.
+ *
+ * Counted over this round only. No history and no average: the point of a set
+ * is that it ends.
+ */
+function Scoreboard({
+  round,
+  board,
+  theirName,
+  tint,
+}: {
+  round: GuessCard[];
+  board: Map<string, BoardState>;
+  theirName: string;
+  tint: string;
+}) {
+  const score = useMemo(() => {
+    let asked = 0;
+    let right = 0;
+    let theirAsked = 0;
+    let theirRight = 0;
+    let waiting = 0;
+
+    for (const card of round) {
+      const state = board.get(card.id);
+      if (!state) continue;
+
+      /*
+        A card they have not answered is waiting, not wrong. Counting the two
+        the same would tell somebody they had failed a question nobody has
+        answered — which is the single easiest way to make this feel unkind.
+      */
+      if (state.myGuess != null && state.theirs != null) {
+        asked++;
+        if (state.myGuess === state.theirs) right++;
+      } else if (state.myGuess != null) waiting++;
+
+      if (state.theirGuess != null && state.mine != null) {
+        theirAsked++;
+        if (state.theirGuess === state.mine) theirRight++;
+      }
+    }
+
+    return { asked, right, theirAsked, theirRight, waiting };
+  }, [round, board]);
+
+  return (
+    <div className="bg-surface mb-4 rounded-[28px] p-5">
+      <p className="font-display text-[1.25rem] leading-snug font-semibold" style={{ color: tint }}>
+        {knowingLabel(score.right, score.asked, theirName)}
+      </p>
+      <p className="text-ash mt-1.5 text-[0.95rem] leading-relaxed">
+        {knownLabel(score.theirRight, score.theirAsked, theirName)}
+      </p>
+      {score.waiting > 0 && (
+        <p className="text-ash/70 mt-2 text-sm leading-relaxed">
+          {score.waiting === 1
+            ? 'One is still waiting on them.'
+            : `${score.waiting} are still waiting on them.`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Writing a card about yourself.
+ *
+ * The most personal thing in this mode, and the reason it never runs out. Your
+ * answer is stored as an ordinary pick, so the reveal policy hides it until
+ * they have guessed — there is no secret column anywhere, which is the only
+ * reason a card like this is safe to hand to a client at all.
+ */
+function Compose({ tint, onDone }: { tint: string; onDone: () => void }) {
+  const couple = useSession((s) => s.couple);
+  const profile = useSession((s) => s.profile);
+  const compose = useGame((s) => s.compose);
+
+  const [body, setBody] = useState('');
+  const [a, setA] = useState('');
+  const [b, setB] = useState('');
+  const [answer, setAnswer] = useState<Side | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+
+  const ready = a.trim().length > 0 && b.trim().length > 0 && answer != null;
+
+  async function save() {
+    if (!couple || !profile || answer == null) return;
+    setBusy(true);
+    setFailed(null);
+
+    const { error } = await compose({
+      coupleId: couple.id,
+      myId: profile.id,
+      body,
+      optionA: a,
+      optionB: b,
+      answer,
+    });
+
+    setBusy(false);
+    if (error) setFailed('Could not save that — it needs signal to reach them.');
+    else onDone();
+  }
+
+  return (
+    <div className="bg-surface mt-4 rounded-[28px] p-5">
+      <p className="font-display text-[1.15rem] leading-snug font-semibold">A question about you.</p>
+      <p className="text-ash mt-1.5 text-sm leading-relaxed">
+        You answer it now, and they only ever find out whether they guessed right. It is a
+        love note wearing a quiz.
+      </p>
+
+      <div className="mt-4 flex flex-col gap-3">
+        <Field label="The question" hint="Optional, and the part that makes the card yours.">
+          <TextInput
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            maxLength={160}
+            placeholder="What do I want when I say nothing is wrong?"
+          />
+        </Field>
+
+        <Field label="One answer">
+          <TextInput
+            value={a}
+            onChange={(e) => setA(e.target.value)}
+            maxLength={60}
+            placeholder="To be left alone"
+          />
+        </Field>
+
+        <Field label="The other">
+          <TextInput
+            value={b}
+            onChange={(e) => setB(e.target.value)}
+            maxLength={60}
+            placeholder="To be asked again"
+          />
+        </Field>
+
+        <div>
+          <p className="text-ash mb-2 text-sm">Which is true of you?</p>
+          <div className="flex gap-2.5">
+            {([0, 1] as const).map((side) => {
+              const label = (side === 0 ? a : b).trim();
+              return (
+                <button
+                  key={side}
+                  type="button"
+                  onClick={() => setAnswer(side)}
+                  disabled={label.length === 0}
+                  aria-pressed={answer === side}
+                  className="min-h-12 flex-1 rounded-2xl px-4 py-3 text-left text-sm disabled:opacity-40"
+                  style={{
+                    background:
+                      answer === side
+                        ? `color-mix(in oklab, ${tint} 24%, #15120F)`
+                        : 'var(--color-surface-2)',
+                    boxShadow: answer === side ? `inset 0 0 0 1.5px ${tint}` : undefined,
+                  }}
+                >
+                  {label || (side === 0 ? 'One answer' : 'The other')}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {failed && (
+          <p className="text-sm" style={{ color: '#e4566e' }}>
+            {failed}
+          </p>
+        )}
+
+        <Button accent={tint} disabled={!ready || busy} onClick={() => void save()}>
+          {busy ? 'Saving…' : 'Give it to them'}
+        </Button>
+        <Button variant="quiet" accent={tint} onClick={onDone}>
+          Not now
+        </Button>
+      </div>
+    </div>
   );
 }
