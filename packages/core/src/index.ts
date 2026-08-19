@@ -25,6 +25,7 @@ export * from './prompts.ts';
 export * from './cards.ts';
 export * from './occasions.ts';
 export * from './dedication.ts';
+export * from './consent.ts';
 export * from './strokes.ts';
 export * from './distance.ts';
 export * from './zip.ts';

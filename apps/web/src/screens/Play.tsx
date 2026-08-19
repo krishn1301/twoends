@@ -401,13 +401,17 @@ function Talk({ tint }: { tint: string }) {
   const loadToday = useToday((s) => s.load);
 
   /*
-    The adult pack stays shut, exactly as it does for the daily question — the
-    flag has no surface in the app yet and inventing one here would be a way of
-    shipping the 18+ decision by accident. See CLAUDE.md.
+    Read off the couple, like the daily question. `adult_packs_enabled` is
+    derived by the server from both people's opt-in, so this is one value from
+    one row rather than a rule computed twice.
   */
   const packs = useMemo(
-    () => topicPacksFor({ relationshipType: couple?.relationship_type }),
-    [couple?.relationship_type],
+    () =>
+      topicPacksFor({
+        relationshipType: couple?.relationship_type,
+        adultEnabled: couple?.adult_packs_enabled,
+      }),
+    [couple?.relationship_type, couple?.adult_packs_enabled],
   );
 
   const [packKey, setPackKey] = useState(() => packs[0]?.key ?? 'light');

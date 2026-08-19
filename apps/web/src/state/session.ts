@@ -31,6 +31,13 @@ export interface Profile {
   accent_key: AccentKey | null;
   birthday: string | null;
   avatar_path: string | null;
+  /**
+   * When this person said "I am 18 or over, and I want the 18+ packs". Null is
+   * off, and off is where every account starts. Written only by its owner — the
+   * update policy is scoped to `id = auth.uid()`, which is what makes this
+   * column consent rather than a preference somebody else could set for you.
+   */
+  adult_opt_in_at: string | null;
 }
 
 export interface Couple {
@@ -41,6 +48,18 @@ export interface Couple {
   relationship_type: RelationshipType | null;
   day_timezone: string | null;
   unpair_requested_by: string | null;
+  /**
+   * Derived by the server from both members' `adult_opt_in_at` — never written
+   * by the app. **This, and not the two timestamps, is what content is gated
+   * on**, because it is a single value both phones read from the same row.
+   *
+   * The prompt list decides the daily question by index, so the two devices
+   * building different lists hands them different questions on the same
+   * morning and neither answer ever unlocks the other. Computing it twice, once
+   * per phone, is exactly how that happens. The timestamps are for explaining
+   * the state on the settings screen and for nothing else.
+   */
+  adult_packs_enabled: boolean;
 }
 
 export type Status =
@@ -176,13 +195,13 @@ export const useSession = create<SessionState>((set, get) => ({
     const [profileRes, coupleRes] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, display_name, accent_key, birthday, avatar_path')
+        .select('id, display_name, accent_key, birthday, avatar_path, adult_opt_in_at')
         .eq('id', session.user.id)
         .maybeSingle(),
       supabase
         .from('couples')
         .select(
-          'id, member_a, member_b, started_on, relationship_type, day_timezone, unpair_requested_by',
+          'id, member_a, member_b, started_on, relationship_type, day_timezone, unpair_requested_by, adult_packs_enabled',
         )
         .maybeSingle(),
     ]);
@@ -195,7 +214,7 @@ export const useSession = create<SessionState>((set, get) => ({
       const partnerId = couple.member_a === session.user.id ? couple.member_b : couple.member_a;
       const { data } = await supabase
         .from('profiles')
-        .select('id, display_name, accent_key, birthday, avatar_path')
+        .select('id, display_name, accent_key, birthday, avatar_path, adult_opt_in_at')
         .eq('id', partnerId)
         .maybeSingle();
       partner = (data as Profile | null) ?? null;

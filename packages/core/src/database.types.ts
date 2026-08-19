@@ -514,6 +514,7 @@ export type Database = {
       profiles: {
         Row: {
           accent_key: string | null
+          adult_opt_in_at: string | null
           avatar_path: string | null
           birthday: string | null
           created_at: string
@@ -523,6 +524,7 @@ export type Database = {
         }
         Insert: {
           accent_key?: string | null
+          adult_opt_in_at?: string | null
           avatar_path?: string | null
           birthday?: string | null
           created_at?: string
@@ -532,6 +534,7 @@ export type Database = {
         }
         Update: {
           accent_key?: string | null
+          adult_opt_in_at?: string | null
           avatar_path?: string | null
           birthday?: string | null
           created_at?: string
@@ -726,6 +729,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adult_enabled_for: { Args: { p_couple_id: string }; Returns: boolean }
       cancel_unpair: { Args: never; Returns: undefined }
       coarse_grid: { Args: never; Returns: number }
       confirm_unpair: { Args: never; Returns: undefined }

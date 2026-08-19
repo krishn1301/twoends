@@ -39,11 +39,20 @@ export interface Today {
   state: DayState;
 }
 
-/** Which prompt today is, derived rather than fetched. */
-export function todaysPrompt(
-  couple: Couple,
-  adultEnabled = false,
-): {
+/**
+ * Which prompt today is, derived rather than fetched.
+ *
+ * Everything that narrows the pack is read off the couple, never off the reader.
+ * That is not tidiness: `promptForDay` picks by index, so two devices building
+ * different lists get different questions on the same morning and neither answer
+ * ever unlocks the other — no error anywhere, and the failure is invisible to
+ * whichever of them looks first.
+ *
+ * `adultEnabled` used to be a parameter here with a default of false. Every
+ * caller left it at the default, which is how six prompts shipped to every
+ * device for eleven phases and were served to nobody.
+ */
+export function todaysPrompt(couple: Couple): {
   prompt: Prompt | null;
   localDate: string;
   promptDayId: string;
@@ -51,7 +60,13 @@ export function todaysPrompt(
   const localDate = localDateIn(couple.day_timezone ?? 'UTC');
   const pack = promptsFor({
     relationshipType: couple.relationship_type,
-    adultEnabled,
+    /*
+      The server's answer, not ours. `couples.adult_packs_enabled` is derived by
+      a trigger from both members' opt-in timestamps, so both phones read one
+      value out of one row rather than each computing it from two profiles and
+      risking a disagreement.
+    */
+    adultEnabled: couple.adult_packs_enabled,
     /*
       Read off the couple row rather than off whoever is holding the phone. Both
       devices have the same two member ids, so both build the same list and both
@@ -70,12 +85,8 @@ export function todaysPrompt(
   };
 }
 
-export async function loadToday(
-  couple: Couple,
-  myId: string,
-  adultEnabled = false,
-): Promise<Today> {
-  const { prompt, localDate, promptDayId } = todaysPrompt(couple, adultEnabled);
+export async function loadToday(couple: Couple, myId: string): Promise<Today> {
+  const { prompt, localDate, promptDayId } = todaysPrompt(couple);
 
   const [answersRes, partnerRes, dayRes] = await Promise.all([
     supabase.from('answers').select('author_id, body').eq('prompt_day_id', promptDayId),
@@ -133,9 +144,8 @@ export async function submitAnswer(
   couple: Couple,
   myId: string,
   body: string,
-  adultEnabled = false,
 ): Promise<{ error: string | null }> {
-  const { prompt: derived, localDate, promptDayId } = todaysPrompt(couple, adultEnabled);
+  const { prompt: derived, localDate, promptDayId } = todaysPrompt(couple);
 
   // An existing row means someone asked their own question today; do not
   // overwrite it with the pack's.

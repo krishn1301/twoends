@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { ACCENTS, ACCENT_KEYS, COLOPHON, SIGNATURE, getAccent, timeTogether, type AccentKey } from '@twoends/core';
+import {
+  ACCENTS,
+  ACCENT_KEYS,
+  COLOPHON,
+  SIGNATURE,
+  adultState,
+  getAccent,
+  timeTogether,
+  type AccentKey,
+} from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 
 import { Monogram } from '../components/Monogram.tsx';
@@ -43,6 +52,27 @@ export function Us() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [colophon, setColophon] = useState(false);
+
+  const adult = adultState(profile?.adult_opt_in_at, partner?.adult_opt_in_at);
+  const optedIn = profile?.adult_opt_in_at != null;
+
+  /*
+    Writes only this person's own row. The "update own profile" policy is scoped
+    to `id = auth.uid()`, so the database refuses to let either of them answer
+    for the other — which is what makes the column consent rather than a setting.
+    `couples.adult_packs_enabled` is then recomputed by a trigger; the app never
+    writes it.
+  */
+  async function toggleAdult() {
+    if (!profile) return;
+    setBusy(true);
+    await supabase
+      .from('profiles')
+      .update({ adult_opt_in_at: optedIn ? null : new Date().toISOString() })
+      .eq('id', profile.id);
+    await refresh();
+    setBusy(false);
+  }
   const [error, setError] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(profile?.display_name ?? '');
@@ -436,6 +466,63 @@ export function Us() {
             </>
           )}
         </Group>
+
+        {/*
+          The 18+ packs.
+
+          Off by default, both of you have to say yes, and either of you can stop
+          alone — deliberately *not* the unpair handshake, where one asks and the
+          other confirms. That shape is right for destroying shared things and
+          wrong for this: needing your partner's agreement to stop is not
+          consent, it is negotiation.
+
+          The four states exist because "off" and "waiting for them" look
+          identical from the outside and mean completely different things, and a
+          switch that appears to do nothing is one people turn off and never try
+          again.
+        */}
+        {couple?.member_b && (
+          <Group title="18+">
+            <Row
+              label={
+                adult === 'on'
+                  ? 'On'
+                  : adult === 'waiting-for-them'
+                    ? `Waiting for ${partner?.display_name ?? 'them'}`
+                    : adult === 'waiting-for-you'
+                      ? `${partner?.display_name ?? 'They'} asked for these`
+                      : 'Off'
+              }
+            >
+              <button
+                type="button"
+                onClick={() => void toggleAdult()}
+                disabled={busy}
+                className="text-ash h-11 text-sm disabled:opacity-40"
+              >
+                {optedIn ? 'Turn off' : 'I am 18 or over'}
+              </button>
+            </Row>
+
+            <div className="px-4 py-3.5">
+              <p className="text-ash text-sm leading-relaxed">
+                {optedIn
+                  ? 'You can turn this off on your own, at any time, without asking them.'
+                  : 'A handful of more intimate questions and topics. Both of you have to turn it on, and either of you can turn it back off alone.'}
+              </p>
+              <p className="text-ash/70 mt-2 text-sm leading-relaxed">
+                {/*
+                  Worth saying out loud, because it is the part people would
+                  otherwise have to trust. It is also already true by
+                  construction rather than by a guard: the push function holds
+                  five fixed messages and cannot be handed a body, and the widget
+                  snapshot carries no question text at all.
+                */}
+                These never appear on a widget or in a notification.
+              </p>
+            </div>
+          </Group>
+        )}
 
         {/* The slot where the other apps sell you something. */}
         <div className="bg-surface mt-6 rounded-[28px] p-5">
