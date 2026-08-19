@@ -98,17 +98,31 @@ jobs:
 
           # An unsigned APK installs on nothing, and the failure only shows up
           # on the phone. Catch it here.
-          unzip -l "$APK" | grep -qE 'META-INF/.*\.(RSA|EC|DSA)' \
-            || { echo "::error::APK has no signature block"; exit 1; }
+          #
+          # Asked of `apksigner` rather than of the zip. The previous version
+          # grepped META-INF for a .RSA/.EC/.DSA file, which is a *v1* JAR
+          # signature -- and the Android Gradle Plugin stops emitting one once
+          # minSdk is 24 or higher, because v2 signs the whole archive and
+          # lives in the APK Signing Block rather than in an entry. So the
+          # check failed a perfectly good APK. It had been wrong since it was
+          # written: the missing-secrets step above always failed first, so it
+          # had never once run.
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
+          if [ -n "$APKSIGNER" ]; then
+            "$APKSIGNER" verify --verbose "$APK" || { echo "::error::APK is not signed"; exit 1; }
+          else
+            echo "::warning::apksigner not found; signature not verified"
+          fi
 
           # The whole reason this APK exists. If the receivers are missing the
           # app installs fine and the widget picker is simply empty, which is a
-          # very slow way to find out something went wrong.
+          # very slow way to find out something went wrong. Seven providers now:
+          # the distance widget comes in two sizes.
           AAPT=$(ls -d "$ANDROID_HOME"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -1)
           if [ -n "$AAPT" ]; then
             found=$("$AAPT" dump xmltree --file AndroidManifest.xml "$APK" | grep -c 'Receiver' || true)
             echo "Widget receivers found in the manifest: $found"
-            [ "$found" -ge 6 ] || { echo "::error::Expected six widget receivers, found $found"; exit 1; }
+            [ "$found" -ge 7 ] || { echo "::error::Expected seven widget receivers, found $found"; exit 1; }
           fi
 
           cp "$APK" "TwoEnds-debug-${{ github.run_number }}.apk"
