@@ -8,7 +8,11 @@ every game.
 couples, which is where most of the interesting bugs in this repository came
 from.
 
-**[Open it →](https://krishn1301.github.io/twoends/)**
+**[Open it →](https://krishn1301.github.io/twoends/)** · **[Android APK →](https://github.com/krishn1301/twoends/releases/latest/download/TwoEnds.apk)**
+
+On iPhone, open the link and add it to the Home Screen. On Android, install the
+APK — it is the same app plus the six home-screen widgets, which iOS does not
+give to web apps.
 
 <p align="center">
   <img src="docs/screenshots/widgets-picker.png" width="30%" alt="The Android widget picker, showing four TwoEnds widgets with generated preview art" />
@@ -110,10 +114,10 @@ copy of it in SQL that would drift.
 
 | | |
 |---|---|
-| **264** unit tests | `pnpm check` — typecheck, lint, vitest. The gate before every commit. |
+| **268** unit tests | `pnpm check` — typecheck, lint, vitest. The gate before every commit. |
 | **86** leak assertions | `pnpm test:rls` — cross-couple isolation, against a real Postgres. |
 | Per-feature RLS suites | the reveal, pairing, capsules, the guessing game, consent, quiet mode |
-| CI | GitHub Actions builds and signature-verifies the Android APK on every push |
+| CI | builds and signature-verifies the APK on every push, and publishes a signed release on a tag |
 
 ## Running it
 
