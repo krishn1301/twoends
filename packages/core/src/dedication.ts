@@ -38,7 +38,7 @@ interface DedicationFile {
     promises: Array<{ title: string; body: string }>;
   };
   occasions: Record<string, OccasionCopy & { yours?: OccasionCopy }>;
-  counter: { held: string; quotes: string[] };
+  counter: { quotes: string[] };
   hers: { note: string; line: string; questions: string[] };
 }
 
@@ -78,11 +78,6 @@ export function occasionCopy(kind: string, whose?: 'mine' | 'theirs'): OccasionC
   return isWritten(entry.line) ? { eyebrow: entry.eyebrow, line: entry.line } : null;
 }
 
-/** What the anniversary counter says when held, or null while unwritten. */
-export function heldCopy(): string | null {
-  return isWritten(file.counter.held) ? file.counter.held : null;
-}
-
 /**
  * The lines that come round underneath it, one per hold.
  *
@@ -90,6 +85,13 @@ export function heldCopy(): string | null {
  * find once. These are the reason to press it again — and they are ordinary on
  * purpose, because the counter is already the grand gesture and a second one
  * underneath would be two people shouting.
+ *
+ * There used to be a fixed line here as well, explaining that the number was
+ * hours. It said "the same thing said in a way that sounds like more", which
+ * was a good line and the wrong one: it sat directly under a label reading
+ * `hours` and repeated the word it was standing on. The unit is UI copy and
+ * lives in the screen beside `day / hr / min / sec`; this file keeps the words
+ * that are not.
  */
 export const heldQuotes = (): string[] => file.counter.quotes.filter(isWritten);
 

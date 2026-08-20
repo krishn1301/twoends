@@ -22,7 +22,7 @@ const root = new URL('../packages/core/src/', import.meta.url);
 const { occasionFor, minutesFor, occasionHeadline } = await import(
   new URL('occasions.ts', root).href,
 );
-const { occasionCopy, heldCopy } = await import(new URL('dedication.ts', root).href);
+const { occasionCopy, heldQuotes } = await import(new URL('dedication.ts', root).href);
 
 const [startedOn, myBirthday, theirBirthday] = process.argv.slice(2);
 
@@ -47,7 +47,11 @@ console.log(
     : `the clock, daily at ${times.map((t) => `${pad(t.hour)}:${pad(t.minute)}`).join(' and ')}`,
 );
 console.log(`   "${occasionCopy('minute')?.line ?? '(unwritten)'}"`);
-console.log(`\nholding the counter: "${heldCopy() ?? '(unwritten)'}"\n`);
+
+const quotes = heldQuotes();
+console.log(`
+holding the counter: one of ${quotes.length} lines, a different one each time`);
+for (const quote of quotes) console.log(`   "${quote}"`);
 
 // ── the ones that take the screen ────────────────────────────────────────────
 

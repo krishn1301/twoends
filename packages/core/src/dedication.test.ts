@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   COLOPHON,
   SIGNATURE,
-  heldCopy,
   heldQuotes,
   herLine,
   nextQuote,
@@ -74,11 +73,6 @@ describe('unwritten copy', () => {
       const copy = occasionCopy(kind);
       if (copy !== null) expect(isWritten(copy.line)).toBe(true);
     }
-  });
-
-  it('means the held counter says nothing', () => {
-    const held = heldCopy();
-    if (held !== null) expect(isWritten(held)).toBe(true);
   });
 
   it('drops unwritten questions rather than asking them', () => {

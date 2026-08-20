@@ -8,7 +8,6 @@ import {
   COLOPHON,
   daysUntil,
   fillsTheScreen,
-  heldCopy,
   heldQuotes,
   nextQuote,
   occasionCopy,
@@ -187,7 +186,6 @@ export function Home({
       ? occasion
       : null;
 
-  const held = heldCopy();
   const hoursTogether = m.elapsed.days * 24 + m.elapsed.hours;
 
   /*
@@ -432,13 +430,18 @@ export function Home({
                     className="absolute inset-0 z-20 [-webkit-touch-callout:none] [-webkit-user-select:none] select-none"
                   >
                     <div className="absolute inset-x-4 top-1/2 -translate-y-[60%]">
-                      {heldCounter && held ? (
+                      {heldCounter ? (
                         <>
                           <p className="counter text-[1.9rem] leading-none font-medium text-white">
                             {hoursTogether.toLocaleString('en-GB')}
                           </p>
-                          <p className="mt-2 text-[0.6rem] leading-relaxed tracking-[0.14em] text-white/70 lowercase">
-                            {held}
+                          {/*
+                            The unit, in the same key as the `day / hr / min /
+                            sec` row it replaces, so holding the card changes
+                            what is counted and not how the card is built.
+                          */}
+                          <p className="mt-2 text-[0.6rem] tracking-[0.2em] text-white/70 uppercase">
+                            hours
                           </p>
                           {/*
                             A different line every time it is held. The counter
