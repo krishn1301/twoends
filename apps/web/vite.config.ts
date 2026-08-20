@@ -19,6 +19,14 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
+      /*
+        Registered by hand in `main.tsx` instead of being injected here, because
+        the one place it must *not* register is the Android app — see the guard
+        there. The plugin injects a script tag into `index.html`, and that same
+        `index.html` is the file the worker precaches, so there is no way to
+        make the injected version conditional after the fact.
+      */
+      injectRegister: null,
       // The manifest is hand-written in public/ and already correct.
       manifest: false,
       injectManifest: {

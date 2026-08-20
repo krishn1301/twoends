@@ -10,7 +10,10 @@ import '@fontsource/karla/500.css';
 import '@fontsource-variable/jetbrains-mono';
 
 import { App } from './App.tsx';
+import { startServiceWorker } from './lib/serviceWorker.ts';
 import './styles/theme.css';
+
+startServiceWorker();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('#root is missing from index.html');
