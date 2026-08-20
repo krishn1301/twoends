@@ -594,6 +594,13 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   days is not. **A month too short to contain their day lands on its last** —
   skipping would quietly give a couple who started on the 31st seven a year
   instead of twelve, with nothing on screen to explain the gap.
+- **Three tables shipped without leak-suite coverage before this was caught.**
+  `couple_cards`, `snap_comments` and `quiet_periods` each had their own RLS
+  tests and none was in `COUPLE_TABLES`, so none was in the universal sweep —
+  the one that checks every couple-scoped table returns nothing to a stranger
+  and refuses their writes. `leak.test.ts` has a test comparing that list
+  against the API's own catalogue, and it is the thing that found it. **Adding a
+  couple-scoped table means adding it to `COUPLE_TABLES` in the same commit.**
 - **This or that was a deck you could finish.** 32 cards walked with Back/Next,
   one evening, and a tally that never grew again — in an app whose whole premise
   is that you come back tomorrow. It is one card a day now, via `cardForDay`,

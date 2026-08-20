@@ -40,6 +40,7 @@ let mallory: TestUser;
 let coupleA: string;
 let coupleB: string;
 let promptDayId: string;
+let photoId: string;
 let answerId: string;
 
 /*
@@ -123,18 +124,44 @@ beforeAll(async () => {
   });
   if (bobAnswer.error) throw new Error(`seed bob answer: ${bobAnswer.error.message}`);
 
+  /*
+    Seeded on its own rather than in the list below, because a snap comment has
+    to hang off a real photo and the list does not hand back ids.
+  */
+  const photo = await db
+    .from('photos')
+    .insert({ couple_id: coupleA, author_id: alice.id, storage_path: `${coupleA}/a.webp` })
+    .select('id')
+    .single();
+  if (photo.error) throw new Error(`seed photo: ${photo.error.message}`);
+  photoId = photo.data.id;
+
   // One row in every remaining couple-scoped table, so the sweep below has
   // something real to fail to read.
   const seeds: Array<[CoupleTable, Record<string, unknown>]> = [
     ['streaks', { couple_id: coupleA, current: 11, longest: 24 }],
     ['canvases', { couple_id: coupleA, author_id: alice.id, strokes: [{ p: [[0, 0]] }] }],
-    ['photos', { couple_id: coupleA, author_id: alice.id, storage_path: `${coupleA}/a.webp` }],
     ['countdowns', { couple_id: coupleA, title: 'She lands', target_at: '2026-09-21T18:40:00Z' }],
     [
       'journal_entries',
       { couple_id: coupleA, author_id: alice.id, body: 'The bench by the lake.' },
     ],
     ['list_items', { couple_id: coupleA, title: 'Watch the sequel' }],
+    ['quiet_periods', { couple_id: coupleA, from_date: '2026-08-01', to_date: '2026-08-03' }],
+    [
+      'snap_comments',
+      { couple_id: coupleA, photo_id: photoId, author_id: alice.id, body: 'Your hair looks good.' },
+    ],
+    [
+      'couple_cards',
+      {
+        id: 'dddddddd-eeee-4fff-8000-111111111111',
+        couple_id: coupleA,
+        author_id: alice.id,
+        option_a: 'One',
+        option_b: 'The other',
+      },
+    ],
     [
       'capsules',
       {
@@ -269,6 +296,18 @@ describe('a stranger writes nothing', () => {
     if (table === 'game_picks') {
       Object.assign(row, { card_id: SHARED_CARD, profile_id: mallory.id, choice: 0 });
     }
+    if (table === 'snap_comments') {
+      Object.assign(row, { photo_id: photoId, author_id: mallory.id, body: 'x' });
+    }
+    if (table === 'couple_cards') {
+      Object.assign(row, {
+        id: 'eeeeeeee-ffff-4000-8111-222222222222',
+        author_id: mallory.id,
+        option_a: 'x',
+        option_b: 'y',
+      });
+    }
+    if (table === 'quiet_periods') Object.assign(row, { from_date: '2026-08-01' });
 
     const { error } = await mallory.db.from(table).insert(row);
     expect(error, `${table} accepted a write from a stranger`).not.toBeNull();

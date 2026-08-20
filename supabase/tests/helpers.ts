@@ -101,6 +101,9 @@ export const COUPLE_TABLES = [
   'list_items',
   'capsules',
   'game_picks',
+  'snap_comments',
+  'couple_cards',
+  'quiet_periods',
 ] as const;
 
 export type CoupleTable = (typeof COUPLE_TABLES)[number];
