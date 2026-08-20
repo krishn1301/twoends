@@ -31,6 +31,7 @@ import { deterministicId } from './daily.ts';
 interface CardFile {
   version: number;
   thisOrThat: { a: string; b: string }[];
+  thisOrThatAdult: { a: string; b: string }[];
   topics: Record<string, { label: string; isAdult: boolean; topics: string[] }>;
 }
 
@@ -48,11 +49,41 @@ export interface MatchCard {
 /** Which side someone picked. Stored as 0 or 1, matching `a` and `b`. */
 export type Side = 0 | 1;
 
-export const THIS_OR_THAT: MatchCard[] = file.thisOrThat.map((card) => ({
+const toCard = (card: { a: string; b: string }): MatchCard => ({
   id: deterministicId('twoends.card', `${card.a}|${card.b}`),
   a: card.a,
   b: card.b,
-}));
+});
+
+export const THIS_OR_THAT: MatchCard[] = file.thisOrThat.map(toCard);
+
+/**
+ * The 18+ half of the deck.
+ *
+ * A separate list rather than a flag on each card, so that the ordinary export
+ * cannot accidentally include them and nothing has to remember to filter. Off
+ * until both people have asked for it — see `matchCardsFor`.
+ */
+export const THIS_OR_THAT_ADULT: MatchCard[] = file.thisOrThatAdult.map(toCard);
+
+/**
+ * The cards a given couple should be dealt.
+ *
+ * Turning the 18+ packs on used to change the daily question and add a topic
+ * pack, and left both card games exactly as they were — which meant half of what
+ * it unlocked was invisible, and the half you could see was in the one mode that
+ * stores nothing.
+ *
+ * **Adding cards reshuffles the deck**, because the order is a seeded shuffle of
+ * whatever list it is given. Nothing is lost by that: a pick is stored against
+ * the card's own id, so cards already played stay played and the screen still
+ * opens on the first one nobody has answered. It does mean the card *after* the
+ * one you were on will be a different card, which is the honest cost of the
+ * deck getting bigger.
+ */
+export function matchCardsFor(options: { adultEnabled?: boolean }): MatchCard[] {
+  return options.adultEnabled === true ? [...THIS_OR_THAT, ...THIS_OR_THAT_ADULT] : THIS_OR_THAT;
+}
 
 export interface TopicPack {
   key: string;

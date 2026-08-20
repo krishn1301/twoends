@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   THIS_OR_THAT,
+  THIS_OR_THAT_ADULT,
   TOPIC_PACKS,
+  matchCardsFor,
   deckOrder,
   matchLabel,
   topicPacksFor,
@@ -117,5 +119,38 @@ describe('the tally', () => {
 
   it('reads naturally at one card', () => {
     expect(matchLabel(1, 1)).toBe('Agreed');
+  });
+});
+
+describe('the 18+ half of the deck', () => {
+  it('is off unless both of them asked for it', () => {
+    expect(matchCardsFor({})).toEqual(THIS_OR_THAT);
+    expect(matchCardsFor({ adultEnabled: false })).toEqual(THIS_OR_THAT);
+    expect(matchCardsFor({ adultEnabled: undefined })).toEqual(THIS_OR_THAT);
+  });
+
+  it('adds cards rather than replacing them when it is on', () => {
+    const all = matchCardsFor({ adultEnabled: true });
+    expect(all.length).toBe(THIS_OR_THAT.length + THIS_OR_THAT_ADULT.length);
+    for (const card of THIS_OR_THAT) expect(all).toContainEqual(card);
+  });
+
+  it('keeps every id distinct across both halves', () => {
+    // Ids come from the words, so a card written twice would silently share a
+    // row with its twin and one couple's pick would answer for the other.
+    const all = matchCardsFor({ adultEnabled: true });
+    expect(new Set(all.map((c) => c.id)).size).toBe(all.length);
+  });
+
+  it('never leaks an adult card into the ordinary deck', () => {
+    /*
+      A separate list rather than a flag per card, so this cannot happen by
+      forgetting a filter. Asserted anyway, because the failure would be
+      somebody being shown 18+ content they never agreed to.
+    */
+    const ordinary = new Set(THIS_OR_THAT.map((c) => c.id));
+    for (const card of THIS_OR_THAT_ADULT) {
+      expect(ordinary.has(card.id), `${card.a} / ${card.b} is in the open deck`).toBe(false);
+    }
   });
 });

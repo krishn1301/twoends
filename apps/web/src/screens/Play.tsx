@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 
 import {
   ROUND,
-  THIS_OR_THAT,
   cardsLeft,
+  matchCardsFor,
   deckOrder,
   getAccent,
   guessRound,
@@ -17,6 +17,7 @@ import {
 import { Avatar, Pill } from '@twoends/ui';
 
 import { Button, Field, TextInput } from '../components/Field.tsx';
+import type { TabId } from '../components/TabBar.tsx';
 import { askQuestion, askToday } from '../db/asks.ts';
 import { todaysPrompt } from '../db/daily.ts';
 import { notifyPartner } from '../db/push.ts';
@@ -49,9 +50,10 @@ import { useToday } from '../state/today.ts';
  *    call. Recording an answer would turn a conversation into homework, and the
  *    thing this whole app is for is the conversation.
  */
-export function Play() {
+export function Play({ onGo }: { onGo?: (tab: TabId) => void }) {
   const profile = useSession((s) => s.profile);
   const partner = useSession((s) => s.partner);
+  const couple = useSession((s) => s.couple);
 
   const [view, setView] = useState<'match' | 'guess' | 'talk'>('match');
 
@@ -94,6 +96,50 @@ export function Play() {
         {view === 'match' && <Match myTint={mine} theirTint={theirs} />}
         {view === 'guess' && <Guess myTint={mine} theirTint={theirs} />}
         {view === 'talk' && <Talk tint={mine} />}
+
+        {/*
+          Where the 18+ packs are, said once, at the bottom.
+
+          They were reachable only from a settings screen, which is the wrong
+          place to look for them — somebody who wants these comes to the games
+          page. It is a line rather than a card, and it sits under everything
+          rather than above it, because the point is that it can be found and
+          not that it can be sold.
+
+          When it is on, this says so. A switch whose effect you cannot see is a
+          switch people turn on twice and then stop trusting.
+        */}
+        {couple?.member_b && (
+          <div className="mt-10 px-1">
+            {couple.adult_packs_enabled ? (
+              <p className="text-ash/70 text-sm leading-relaxed">
+                18+ is on. There are extra cards in the deck and a Just us pack in Talk
+                about.{' '}
+                <button
+                  type="button"
+                  onClick={() => onGo?.('us')}
+                  className="underline underline-offset-4"
+                >
+                  Turn it off in Us
+                </button>
+                .
+              </p>
+            ) : (
+              <p className="text-ash/70 text-sm leading-relaxed">
+                There is more, if you both want it — extra cards and a pack of things to
+                talk about.{' '}
+                <button
+                  type="button"
+                  onClick={() => onGo?.('us')}
+                  className="underline underline-offset-4"
+                >
+                  Both of you turn on 18+ in Us
+                </button>
+                .
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -133,7 +179,10 @@ function Match({ myTint, theirTint }: { myTint: string; theirTint: string }) {
     would almost never be on the same one — which is the only way this reads as
     something you are doing together rather than two solo quizzes.
   */
-  const deck = useMemo(() => deckOrder(THIS_OR_THAT, coupleId ?? ''), [coupleId]);
+  const deck = useMemo(
+    () => deckOrder(matchCardsFor({ adultEnabled: couple?.adult_packs_enabled }), coupleId ?? ''),
+    [coupleId, couple?.adult_packs_enabled],
+  );
 
   useEffect(() => {
     if (coupleId && myId) void loadGame(coupleId, myId);
@@ -624,12 +673,13 @@ function Guess({ myTint, theirTint }: { myTint: string; theirTint: string }) {
     return ids;
   }, [board]);
 
-  const left = cardsLeft({ deck: THIS_OR_THAT, written, done, myId: myId ?? '' });
+  const cards = matchCardsFor({ adultEnabled: couple?.adult_packs_enabled });
+  const left = cardsLeft({ deck: cards, written, done, myId: myId ?? '' });
 
   function deal() {
     setRound(
       guessRound({
-        deck: THIS_OR_THAT,
+        deck: cards,
         written,
         seed: coupleId ?? '',
         done,

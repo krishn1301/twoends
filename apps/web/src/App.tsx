@@ -78,7 +78,7 @@ export function App() {
         <>
           {tab === 'home' && <Home onOpen={setSheet} onGo={setTab} />}
           {tab === 'dates' && <Dates />}
-          {tab === 'play' && <Play />}
+          {tab === 'play' && <Play onGo={setTab} />}
           {tab === 'us' && <Us />}
           {sheet && (
             <Sheet

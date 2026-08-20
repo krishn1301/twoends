@@ -594,6 +594,17 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   days is not. **A month too short to contain their day lands on its last** —
   skipping would quietly give a couple who started on the 31st seven a year
   instead of twelve, with nothing on screen to explain the gap.
+- **Turning the 18+ packs on unlocked almost nothing you could see.** It added
+  six prompts to the daily rotation — invisible — and one topic pack, leaving both
+  card games untouched. There are twelve gated this-or-that cards now, in a
+  **separate `thisOrThatAdult` list rather than a flag per card**, so no export or
+  query has to remember to filter them out, and a test asserts none of their ids
+  appear in the open deck. **Adding cards reshuffles the deck** — the order is a
+  seeded shuffle of whatever list it is handed — but nothing is lost, because a
+  pick is stored against the card's own id.
+- **The 18+ switch lived only in Us, which is the wrong place to look for it.**
+  Play names it once, at the bottom, and says plainly when it is on. A switch
+  whose effect you cannot see is one people turn on twice and stop trusting.
 - **Quiet mode exists now, and it needed a table rather than a date.**
   `couples.quiet_until` can say when a hush *ends* and not which days were
   inside it — so the streak holds while quiet mode is on and breaks the morning
