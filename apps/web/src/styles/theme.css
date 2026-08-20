@@ -138,3 +138,64 @@ a,
     animation: none;
   }
 }
+
+/*
+  The mark, shown once when both faces are held at the same time.
+
+  A splash, deliberately: it grows into place, holds just long enough to be
+  read, then keeps growing and goes. That last part is the reason it is one
+  animation rather than a thing tied to how long the fingers stay down — a
+  reveal that lingers while you decide when to let go stops being a moment and
+  becomes a screen you have to dismiss.
+
+  1.5s in total. Long enough to register, short enough that nobody who finds it
+  by accident feels trapped.
+*/
+@keyframes monogram-splash {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  22% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  58% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3.4);
+  }
+}
+
+@keyframes monogram-ground {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  22%,
+  58% {
+    opacity: 1;
+  }
+}
+
+.monogram-splash {
+  animation: monogram-splash 1500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.monogram-ground {
+  animation: monogram-ground 1500ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /*
+    No zoom, but not nothing: the mark is the payoff and removing it entirely
+    would make the gesture do nothing at all for anybody who asked for less
+    movement. It fades in and out on the same clock instead.
+  */
+  .monogram-splash {
+    animation: monogram-ground 1500ms ease both;
+  }
+}

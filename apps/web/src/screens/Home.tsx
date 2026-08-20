@@ -4,7 +4,15 @@ import { DrawSurface } from '../components/DrawSurface.tsx';
 
 import { useEffect, useState, type ReactNode } from 'react';
 
-import { COLOPHON, daysUntil, fillsTheScreen, heldCopy, occasionCopy } from '@twoends/core';
+import {
+  COLOPHON,
+  daysUntil,
+  fillsTheScreen,
+  heldCopy,
+  heldQuotes,
+  nextQuote,
+  occasionCopy,
+} from '@twoends/core';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 import { DailyCard } from '../components/DailyCard.tsx';
@@ -139,17 +147,33 @@ export function Home({
   */
   const [colophon, setColophon] = useState(false);
   const [heldCounter, setHeldCounter] = useState(false);
-  const [markShown, setMarkShown] = useState(false);
+  /*
+    A counter, not a boolean.
+
+    The mark used to be visible for exactly as long as both faces were held,
+    which made it a thing you had to keep doing rather than a thing that
+    happened. It is a one-shot splash now: the press starts it, the animation
+    finishes on its own clock, and bumping this restarts it — `key` on the
+    element is what makes a second press replay rather than do nothing.
+  */
+  const [mark, setMark] = useState(0);
 
   const wordmark = useTapRun(5, () => setColophon(true));
+
+  /*
+    A line is chosen when the hold begins rather than during render, which is
+    both correct and required: picking one while rendering is impure, and React
+    may render twice and show two different quotes for the same press.
+  */
+  const [quote, setQuote] = useState<string | null>(null);
   const counterHold = useLongPress(
-    () => setHeldCounter(true),
+    () => {
+      setHeldCounter(true);
+      setQuote((was) => nextQuote(heldQuotes(), was));
+    },
     { onRelease: () => setHeldCounter(false) },
   );
-  const faces = useBothPressed(
-    () => setMarkShown(true),
-    { onRelease: () => setMarkShown(false) },
-  );
+  const faces = useBothPressed(() => setMark((n) => n + 1));
 
   /*
     Today, if today is anything. Kept out of `useDesignModel` on purpose: that
@@ -226,15 +250,33 @@ export function Home({
           long you hold it; the gesture is the meaning.
         */}
         <div className="rise relative mb-6 px-5">
-          {markShown && (
-            <div className="bg-void absolute inset-0 z-10 flex items-center justify-center">
-              <Monogram
-                mine={m.myName}
-                theirs={m.theirName}
-                myAccent={profile?.accent_key}
-                theirAccent={partner?.accent_key}
-                size={72}
-              />
+          {mark > 0 && (
+            <div
+              key={mark}
+              /*
+                Cleared by the animation ending rather than by a timer. A
+                `setTimeout` would drift out of step with the CSS the moment
+                either duration was touched, and would keep running if the tab
+                went to sleep halfway through.
+              */
+              onAnimationEnd={(e) => {
+                // Animation events bubble, so the inner span's would clear this
+                // too — a frame early, unmounting the backdrop mid-fade. Only
+                // this element's own ending counts.
+                if (e.target === e.currentTarget) setMark(0);
+              }}
+              className="monogram-ground bg-void pointer-events-none absolute inset-0 z-10 flex items-center justify-center overflow-visible"
+              aria-live="polite"
+            >
+              <span className="monogram-splash inline-flex">
+                <Monogram
+                  mine={m.myName}
+                  theirs={m.theirName}
+                  myAccent={profile?.accent_key}
+                  theirAccent={partner?.accent_key}
+                  size={76}
+                />
+              </span>
             </div>
           )}
           <Faces
@@ -371,45 +413,64 @@ export function Home({
               <Rail>
                 <Tile wide ground={shared} eyebrow="anniversary">
                   {/*
-                    Held down, the counter stops counting days and counts hours
-                    instead. The handlers go on this inner div rather than on the
-                    Tile: a `Tile` given an `onClick` becomes a `<button>`, and a
-                    card that announces itself as actionable to a screen reader
-                    is not a hidden thing. Nothing here changes shape or colour,
-                    so a person who never presses it never learns it was there.
+                    The whole card is the target, not just the numbers.
+
+                    The handlers used to sit on the text block, so most of the
+                    card did nothing and a thumb that landed on the numbers
+                    themselves selected them instead — a long press on text is a
+                    text selection unless something says otherwise. `inset-0`
+                    fixes the first, and refusing selection and the callout menu
+                    fixes the second.
+
+                    Still not a `<button>`. Giving `Tile` an `onClick` would
+                    announce it to a screen reader as actionable and give it a
+                    focus ring, which is the opposite of a thing you are meant
+                    to find.
                   */}
                   <div
                     {...counterHold}
-                    className="absolute inset-x-4 top-1/2 -translate-y-[60%] select-none"
+                    className="absolute inset-0 z-20 [-webkit-touch-callout:none] [-webkit-user-select:none] select-none"
                   >
-                    {heldCounter && held ? (
-                      <>
-                        <p className="counter text-[1.9rem] leading-none font-medium text-white">
-                          {hoursTogether.toLocaleString('en-GB')}
-                        </p>
-                        <p className="mt-2 text-[0.6rem] leading-relaxed tracking-[0.14em] text-white/70 lowercase">
-                          {held}
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="counter text-[1.9rem] leading-none font-medium text-white">
-                          {m.elapsed.days}
-                          <span className="opacity-50">:</span>
-                          {pad(m.elapsed.hours)}
-                          <span className="opacity-50">:</span>
-                          {pad(m.elapsed.minutes)}
-                          <span className="opacity-50">:</span>
-                          {pad(m.elapsed.seconds)}
-                        </p>
-                        <p className="mt-2 flex gap-[2.1rem] text-[0.6rem] tracking-[0.2em] text-white/70 uppercase">
-                          <span>day</span>
-                          <span>hr</span>
-                          <span>min</span>
-                          <span>sec</span>
-                        </p>
-                      </>
-                    )}
+                    <div className="absolute inset-x-4 top-1/2 -translate-y-[60%]">
+                      {heldCounter && held ? (
+                        <>
+                          <p className="counter text-[1.9rem] leading-none font-medium text-white">
+                            {hoursTogether.toLocaleString('en-GB')}
+                          </p>
+                          <p className="mt-2 text-[0.6rem] leading-relaxed tracking-[0.14em] text-white/70 lowercase">
+                            {held}
+                          </p>
+                          {/*
+                            A different line every time it is held. The counter
+                            is already the grand gesture; this one is ordinary on
+                            purpose, because two of them would be shouting.
+                          */}
+                          {quote && (
+                            <p className="mt-2 max-w-[15rem] text-[0.78rem] leading-snug text-white/85 italic">
+                              {quote}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <p className="counter text-[1.9rem] leading-none font-medium text-white">
+                            {m.elapsed.days}
+                            <span className="opacity-50">:</span>
+                            {pad(m.elapsed.hours)}
+                            <span className="opacity-50">:</span>
+                            {pad(m.elapsed.minutes)}
+                            <span className="opacity-50">:</span>
+                            {pad(m.elapsed.seconds)}
+                          </p>
+                          <p className="mt-2 flex gap-[2.1rem] text-[0.6rem] tracking-[0.2em] text-white/70 uppercase">
+                            <span>day</span>
+                            <span>hr</span>
+                            <span>min</span>
+                            <span>sec</span>
+                          </p>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </Tile>
 

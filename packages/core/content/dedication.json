@@ -1,13 +1,11 @@
 {
   "version": 1,
   "note": "Every word in the app that is not UI copy lives here. An occasion may carry a `yours` object, used when the day is the reader's own rather than their partner's; blank it back to TODO and the card falls back to the shared line above it rather than to nothing. These are drafts in the app's own voice, written to be replaced — rewrite any of them and nothing else has to change. Anything reading TODO is unwritten and will not ship: packages/core/src/dedication.test.ts fails on it, and occasionCopy() returns null rather than showing a placeholder on somebody's anniversary.",
-
   "signature": {
     "mark": "K for S",
     "line": "Built for one person, then opened up.",
     "year": "2026"
   },
-
   "colophon": {
     "title": "What this is",
     "opening": "A small shared space for two people. Everything in it is free and always will be — there is no paid tier to find later, no advertising, and nothing here is counting you.",
@@ -38,7 +36,6 @@
       }
     ]
   },
-
   "occasions": {
     "anniversary": {
       "eyebrow": "the day itself",
@@ -64,11 +61,23 @@
       "line": "The clock just said your date back to you."
     }
   },
-
   "counter": {
-    "held": "hours — the same thing said in a way that sounds like more"
+    "held": "hours — the same thing said in a way that sounds like more",
+    "quotes": [
+      "Every one of them had you in it.",
+      "Nobody counted at the time. It counted anyway.",
+      "The ordinary ones are the ones this is made of.",
+      "You have been somebody's favourite thing for all of them.",
+      "Long enough to have forgotten most of it, and kept the rest.",
+      "None of them were promised. All of them happened.",
+      "Somewhere in here is the day you stopped being nervous.",
+      "A number that only goes one way, which is the whole point.",
+      "Enough hours to have learned how they take their tea.",
+      "Most of them were nothing much. That is the good news.",
+      "You could have spent them anywhere. You spent them here.",
+      "Still adding up, quietly, while you are not looking."
+    ]
   },
-
   "hers": {
     "note": "Only ever shown to one person, or to the couple she is half of. See packages/core/src/dedication.ts for how each is decided, and read the comment there before adding to this — it is obfuscated, not secret.",
     "line": "The K is me and the S is you. There was never a version of this that was about anything else.",

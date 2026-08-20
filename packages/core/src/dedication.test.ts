@@ -4,7 +4,9 @@ import {
   COLOPHON,
   SIGNATURE,
   heldCopy,
+  heldQuotes,
   herLine,
+  nextQuote,
   herPrompts,
   isHer,
   isHerCouple,
@@ -170,5 +172,48 @@ describe('her questions', () => {
     const twice = herPrompts().map((p) => p.id);
     expect(once).toEqual(twice);
     expect(new Set(once).size).toBe(once.length);
+  });
+});
+
+describe('the line under the held counter', () => {
+  /*
+    A hidden thing that says the same sentence every time is a hidden thing you
+    find once. These exist to be the reason to press it again.
+  */
+  it('has enough of them to be worth pressing twice', () => {
+    expect(heldQuotes().length).toBeGreaterThan(5);
+  });
+
+  it('is all written, or it does not ship', () => {
+    for (const quote of heldQuotes()) expect(isWritten(quote)).toBe(true);
+  });
+
+  it('never hands back the one already showing', () => {
+    /*
+      Random alone repeats about once in twelve, and a hidden feature that
+      appears not to have changed reads as broken rather than as unlucky. Run
+      enough times that a one-in-twelve fluke would show up.
+    */
+    const quotes = heldQuotes();
+    let current = quotes[0]!;
+
+    for (let i = 0; i < 200; i++) {
+      const next = nextQuote(quotes, current);
+      expect(next, `repeated on iteration ${i}`).not.toBe(current);
+      expect(quotes).toContain(next);
+      current = next!;
+    }
+  });
+
+  it('survives having nothing, or only one, to choose from', () => {
+    // The one-quote case has to return that quote rather than null, or the
+    // line would vanish for anybody who trimmed the list down to a favourite.
+    expect(nextQuote([], null)).toBeNull();
+    expect(nextQuote(['only one'], 'only one')).toBe('only one');
+    expect(nextQuote(['only one'], null)).toBe('only one');
+  });
+
+  it('picks something on the first press, when nothing is showing yet', () => {
+    expect(nextQuote(heldQuotes(), null)).not.toBeNull();
   });
 });

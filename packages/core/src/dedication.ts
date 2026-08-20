@@ -38,7 +38,7 @@ interface DedicationFile {
     promises: Array<{ title: string; body: string }>;
   };
   occasions: Record<string, OccasionCopy & { yours?: OccasionCopy }>;
-  counter: { held: string };
+  counter: { held: string; quotes: string[] };
   hers: { note: string; line: string; questions: string[] };
 }
 
@@ -81,6 +81,31 @@ export function occasionCopy(kind: string, whose?: 'mine' | 'theirs'): OccasionC
 /** What the anniversary counter says when held, or null while unwritten. */
 export function heldCopy(): string | null {
   return isWritten(file.counter.held) ? file.counter.held : null;
+}
+
+/**
+ * The lines that come round underneath it, one per hold.
+ *
+ * A hidden thing that says the same sentence every time is a hidden thing you
+ * find once. These are the reason to press it again — and they are ordinary on
+ * purpose, because the counter is already the grand gesture and a second one
+ * underneath would be two people shouting.
+ */
+export const heldQuotes = (): string[] => file.counter.quotes.filter(isWritten);
+
+/**
+ * A different one from the one showing.
+ *
+ * Random rather than sequential, so it does not feel like a list being read out
+ * — but never the same twice running, which random alone gives you about once
+ * in twelve and reads as the feature being broken.
+ */
+export function nextQuote(quotes: readonly string[], current: string | null): string | null {
+  if (quotes.length === 0) return null;
+  if (quotes.length === 1) return quotes[0] ?? null;
+
+  const others = quotes.filter((q) => q !== current);
+  return others[Math.floor(Math.random() * others.length)] ?? null;
 }
 
 // ── one person ───────────────────────────────────────────────────────────────

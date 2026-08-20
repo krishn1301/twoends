@@ -721,6 +721,23 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   accounts” is a recurring chore rather than a one-off, and that a sweep must key
   on ids rather than on “anonymous with no partner”, which also matches a real
   person halfway through onboarding.
+- **A long press on text is a text selection**, unless something refuses it.
+  `select-none` alone was not enough on the S9+: Android's WebView also needs
+  `-webkit-user-select` and `-webkit-touch-callout`, and without the second one
+  a hold on the anniversary counter raised the selection handles over the top
+  of the thing it was meant to reveal. The handlers also have to cover the
+  whole card — `absolute inset-0` inside the `Tile`, not a block sized to the
+  numbers, or most of the card is dead to the gesture.
+- **A reveal tied to how long you hold is a thing you have to keep doing.** The
+  monogram was visible for exactly as long as both faces were held, so it never
+  became a moment. It is a one-shot splash now, started by the press and ended
+  by its own animation — driven by a nonce with `key` on the element, because a
+  boolean cannot restart an animation that is already finished.
+- **Animation events bubble.** `onAnimationEnd` on a wrapper fires for its
+  children too, so the inner element finishing a frame early tore down the
+  backdrop mid-fade. Compare `e.target` with `e.currentTarget`. Clearing on the
+  event rather than on a `setTimeout` is also what keeps the JavaScript and the
+  CSS from drifting apart the next time either duration is touched.
 - **A hidden gesture must not change the element it is on.** `Tile` renders an
   `<article>` unless given `onClick`, and giving it one to hold the anniversary
   counter would announce it to a screen reader as actionable and give it a focus
