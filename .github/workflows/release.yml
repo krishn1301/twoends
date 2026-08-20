@@ -1,0 +1,145 @@
+name: Release APK
+
+# Publishing, as opposed to checking.
+#
+# `android.yml` builds a debug APK on every push and uploads it as an Actions
+# artifact, which is the right shape for "did that break the build" and the
+# wrong shape for handing to a person: it needs a GitHub account, arrives as a
+# zip, and expires after a fortnight.
+#
+# This one attaches a signed APK to a GitHub Release, which is a plain public
+# link that never expires and needs no account. The stable one is:
+#
+#   https://github.com/<owner>/twoends/releases/latest/download/TwoEnds.apk
+#
+# Push a tag to publish:  git tag v1.0.0 && git push origin v1.0.0
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version to publish, e.g. v1.0.1'
+        required: true
+
+permissions:
+  contents: write # to create the release and upload the APK to it
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck, lint and test
+        # Nobody should be able to publish a build that would not have been
+        # allowed to merge.
+        run: pnpm check
+
+      - name: Build the web bundle
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
+          # Not the Pages prefix. The WebView serves from the bundle root, and a
+          # '/twoends/' base there is a white screen with no error.
+          VITE_BASE: /
+        run: pnpm --filter @twoends/web build
+
+      - name: Sync Capacitor
+        working-directory: apps/web
+        run: pnpm exec cap sync android
+
+      - name: Restore the signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::ANDROID_KEYSTORE_B64 is not set. A release APK signed with the debug key would install as an update over anybody's copy, from a key whose password is public."
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > apps/web/android/release.keystore
+          echo "Restored $(stat -c%s apps/web/android/release.keystore) bytes"
+
+      - name: Assemble the signed release APK
+        working-directory: apps/web/android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/apps/web/android/release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          # Monotonic across runs, so Android treats each build as an upgrade.
+          # A version code that ever goes backwards makes the install fail with
+          # a message that blames the phone.
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Check what is about to be published
+        run: |
+          APK=apps/web/android/app/build/outputs/apk/release/app-release.apk
+          test -f "$APK" || { echo "::error::No APK was produced"; exit 1; }
+
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+
+          # Signed at all. An unsigned APK installs on nothing and the failure
+          # only shows up on somebody else's phone.
+          "$APKSIGNER" verify --verbose "$APK" || { echo "::error::APK is not signed"; exit 1; }
+
+          # Signed with the *release* key, not the debug one. The debug key's
+          # password is the published convention, so anyone holding it could
+          # build an update Android would accept over a friend's install.
+          if "$APKSIGNER" verify --print-certs "$APK" | grep -q "CN=Android Debug"; then
+            echo "::error::This APK is signed with the debug key. Refusing to publish it."
+            exit 1
+          fi
+
+          # And not debuggable, which is most of why a release build exists here:
+          # a debuggable APK hands the photos, the local database and the session
+          # token to anybody with a cable and no root.
+          AAPT=$(ls -d "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          if "$AAPT" dump xmltree --file AndroidManifest.xml "$APK" | grep -qi "debuggable"; then
+            echo "::error::This APK is debuggable. Refusing to publish it."
+            exit 1
+          fi
+
+          # Named for the person downloading it, not for the build system. This
+          # is the filename that lands in their Downloads folder.
+          cp "$APK" TwoEnds.apk
+          echo "Publishing TwoEnds.apk ($(du -h TwoEnds.apk | cut -f1))"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          gh release create "$TAG" TwoEnds.apk \
+            --title "TwoEnds $TAG" \
+            --notes "$(cat <<'NOTES'
+          **[Download TwoEnds.apk](../../releases/latest/download/TwoEnds.apk)** — Android only.
+
+          Your phone will ask whether to allow installing from your browser. That
+          warning is Android saying this did not come from the Play Store, which
+          is true; allow it once and the install goes through.
+
+          On iPhone there is nothing to download. Open
+          [the app](https://krishn1301.github.io/twoends/) and add it to your
+          Home Screen — same app, no widgets, because iOS does not give them to
+          web apps.
+          NOTES
+          )" || gh release upload "$TAG" TwoEnds.apk --clobber

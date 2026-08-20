@@ -2,6 +2,14 @@ apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
+/*
+  Whether a real signing key is available to this build. Both halves matter: the
+  file can exist with no password beside it, and a password can be set with no
+  file to open.
+*/
+def releaseKeystoreFile = file(System.getenv("ANDROID_KEYSTORE_PATH") ?: "../release.keystore")
+def hasReleaseKey = releaseKeystoreFile.exists() && System.getenv("ANDROID_KEYSTORE_PASSWORD")
+
 android {
     namespace = "com.twoends.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -65,12 +73,30 @@ android {
       debug keys. It protects nothing and is not meant to. Play will not accept
       an APK signed with it, so it cannot be mistaken for a release key.
     */
+    /*
+      The release key, when there is one.
+
+      Kept out of the repository and out of this file: CI writes it from a
+      secret, and a local build finds it at ../release.keystore if you have a
+      copy. Anyone who has neither -- a fork, a contributor, a fresh clone --
+      still gets a working `assembleRelease`, signed with the debug key, because
+      an unsigned APK installs on nothing and a build that fails for want of
+      somebody else's private key is a build nobody can run.
+    */
     signingConfigs {
         debug {
             storeFile file('../debug.keystore')
             storePassword 'android'
             keyAlias 'androiddebugkey'
             keyPassword 'android'
+        }
+
+        release {
+            storeFile file(System.getenv("ANDROID_KEYSTORE_PATH") ?: "../release.keystore")
+            storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
+            keyAlias System.getenv("ANDROID_KEY_ALIAS") ?: "twoends"
+            keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                ?: System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
         }
     }
 
@@ -79,6 +105,18 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
+            /*
+              Signed with the real key when it is present and with the debug key
+              when it is not, decided here rather than in the signingConfig so
+              that the fallback is visible at the place the choice matters.
+
+              `debuggable` is left off, which is the whole point of a release
+              build for this app: a debuggable APK lets anybody with a cable
+              read the photos, the local database and the session token off a
+              phone without root, and these get sideloaded to people who keep
+              private things in them.
+            */
+            signingConfig hasReleaseKey ? signingConfigs.release : signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
