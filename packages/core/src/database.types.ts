@@ -195,6 +195,8 @@ export type Database = {
           couple_id: string
           created_at: string
           id: string
+          is_adult: boolean
+          kind: string
           option_a: string
           option_b: string
         }
@@ -204,6 +206,8 @@ export type Database = {
           couple_id: string
           created_at?: string
           id: string
+          is_adult?: boolean
+          kind?: string
           option_a: string
           option_b: string
         }
@@ -213,6 +217,8 @@ export type Database = {
           couple_id?: string
           created_at?: string
           id?: string
+          is_adult?: boolean
+          kind?: string
           option_a?: string
           option_b?: string
         }
@@ -309,6 +315,7 @@ export type Database = {
           guess: number | null
           id: string
           mode: string
+          picked_on: string
           profile_id: string
         }
         Insert: {
@@ -319,6 +326,7 @@ export type Database = {
           guess?: number | null
           id?: string
           mode?: string
+          picked_on?: string
           profile_id: string
         }
         Update: {
@@ -329,6 +337,7 @@ export type Database = {
           guess?: number | null
           id?: string
           mode?: string
+          picked_on?: string
           profile_id?: string
         }
         Relationships: [
@@ -884,7 +893,7 @@ export type Database = {
       }
       i_have_answered: { Args: { p_prompt_day_id: string }; Returns: boolean }
       i_have_picked: {
-        Args: { p_card_id: string; p_couple_id: string }
+        Args: { p_card_id: string; p_couple_id: string; p_mode: string }
         Returns: boolean
       }
       is_member_of: { Args: { c: string }; Returns: boolean }

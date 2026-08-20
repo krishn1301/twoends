@@ -21,6 +21,9 @@ export interface Pick {
   profile_id: string;
   choice: Side | null;
   guess: Side | null;
+  mode: 'match' | 'guess';
+  /** The day it was last answered. Only read when a card comes round again. */
+  picked_on: string | null;
 }
 
 /** What each of you chose, per card. `theirs` stays null until yours exists. */
@@ -30,9 +33,26 @@ export interface CardState {
   /** What you think they would pick. Null outside a guessing round. */
   myGuess: Side | null;
   theirGuess: Side | null;
+  /** When you last answered. Null until you have. */
+  myPickedOn: string | null;
+  theirPickedOn: string | null;
 }
 
 export type Board = Map<string, CardState>;
+
+/**
+ * One board per game.
+ *
+ * Not one map keyed by card, which is what this was until the two games stopped
+ * sharing rows. A card can now hold a this-or-that pick *and* a guess from the
+ * same person, and folding both into one entry meant whichever loaded second
+ * silently overwrote the other — a pick vanishing because you had guessed on it
+ * a week earlier.
+ */
+export interface Boards {
+  match: Board;
+  guess: Board;
+}
 
 /**
  * Everything the server is willing to show.
@@ -42,31 +62,50 @@ export type Board = Map<string, CardState>;
  * cannot show you their pick early even if it wanted to, which is the property
  * worth having.
  */
-export async function loadBoard(coupleId: string, myId: string): Promise<Board> {
+export async function loadBoard(coupleId: string, myId: string): Promise<Boards> {
   const { data } = await supabase
     .from('game_picks')
-    .select('card_id, profile_id, choice, guess')
+    .select('card_id, profile_id, choice, guess, mode, picked_on')
     .eq('couple_id', coupleId);
 
-  const board: Board = new Map();
+  const boards: Boards = { match: new Map(), guess: new Map() };
+
   for (const row of (data as Pick[] | null) ?? []) {
+    const board = row.mode === 'guess' ? boards.guess : boards.match;
     const entry = board.get(row.card_id) ?? {
       mine: null,
       theirs: null,
       myGuess: null,
       theirGuess: null,
+      myPickedOn: null,
+      theirPickedOn: null,
     };
+
     if (row.profile_id === myId) {
       entry.mine = row.choice;
       entry.myGuess = row.guess;
+      entry.myPickedOn = row.picked_on;
     } else {
       entry.theirs = row.choice;
       entry.theirGuess = row.guess;
+      entry.theirPickedOn = row.picked_on;
     }
+
     board.set(row.card_id, entry);
   }
-  return board;
+
+  return boards;
 }
+
+/** An untouched card, so callers never have to spell the empty shape out. */
+export const EMPTY_CARD: CardState = {
+  mine: null,
+  theirs: null,
+  myGuess: null,
+  theirGuess: null,
+  myPickedOn: null,
+  theirPickedOn: null,
+};
 
 /**
  * Chooses a side, or changes your mind.
@@ -81,6 +120,8 @@ export async function choose(input: {
   cardId: string;
   profileId: string;
   choice: Side;
+  /** The couple's local date, so a card coming round can say when. */
+  today: string;
 }): Promise<{ error: string | null }> {
   const { error } = await supabase.from('game_picks').upsert(
     {
@@ -88,8 +129,13 @@ export async function choose(input: {
       card_id: input.cardId,
       profile_id: input.profileId,
       choice: input.choice,
+      mode: 'match',
+      picked_on: input.today,
     },
-    { onConflict: 'couple_id,card_id,profile_id' },
+    // The key gained `mode` in migration 22: a card played in two games is two
+    // events. Without it here, picking would collide with a guess on the same
+    // card and one of them would silently overwrite the other.
+    { onConflict: 'couple_id,card_id,profile_id,mode' },
   );
 
   return { error: error?.message ?? null };
@@ -142,6 +188,7 @@ export async function sendGuess(input: {
   guess: Side;
   /** Your own answer too, on a shared deck card. Omitted on one they wrote. */
   choice?: Side;
+  today: string;
 }): Promise<{ error: string | null }> {
   const { error } = await supabase.from('game_picks').upsert(
     {
@@ -151,18 +198,25 @@ export async function sendGuess(input: {
       choice: input.choice ?? null,
       guess: input.guess,
       mode: 'guess',
+      picked_on: input.today,
     },
-    { onConflict: 'couple_id,card_id,profile_id' },
+    { onConflict: 'couple_id,card_id,profile_id,mode' },
   );
 
   return { error: error?.message ?? null };
 }
 
+/** A written card, with the two things only the app needs to know about it. */
+export interface WrittenCard extends GuessCard {
+  kind: 'match' | 'guess';
+  isAdult: boolean;
+}
+
 /** The cards the two of you wrote. Theirs are the ones you get to guess. */
-export async function loadWrittenCards(coupleId: string): Promise<GuessCard[]> {
+export async function loadWrittenCards(coupleId: string): Promise<WrittenCard[]> {
   const { data } = await supabase
     .from('couple_cards')
-    .select('id, body, option_a, option_b, author_id')
+    .select('id, body, option_a, option_b, author_id, kind, is_adult')
     .eq('couple_id', coupleId)
     .order('created_at', { ascending: true });
 
@@ -172,6 +226,8 @@ export async function loadWrittenCards(coupleId: string): Promise<GuessCard[]> {
     option_a: string;
     option_b: string;
     author_id: string;
+    kind: 'match' | 'guess';
+    is_adult: boolean;
   }[];
 
   return rows.map((row) => ({
@@ -180,6 +236,8 @@ export async function loadWrittenCards(coupleId: string): Promise<GuessCard[]> {
     a: row.option_a,
     b: row.option_b,
     authorId: row.author_id,
+    kind: row.kind,
+    isAdult: row.is_adult,
   }));
 }
 
@@ -206,6 +264,10 @@ export async function writeCard(input: {
   optionA: string;
   optionB: string;
   answer: Side;
+  today: string;
+  /** Which game it is for. `guess` is a card about you; `match` joins the deck. */
+  kind?: 'match' | 'guess';
+  isAdult?: boolean;
 }): Promise<{ error: string | null; id: string }> {
   const body = input.body.trim();
   const a = input.optionA.trim();
@@ -217,15 +279,24 @@ export async function writeCard(input: {
   // written card from ever colliding with a deck card of the same two options.
   const id = deterministicId('twoends.card', `${body}|${a}|${b}`);
 
+  /*
+    Written as a `guess`-mode row, not a this-or-that pick.
+
+    Answering a card you wrote *is* your move in the guessing game, even though
+    you never guess at anything — and migration 22 made the reveal per-game, so
+    filing it under the wrong game meant the person guessing could never see what
+    they were guessing at. See migration 23, which is that mistake being undone.
+  */
   const pick = await supabase.from('game_picks').upsert(
     {
       couple_id: input.coupleId,
       card_id: id,
       profile_id: input.authorId,
       choice: input.answer,
-      mode: 'match',
+      mode: 'guess',
+      picked_on: input.today,
     },
-    { onConflict: 'couple_id,card_id,profile_id' },
+    { onConflict: 'couple_id,card_id,profile_id,mode' },
   );
   if (pick.error) return { error: pick.error.message, id };
 
@@ -236,6 +307,8 @@ export async function writeCard(input: {
     body: body || null,
     option_a: a,
     option_b: b,
+    kind: input.kind ?? 'guess',
+    is_adult: input.isAdult ?? false,
   });
 
   // A card written twice is the same card, by construction. Not an error.

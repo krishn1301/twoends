@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 
 import {
   ROUND,
+  cardForDay,
   cardsLeft,
+  localDateIn,
   matchCardsFor,
   deckOrder,
   getAccent,
@@ -23,6 +25,7 @@ import { todaysPrompt } from '../db/daily.ts';
 import { notifyPartner } from '../db/push.ts';
 import { supabase } from '../lib/supabase.ts';
 import { useAvatars } from '../state/avatars.ts';
+import { EMPTY_CARD } from '../db/game.ts';
 import { useGame } from '../state/game.ts';
 import { useSession } from '../state/session.ts';
 import { useToday } from '../state/today.ts';
@@ -154,46 +157,22 @@ function Match({ myTint, theirTint }: { myTint: string; theirTint: string }) {
   const avatarUrls = useAvatars((s) => s.urls);
   const loadAvatars = useAvatars((s) => s.load);
 
-  const board = useGame((s) => s.board);
+  const boards = useGame((s) => s.boards);
+  const written = useGame((s) => s.written);
   const tally = useGame((s) => s.tally);
   const error = useGame((s) => s.error);
   const loadGame = useGame((s) => s.load);
   const sendPick = useGame((s) => s.pick);
-  const resetPicks = useGame((s) => s.reset);
-
-  /**
-   * Null means "wherever the board says", which is how this screen opens on the
-   * first card you have not finished rather than on card one. Once you have
-   * moved yourself, your position wins and stops jumping under you when their
-   * pick arrives.
-   */
-  const [moved, setMoved] = useState<number | null>(null);
 
   const coupleId = couple?.id;
   const myId = profile?.id;
   const theirName = partner?.display_name ?? 'them';
-
-  /*
-    One order per couple, computed on both phones from the couple id. Without
-    it the two of you would be shown different cards in different orders and
-    would almost never be on the same one — which is the only way this reads as
-    something you are doing together rather than two solo quizzes.
-  */
-  const deck = useMemo(
-    () => deckOrder(matchCardsFor({ adultEnabled: couple?.adult_packs_enabled }), coupleId ?? ''),
-    [coupleId, couple?.adult_packs_enabled],
-  );
+  const today = localDateIn(couple?.day_timezone ?? 'UTC');
 
   useEffect(() => {
     if (coupleId && myId) void loadGame(coupleId, myId);
   }, [coupleId, myId, loadGame]);
 
-  /*
-    The two faces are the reveal, so they cannot be missing. Home loads these
-    already and the cache is shared — but somebody who opens the app straight
-    onto this tab has never been through Home, and would get two initials in
-    place of the one image that carries the whole moment.
-  */
   useEffect(() => {
     void loadAvatars([profile?.avatar_path, partner?.avatar_path]);
   }, [loadAvatars, profile?.avatar_path, partner?.avatar_path]);
@@ -219,60 +198,74 @@ function Match({ myTint, theirTint }: { myTint: string; theirTint: string }) {
   }, [coupleId, myId, loadGame]);
 
   /*
-    Derived, not stored in an effect. Coming back to a deck you are eleven cards
-    into and being shown the first card again is how a game stops being
-    something you return to — but computing it during render rather than
-    correcting it afterwards means it is right on the first paint and there is
-    no frame showing the wrong card.
+    The shipped deck, plus anything they wrote for this game, plus the 18+ half
+    once both of them have asked for it. Writing a card makes the loop longer as
+    well as more personal, which is the only real answer to a deck running out.
   */
-  const firstOpen = useMemo(() => {
-    const next = deck.findIndex((card) => board.get(card.id)?.mine == null);
-    return next === -1 ? Math.max(0, deck.length - 1) : next;
-  }, [deck, board]);
+  const deck = useMemo(() => {
+    const ours = written
+      .filter((card) => card.kind === 'match' && ours18(card, couple?.adult_packs_enabled))
+      .map((card) => ({ id: card.id, a: card.a, b: card.b }));
+    return [...matchCardsFor({ adultEnabled: couple?.adult_packs_enabled }), ...ours];
+  }, [written, couple?.adult_packs_enabled]);
 
-  const at = moved ?? firstOpen;
-  const card = deck[at];
-  const state = card ? (board.get(card.id) ?? { mine: null, theirs: null }) : null;
+  const todays = useMemo(() => cardForDay(coupleId ?? '', today, deck), [coupleId, today, deck]);
 
-  function pick(side: Side) {
-    if (!coupleId || !myId || !card) return;
+  /*
+    Cards from the last fortnight that you answered and they did not. Counted
+    rather than listed: the point is that a missed day is not orphaned, and a
+    list of them would turn a gentle thing into a backlog.
+  */
+  const waiting = useMemo(() => {
+    let open = 0;
+    for (let back = 1; back <= 14; back++) {
+      const day = new Date(`${today}T00:00:00Z`);
+      day.setUTCDate(day.getUTCDate() - back);
 
-    /*
-      Stand still.
+      const past = cardForDay(coupleId ?? '', day.toISOString().slice(0, 10), deck);
+      if (!past) continue;
 
-      `at` follows the first unfinished card until you move yourself, which is
-      right when you arrive and wrong the instant you pick: the board updates,
-      this card stops being unfinished, and the deck skips to the next one
-      before you have seen your own choice light up. On the phone it looked like
-      the tap had jumped the card. Pinning the index here means picking shows
-      you the result and advancing stays something you do.
-    */
-    setMoved(at);
+      const state = boards.match.get(past.card.id);
+      if (state?.mine != null && state.theirs == null) open++;
+    }
+    return open;
+  }, [coupleId, today, deck, boards]);
 
-    /*
-      Deliberately no push notification.
-
-      The cap is two per person per day and a deck is thirty cards — an evening
-      of playing would spend both of somebody's notifications and silence the
-      one that actually matters, "they answered". The reveal arrives over
-      realtime while you are both here, and waits on the card when you are not.
-      A relationship app that pushes guilt is a product failure; a game that
-      pushes thirty times is worse.
-    */
-    void sendPick({ coupleId, myId, cardId: card.id, choice: side });
+  if (!todays) {
+    return (
+      <div className="bg-surface rounded-[28px] p-5">
+        <p className="text-ash text-sm leading-relaxed">No cards yet.</p>
+      </div>
+    );
   }
 
-  if (!card || !state) return null;
-
+  const card = todays.card;
+  const state = boards.match.get(card.id) ?? EMPTY_CARD;
   const revealed = state.mine != null && state.theirs != null;
   const agreed = revealed && state.mine === state.theirs;
 
+  /*
+    A card that has been here before, still carrying what you each said. Nothing
+    is revealed that was not already revealed: a repeat can only show a pick
+    whose reveal was spent weeks ago.
+  */
+  const beenHere = todays.cycle > 0 && state.myPickedOn != null && state.myPickedOn < today;
+
+  function pick(side: Side) {
+    if (!coupleId || !myId) return;
+
+    /*
+      Deliberately no push notification. The cap is two per person per day, and
+      spending one on a card would silence the one that matters — "they
+      answered". The reveal arrives over realtime instead.
+    */
+    void sendPick({ coupleId, myId, cardId: card.id, choice: side, today });
+  }
+
   return (
     <>
-      <div className="mb-3 flex items-baseline justify-between">
-        <span className="text-ash counter text-sm">
-          {at + 1} / {deck.length}
-        </span>
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <span className="text-ash text-sm">{beenHere ? 'today · come round again' : 'today'}</span>
         {state.mine != null && !revealed && (
           <Pill>
             <span
@@ -308,9 +301,8 @@ function Match({ myTint, theirTint }: { myTint: string; theirTint: string }) {
       </div>
 
       {/*
-        The payoff line. Held to one row so the two option cards never move
-        between "picked" and "revealed" — a layout that jumps at the moment of
-        the reveal steals the moment.
+        Held to one row so the two option cards never move between "picked" and
+        "revealed" — a layout that jumps at the moment of the reveal steals it.
       */}
       <p className="mt-4 min-h-6 text-center text-[0.95rem]">
         {error ? (
@@ -326,60 +318,81 @@ function Match({ myTint, theirTint }: { myTint: string; theirTint: string }) {
           )
         ) : state.mine != null ? (
           <span className="text-ash">
-            Yours is in. Nothing shows until {theirName} picks — not even that you
-            have.
+            Yours is in. Nothing shows until {theirName} picks — not even that you have.
           </span>
         ) : (
           <span className="text-ash">Pick one. They cannot see it until they have too.</span>
         )}
       </p>
 
-      <div className="mt-6 flex gap-2.5">
-        <button
-          type="button"
-          onClick={() => setMoved(Math.max(0, at - 1))}
-          disabled={at === 0}
-          className="bg-surface text-ash h-12 flex-1 rounded-full text-[0.95rem] font-medium disabled:opacity-35"
-        >
-          Back
-        </button>
-        <button
-          type="button"
-          onClick={() => setMoved(Math.min(deck.length - 1, at + 1))}
-          disabled={at >= deck.length - 1}
-          className="bg-surface-2 text-chalk h-12 flex-1 rounded-full text-[0.95rem] font-medium disabled:opacity-35"
-        >
-          Next
-        </button>
-      </div>
+      {/*
+        What you each said the time before, which is the whole reason a repeat is
+        worth having: the question is no longer the card, it is whether you would
+        still answer the same.
+      */}
+      {beenHere && (
+        <div className="bg-surface mt-4 rounded-[24px] p-4">
+          <p className="text-ash text-sm leading-relaxed">
+            {monthOf(state.myPickedOn)} you said &ldquo;{state.mine === 0 ? card.a : card.b}&rdquo;
+            {state.theirs != null && (
+              <>
+                {' '}
+                and {theirName} said &ldquo;{state.theirs === 0 ? card.a : card.b}&rdquo;
+              </>
+            )}
+            . Pick again — it does not have to be the same.
+          </p>
+        </div>
+      )}
+
+      {waiting > 0 && (
+        <p className="text-ash/70 mt-4 text-center text-sm">
+          {waiting === 1
+            ? `One earlier card is still waiting on ${theirName}.`
+            : `${waiting} earlier cards are still waiting on ${theirName}.`}
+        </p>
+      )}
 
       <div className="bg-surface mt-8 rounded-[28px] p-5">
         <p className="font-display text-[1.15rem] leading-snug font-semibold">
           {matchLabel(tally.agreed, tally.played)}
         </p>
         <p className="text-ash mt-1.5 text-sm leading-relaxed">
-          Counted only where you have both picked. Agreeing on everything is not the
-          goal — knowing which ones you do not is the point.
+          One card a day, out of {todays.size}. Agreeing on everything is not the goal —
+          knowing which ones you do not is the point.
         </p>
-        {tally.played > 0 && (
-          <button
-            type="button"
-            onClick={() => {
-              if (!coupleId || !myId) return;
-              // Back to "wherever the board says", which after a reset is card
-              // one — without hardcoding that and getting it wrong when their
-              // picks are still there.
-              setMoved(null);
-              void resetPicks(coupleId, myId);
-            }}
-            className="text-ash mt-2 h-11 text-sm underline underline-offset-4"
-          >
-            Clear my picks and start again
-          </button>
-        )}
       </div>
     </>
   );
+}
+
+/**
+ * Whether a card they wrote may be shown right now.
+ *
+ * The shipped adult cards live in a separate list, so nothing has to remember to
+ * filter them. A written one cannot — it sits in the same table as the rest — so
+ * it carries a flag instead, and this is the one place that reads it.
+ *
+ * The point is not secrecy; they wrote it. It is that somebody who marked a card
+ * 18+ in one mood should not meet it again after either of them has turned the
+ * packs back off.
+ */
+const ours18 = (card: { isAdult: boolean }, adultEnabled: boolean | undefined): boolean =>
+  !card.isAdult || adultEnabled === true;
+
+/**
+ * "In July", for a card that has been here before.
+ *
+ * The bare month, because the year is noise on a deck that comes round every
+ * seven weeks and the point of the line is recognition rather than a date.
+ */
+function monthOf(isoDate: string | null): string {
+  if (!isoDate) return 'Last time';
+
+  const when = new Date(`${isoDate}T00:00:00Z`);
+  if (Number.isNaN(when.getTime())) return 'Last time';
+
+  return `In ${when.toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' })}`;
 }
 
 /**
@@ -626,7 +639,8 @@ function Guess({ myTint, theirTint }: { myTint: string; theirTint: string }) {
   const avatarUrls = useAvatars((s) => s.urls);
   const loadAvatars = useAvatars((s) => s.load);
 
-  const board = useGame((s) => s.board);
+  const boards = useGame((s) => s.boards);
+  const board = boards.guess;
   const written = useGame((s) => s.written);
   const error = useGame((s) => s.error);
   const loadGame = useGame((s) => s.load);
@@ -664,23 +678,37 @@ function Guess({ myTint, theirTint }: { myTint: string; theirTint: string }) {
     return () => void supabase.removeChannel(channel);
   }, [coupleId, myId, loadGame]);
 
-  /** Every card you already have a row on, in either game. */
+  /*
+    Cards with nothing left to guess at.
+
+    Spans both games on purpose, now that they keep separate rows. A card you
+    already guessed is finished; a card the two of you *revealed* in This or that
+    is worse than finished, because the answer is sitting on the screen behind
+    this one. A card only you have picked is still fair game — they have not
+    shown you anything.
+  */
   const done = useMemo(() => {
     const ids = new Set<string>();
-    for (const [id, state] of board) {
-      if (state.mine != null || state.myGuess != null) ids.add(id);
+    for (const [id, state] of boards.guess) {
+      if (state.myGuess != null) ids.add(id);
+    }
+    for (const [id, state] of boards.match) {
+      if (state.mine != null && state.theirs != null) ids.add(id);
     }
     return ids;
-  }, [board]);
+  }, [boards]);
 
   const cards = matchCardsFor({ adultEnabled: couple?.adult_packs_enabled });
-  const left = cardsLeft({ deck: cards, written, done, myId: myId ?? '' });
+  const mine = written.filter(
+    (c) => c.kind === 'guess' && ours18(c, couple?.adult_packs_enabled),
+  );
+  const left = cardsLeft({ deck: cards, written: mine, done, myId: myId ?? '' });
 
   function deal() {
     setRound(
       guessRound({
         deck: cards,
-        written,
+        written: mine,
         seed: coupleId ?? '',
         done,
         myId: myId ?? '',
@@ -732,12 +760,7 @@ function Guess({ myTint, theirTint }: { myTint: string; theirTint: string }) {
   // ── a card ─────────────────────────────────────────────────────────────────
 
   const card = round[at]!;
-  const state = board.get(card.id) ?? {
-    mine: null,
-    theirs: null,
-    myGuess: null,
-    theirGuess: null,
-  };
+  const state = board.get(card.id) ?? EMPTY_CARD;
 
   /** They wrote it about themselves, so there is no answer of yours to give. */
   const isTheirs = card.authorId != null && card.authorId !== myId;
@@ -769,6 +792,7 @@ function Guess({ myTint, theirTint }: { myTint: string; theirTint: string }) {
       cardId: card.id,
       guess: side,
       choice: isTheirs ? undefined : (pending ?? undefined),
+      today: localDateIn(couple?.day_timezone ?? 'UTC'),
     });
     setPending(null);
   }
@@ -984,13 +1008,22 @@ function Compose({ tint, onDone }: { tint: string; onDone: () => void }) {
   const [a, setA] = useState('');
   const [b, setB] = useState('');
   const [answer, setAnswer] = useState<Side | null>(null);
+  const [kind, setKind] = useState<'guess' | 'match'>('guess');
+  const [isAdult, setIsAdult] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
 
-  const ready = a.trim().length > 0 && b.trim().length > 0 && answer != null;
+  /*
+    A this-or-that needs no answer from its author — both of them answer it when
+    it comes round. A card about you does, and that answer is the whole thing
+    being guessed at.
+  */
+  const ready =
+    a.trim().length > 0 && b.trim().length > 0 && (kind === 'match' || answer != null);
 
   async function save() {
-    if (!couple || !profile || answer == null) return;
+    if (!couple || !profile) return;
+    if (kind === 'guess' && answer == null) return;
     setBusy(true);
     setFailed(null);
 
@@ -1000,7 +1033,12 @@ function Compose({ tint, onDone }: { tint: string; onDone: () => void }) {
       body,
       optionA: a,
       optionB: b,
-      answer,
+      // A this-or-that records no answer of its own; zero is a placeholder the
+      // server never reads for that kind.
+      answer: answer ?? 0,
+      today: localDateIn(couple.day_timezone ?? 'UTC'),
+      kind,
+      isAdult,
     });
 
     setBusy(false);
@@ -1010,11 +1048,43 @@ function Compose({ tint, onDone }: { tint: string; onDone: () => void }) {
 
   return (
     <div className="bg-surface mt-4 rounded-[28px] p-5">
-      <p className="font-display text-[1.15rem] leading-snug font-semibold">A question about you.</p>
-      <p className="text-ash mt-1.5 text-sm leading-relaxed">
-        You answer it now, and they only ever find out whether they guessed right. It is a
-        love note wearing a quiz.
+      <p className="font-display text-[1.15rem] leading-snug font-semibold">
+        {kind === 'guess' ? 'A question about you.' : 'A card for both of you.'}
       </p>
+      <p className="text-ash mt-1.5 text-sm leading-relaxed">
+        {kind === 'guess'
+          ? 'You answer it now, and they only ever find out whether they guessed right. It is a love note wearing a quiz.'
+          : 'It joins the deck and turns up as a day of its own, for both of you to answer. The deck runs out; the ones you write do not.'}
+      </p>
+
+      {/*
+        Which game it is for, first, because it changes what the rest of the
+        form is asking. A this-or-that wants two options and nothing else; a
+        card about you wants an answer as well.
+      */}
+      <div className="mt-4 flex gap-2.5">
+        {(
+          [
+            ['guess', 'About me'],
+            ['match', 'For both of us'],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setKind(key)}
+            aria-pressed={kind === key}
+            className="h-11 flex-1 rounded-full text-[0.85rem] font-medium"
+            style={
+              kind === key
+                ? { background: tint, color: '#15120F' }
+                : { background: 'var(--color-surface-2)', color: 'var(--color-ash)' }
+            }
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       <div className="mt-4 flex flex-col gap-3">
         <Field label="The question" hint="Optional, and the part that makes the card yours.">
@@ -1044,6 +1114,7 @@ function Compose({ tint, onDone }: { tint: string; onDone: () => void }) {
           />
         </Field>
 
+        {kind === 'guess' && (
         <div>
           <p className="text-ash mb-2 text-sm">Which is true of you?</p>
           <div className="flex gap-2.5">
@@ -1071,6 +1142,29 @@ function Compose({ tint, onDone }: { tint: string; onDone: () => void }) {
             })}
           </div>
         </div>
+        )}
+
+        {/*
+          Only offered when the 18+ packs are already on. A card marked this way
+          disappears again if either of them turns them off — somebody who wrote
+          it in one mood should not meet it in another.
+        */}
+        {couple?.adult_packs_enabled && (
+          <button
+            type="button"
+            onClick={() => setIsAdult(!isAdult)}
+            aria-pressed={isAdult}
+            className="flex min-h-12 items-center justify-between rounded-2xl px-4 py-3 text-left text-sm"
+            style={{
+              background: isAdult
+                ? `color-mix(in oklab, ${tint} 24%, #15120F)`
+                : 'var(--color-surface-2)',
+            }}
+          >
+            <span>Mark this one 18+</span>
+            <span className="text-ash">{isAdult ? 'Yes' : 'No'}</span>
+          </button>
+        )}
 
         {failed && (
           <p className="text-sm" style={{ color: '#e4566e' }}>

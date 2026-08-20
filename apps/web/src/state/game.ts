@@ -1,7 +1,8 @@
-import type { GuessCard, Side } from '@twoends/core';
+import type { Side } from '@twoends/core';
 import { create } from 'zustand';
 
 import {
+  EMPTY_CARD,
   choose,
   forgetMyPicks,
   loadBoard,
@@ -10,8 +11,9 @@ import {
   loadWrittenCards,
   sendGuess,
   writeCard,
-  type Board,
+  type Boards,
   type Knowing,
+  type WrittenCard,
 } from '../db/game.ts';
 
 /**
@@ -31,12 +33,13 @@ import {
 const NO_KNOWING: Knowing = { asked: 0, gotRight: 0 };
 
 interface GameState {
-  board: Board;
+  /** One board per game — a card can hold a pick and a guess at once. */
+  boards: Boards;
   tally: { played: number; agreed: number };
   /** How well each of you guessed the other. Both, always — see `guessing.ts`. */
   knowing: { mine: Knowing; theirs: Knowing };
   /** The cards the two of you wrote, theirs and yours. */
-  written: GuessCard[];
+  written: WrittenCard[];
   /** Set when a pick could not be sent. Cleared by the next successful one. */
   error: string | null;
 
@@ -46,6 +49,7 @@ interface GameState {
     myId: string;
     cardId: string;
     choice: Side;
+    today: string;
   }) => Promise<void>;
   /** A guess, with your own answer beside it on a shared deck card. */
   guess: (input: {
@@ -54,6 +58,7 @@ interface GameState {
     cardId: string;
     guess: Side;
     choice?: Side;
+    today: string;
   }) => Promise<void>;
   /** Writes a card about yourself, with the answer, for them to guess. */
   compose: (input: {
@@ -63,48 +68,50 @@ interface GameState {
     optionA: string;
     optionB: string;
     answer: Side;
+    today: string;
+    kind: 'match' | 'guess';
+    isAdult: boolean;
   }) => Promise<{ error: string | null }>;
   /** Throws away only your own picks. Theirs are not yours to delete. */
   reset: (coupleId: string, myId: string) => Promise<void>;
   clear: () => void;
 }
 
-const EMPTY: Board = new Map();
+const EMPTY: Boards = { match: new Map(), guess: new Map() };
 
 export const useGame = create<GameState>((set, get) => ({
-  board: EMPTY,
+  boards: EMPTY,
   tally: { played: 0, agreed: 0 },
   knowing: { mine: NO_KNOWING, theirs: NO_KNOWING },
   written: [],
   error: null,
 
   load: async (coupleId, myId) => {
-    const [board, tally, knowing, written] = await Promise.all([
+    const [boards, tally, knowing, written] = await Promise.all([
       loadBoard(coupleId, myId),
       loadTally(coupleId),
       loadKnowing(coupleId, myId),
       loadWrittenCards(coupleId),
     ]);
-    set({ board, tally, knowing, written });
+    set({ boards, tally, knowing, written });
   },
 
-  pick: async ({ coupleId, myId, cardId, choice }) => {
+  pick: async ({ coupleId, myId, cardId, choice, today }) => {
     /*
       Optimistic, because the tap has to feel like a tap. The only thing at
       stake if the write fails is a highlight that snaps back on the reload
       below, and the message says so rather than leaving a lie on screen.
     */
-    const optimistic = new Map(get().board);
-    const was = get().board.get(cardId);
+    const optimistic = new Map(get().boards.match);
+    const was = optimistic.get(cardId);
     optimistic.set(cardId, {
+      ...(was ?? EMPTY_CARD),
       mine: choice,
-      theirs: was?.theirs ?? null,
-      myGuess: was?.myGuess ?? null,
-      theirGuess: was?.theirGuess ?? null,
+      myPickedOn: today,
     });
-    set({ board: optimistic, error: null });
+    set({ boards: { ...get().boards, match: optimistic }, error: null });
 
-    const { error } = await choose({ coupleId, cardId, profileId: myId, choice });
+    const { error } = await choose({ coupleId, cardId, profileId: myId, choice, today });
     if (error) {
       set({ error: 'Could not send that — it needs signal to reach them.' });
     }
@@ -112,30 +119,30 @@ export const useGame = create<GameState>((set, get) => ({
     await get().load(coupleId, myId);
   },
 
-  guess: async ({ coupleId, myId, cardId, guess, choice }) => {
+  guess: async ({ coupleId, myId, cardId, guess, choice, today }) => {
     /*
       Optimistic, like a pick — the tap has to feel like a tap. Both halves go
       into one row, which is not a detail: `mode = 'guess'` cannot exist without
       a guess in it, so there is no window where the reveal has opened and the
       guess is still blank.
     */
-    const optimistic = new Map(get().board);
-    const was = get().board.get(cardId);
+    const optimistic = new Map(get().boards.guess);
+    const was = optimistic.get(cardId);
     optimistic.set(cardId, {
+      ...(was ?? EMPTY_CARD),
       mine: choice ?? was?.mine ?? null,
-      theirs: was?.theirs ?? null,
       myGuess: guess,
-      theirGuess: was?.theirGuess ?? null,
+      myPickedOn: today,
     });
-    set({ board: optimistic, error: null });
+    set({ boards: { ...get().boards, guess: optimistic }, error: null });
 
-    const { error } = await sendGuess({ coupleId, cardId, profileId: myId, guess, choice });
+    const { error } = await sendGuess({ coupleId, cardId, profileId: myId, guess, choice, today });
     if (error) set({ error: 'Could not send that — it needs signal to reach them.' });
 
     await get().load(coupleId, myId);
   },
 
-  compose: async ({ coupleId, myId, body, optionA, optionB, answer }) => {
+  compose: async ({ coupleId, myId, body, optionA, optionB, answer, today, kind, isAdult }) => {
     const { error } = await writeCard({
       coupleId,
       authorId: myId,
@@ -143,6 +150,9 @@ export const useGame = create<GameState>((set, get) => ({
       optionA,
       optionB,
       answer,
+      today,
+      kind,
+      isAdult,
     });
     if (!error) await get().load(coupleId, myId);
     return { error };
@@ -155,7 +165,7 @@ export const useGame = create<GameState>((set, get) => ({
 
   clear: () =>
     set({
-      board: EMPTY,
+      boards: EMPTY,
       tally: { played: 0, agreed: 0 },
       knowing: { mine: NO_KNOWING, theirs: NO_KNOWING },
       written: [],

@@ -18,6 +18,13 @@ import { adminClient, createUser, deleteUsers, requireKeys, type TestUser } from
  */
 
 const admin = () => adminClient();
+
+/** How many guesses the tally currently credits to one person. */
+async function asked(who: TestUser): Promise<number> {
+  const { data } = await who.db.rpc('guess_tally', { p_couple_id: coupleId });
+  const rows = (data ?? []) as { profile_id: string; asked: number }[];
+  return rows.find((r) => r.profile_id === who.id)?.asked ?? 0;
+}
 const users: TestUser[] = [];
 
 let alice: TestUser;
@@ -45,8 +52,12 @@ beforeAll(async () => {
   const { data } = await bob.db.rpc('redeem_invite', { p_code: code });
   coupleId = data as string;
 
-  // Alice writes a card about herself, and answers it. The answer is an
-  // ordinary pick — there is no answer column on the card.
+  /*
+    Alice writes a card about herself and answers it. Her answer is an ordinary
+    row rather than a column on the card — and it is a `guess`-mode row, because
+    answering a card you wrote *is* your move in the guessing game even though
+    you never guess at anything. See migration 23.
+  */
   await alice.db.from('couple_cards').insert({
     id: CARD,
     couple_id: coupleId,
@@ -57,7 +68,7 @@ beforeAll(async () => {
   });
   await alice.db
     .from('game_picks')
-    .insert({ couple_id: coupleId, card_id: CARD, profile_id: alice.id, choice: 1, mode: 'match' });
+    .insert({ couple_id: coupleId, card_id: CARD, profile_id: alice.id, choice: 1, mode: 'guess' });
 }, 60_000);
 
 afterAll(async () => {
@@ -122,12 +133,16 @@ describe('guessing opens it', () => {
 });
 
 describe('a guess cannot be written in halves', () => {
-  it('refuses a guess-mode row with no guess in it', async () => {
+  it('opens nothing for a guess-mode row with no guess in it', async () => {
     /*
-      The attack the constraint exists for: write the choice half, read the row
-      the reveal now hands you, then come back and fill in a guess you cannot
-      get wrong. The reveal opens on "you have a row", so the fix is that a row
-      of this kind cannot exist without the guess already in it.
+      The attack: write the choice half, read the row the reveal hands you, then
+      come back and fill in a guess you can no longer get wrong.
+
+      It used to be blocked by a constraint refusing the row. That constraint had
+      to go in migration 23, because a card you *wrote* legitimately has a choice
+      and no guess in it. So the door is held from the other side now — the row
+      may exist, and it opens nothing until the guess is in it, which is where
+      the rule always belonged.
     */
     const half = await alice.db.from('game_picks').insert({
       couple_id: coupleId,
@@ -136,11 +151,28 @@ describe('a guess cannot be written in halves', () => {
       choice: 0,
       mode: 'guess',
     });
+    expect(half.error).toBeNull();
 
-    expect(half.error, 'a half-written guess row was accepted').not.toBeNull();
+    const { data } = await alice.db
+      .from('game_picks')
+      .select('profile_id')
+      .eq('card_id', DECK)
+      .neq('profile_id', alice.id);
+    expect(data ?? [], 'a half-written row opened the reveal').toHaveLength(0);
 
-    const { data } = await alice.db.from('game_picks').select('profile_id').eq('card_id', DECK);
-    expect(data ?? [], 'the failed write opened the reveal anyway').toHaveLength(0);
+    // And filling it in does open it, so the guard is a gate and not a wall.
+    await alice.db
+      .from('game_picks')
+      .update({ guess: 1 })
+      .eq('card_id', DECK)
+      .eq('profile_id', alice.id);
+
+    const { data: after } = await alice.db
+      .from('game_picks')
+      .select('profile_id')
+      .eq('card_id', DECK)
+      .neq('profile_id', alice.id);
+    expect(after ?? []).toHaveLength(1);
   });
 
   it('refuses a row that says nothing at all', async () => {
@@ -194,12 +226,154 @@ describe('the tally', () => {
 
   it('leaves out cards the other person has not answered', async () => {
     /*
-      Waiting is not wrong. He has guessed on the deck card and she has not
-      chosen, so it must not count against him — a tally that conflated the two
+      Waiting is not wrong. A guess on a card they have not answered must not
+      count against the person who made it — a tally that conflated the two
       would tell somebody they had failed a question nobody has answered.
+
+      Measured as a delta rather than an absolute, because the tally is
+      cumulative across this file and an absolute number is really an assertion
+      about every test above it.
     */
-    const { data } = await bob.db.rpc('guess_tally', { p_couple_id: coupleId });
-    const rows = (data ?? []) as { profile_id: string; asked: number; got_right: number }[];
-    expect(rows.find((r) => r.profile_id === bob.id)?.asked).toBe(1);
+    const before = await asked(bob);
+
+    const alone = '99999999-8888-4777-8666-555555555555';
+    await bob.db.from('game_picks').insert({
+      couple_id: coupleId,
+      card_id: alone,
+      profile_id: bob.id,
+      choice: 0,
+      guess: 1,
+      mode: 'guess',
+    });
+
+    expect(await asked(bob), 'a guess nobody has answered was counted').toBe(before);
+  });
+});
+
+describe('the two games no longer eat each other', () => {
+  /*
+    game_picks was unique on (couple, card, profile) with no notion of which
+    game, so a card played in This or that was spent for Know me? and the
+    reverse — the two modes sharing one deck between them. A card played in two
+    games is two events, and migration 22 made it two rows.
+  */
+  const SHARED = '11111111-2222-4333-8444-555555555555';
+
+  it('lets one card hold a pick and a guess from the same person', async () => {
+    const asMatch = await bob.db.from('game_picks').insert({
+      couple_id: coupleId,
+      card_id: SHARED,
+      profile_id: bob.id,
+      choice: 0,
+      mode: 'match',
+    });
+    expect(asMatch.error, 'the this-or-that pick was refused').toBeNull();
+
+    const asGuess = await bob.db.from('game_picks').insert({
+      couple_id: coupleId,
+      card_id: SHARED,
+      profile_id: bob.id,
+      choice: 0,
+      guess: 1,
+      mode: 'guess',
+    });
+    expect(asGuess.error, 'the guess was refused because a pick existed').toBeNull();
+
+    const { data } = await admin()
+      .from('game_picks')
+      .select('mode')
+      .eq('card_id', SHARED)
+      .eq('profile_id', bob.id);
+    expect(data).toHaveLength(2);
+  });
+
+  it('still refuses two rows for the same person in the same game', async () => {
+    const twice = await bob.db.from('game_picks').insert({
+      couple_id: coupleId,
+      card_id: SHARED,
+      profile_id: bob.id,
+      choice: 1,
+      mode: 'match',
+    });
+    expect(twice.error).not.toBeNull();
+  });
+
+  it('reveals per game, not per card', async () => {
+    /*
+      The subtle one. `i_have_picked` used to ask "is there a row from me on
+      this card" — so having picked it in This or that would have opened the
+      reveal on their *guess*, which is a different question they have not
+      answered yet.
+    */
+    const stranger = await newUser('guess-d');
+    const { data: code } = await stranger.db.rpc('create_invite');
+    expect(code).toBeTruthy();
+
+    // Alice picks the shared card in match mode only.
+    await alice.db.from('game_picks').insert({
+      couple_id: coupleId,
+      card_id: SHARED,
+      profile_id: alice.id,
+      choice: 1,
+      mode: 'match',
+    });
+
+    // She should see bob's match row (she has picked there) and not his guess
+    // row (she has not guessed).
+    const { data } = await alice.db
+      .from('game_picks')
+      .select('mode, profile_id')
+      .eq('card_id', SHARED)
+      .eq('profile_id', bob.id);
+
+    expect(data?.map((r) => r.mode)).toEqual(['match']);
+  });
+
+  it('does not let a guess arrive in the agreement tally', async () => {
+    // game_tally counted every row on a card, so a guess would have shown up as
+    // somebody agreeing on a question they were never asked.
+    const { data } = await alice.db.rpc('game_tally', { p_couple_id: coupleId });
+    const row = (data ?? [])[0] as { played: number; agreed: number };
+
+    // Only the shared card has a pick from both of them in match mode.
+    expect(row.played).toBe(1);
+    expect(row.agreed).toBe(0);
+  });
+
+  it('counts a guess once, not once per row of theirs', async () => {
+    /*
+      Now that one card can hold two of bob's rows, a naive join would score
+      alice's single guess against both of them and count it twice. The tally
+      takes exactly one answer of theirs per card.
+    */
+    const fresh = '77777777-6666-4555-8444-333333333333';
+
+    await bob.db.from('game_picks').insert({
+      couple_id: coupleId,
+      card_id: fresh,
+      profile_id: bob.id,
+      choice: 1,
+      mode: 'match',
+    });
+    await bob.db.from('game_picks').insert({
+      couple_id: coupleId,
+      card_id: fresh,
+      profile_id: bob.id,
+      choice: 1,
+      guess: 0,
+      mode: 'guess',
+    });
+
+    const before = await asked(alice);
+
+    await alice.db.from('game_picks').insert({
+      couple_id: coupleId,
+      card_id: fresh,
+      profile_id: alice.id,
+      guess: 1,
+      mode: 'guess',
+    });
+
+    expect(await asked(alice), 'one guess counted more than once').toBe(before + 1);
   });
 });

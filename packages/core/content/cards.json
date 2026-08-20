@@ -128,6 +128,70 @@
     {
       "a": "Breakfast in bed",
       "b": "Breakfast at the place round the corner"
+    },
+    {
+      "a": "Say it first",
+      "b": "Wait to hear it"
+    },
+    {
+      "a": "A long walk with no plan",
+      "b": "A booked table at eight"
+    },
+    {
+      "a": "Tell me the ending",
+      "b": "Let me find out"
+    },
+    {
+      "a": "Photos of everything",
+      "b": "Remember it and keep nothing"
+    },
+    {
+      "a": "Loud house, people everywhere",
+      "b": "Quiet house, nobody coming"
+    },
+    {
+      "a": "Same order every time",
+      "b": "Whatever I have not had"
+    },
+    {
+      "a": "Sit in the front",
+      "b": "Sit in the back"
+    },
+    {
+      "a": "Handwritten and late",
+      "b": "Typed and on time"
+    },
+    {
+      "a": "Wake me for the sunrise",
+      "b": "Let me sleep, tell me about it"
+    },
+    {
+      "a": "Split everything",
+      "b": "Take turns paying"
+    },
+    {
+      "a": "Tell your friends everything",
+      "b": "Keep us to ourselves"
+    },
+    {
+      "a": "Move for the job",
+      "b": "Stay for the people"
+    },
+    {
+      "a": "Sing badly in the car",
+      "b": "Windows down, nobody talks"
+    },
+    {
+      "a": "One big trip a year",
+      "b": "A weekend away every month"
+    },
+    {
+      "a": "Be told I am wrong",
+      "b": "Work it out myself"
+    },
+    {
+      "a": "Settle it before bed",
+      "b": "Give it a day"
     }
   ],
   "thisOrThatAdult": [
@@ -178,6 +242,62 @@
     {
       "a": "Stay the night",
       "b": "Stay the weekend"
+    },
+    {
+      "a": "Kissed first",
+      "b": "Kissed last"
+    },
+    {
+      "a": "Say what you want",
+      "b": "Make me guess"
+    },
+    {
+      "a": "In a hurry",
+      "b": "All evening"
+    },
+    {
+      "a": "Undressed slowly",
+      "b": "Not slowly"
+    },
+    {
+      "a": "Held down",
+      "b": "Held close"
+    },
+    {
+      "a": "Somewhere we might be heard",
+      "b": "Somewhere nobody is"
+    },
+    {
+      "a": "A text at lunch",
+      "b": "Nothing until I am home"
+    },
+    {
+      "a": "Watched",
+      "b": "Touched"
+    },
+    {
+      "a": "Ask permission",
+      "b": "Do not ask"
+    },
+    {
+      "a": "Talk the whole time",
+      "b": "Not a word"
+    },
+    {
+      "a": "In the dark",
+      "b": "In the morning light"
+    },
+    {
+      "a": "Nothing planned",
+      "b": "Told exactly when"
+    },
+    {
+      "a": "Come home to it",
+      "b": "Go out and wait for it"
+    },
+    {
+      "a": "The shower",
+      "b": "The kitchen"
     }
   ],
   "topics": {

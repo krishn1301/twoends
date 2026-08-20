@@ -594,6 +594,29 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   days is not. **A month too short to contain their day lands on its last** —
   skipping would quietly give a couple who started on the 31st seven a year
   instead of twelve, with nothing on screen to explain the gap.
+- **This or that was a deck you could finish.** 32 cards walked with Back/Next,
+  one evening, and a tally that never grew again — in an app whose whole premise
+  is that you come back tomorrow. It is one card a day now, via `cardForDay`,
+  which is `promptForDay`'s shape: a seeded shuffle keyed on the couple id, an
+  index from the date, and a modulo that brings it round. 48 ordinary cards and
+  26 adult ones, plus anything they write.
+- **Coming round again is a feature, not a fallback.** `cardForDay` returns a
+  `cycle`, and on the second pass the card carries what each of them said the
+  first time — `game_picks.picked_on`. It reveals nothing new: a repeat can only
+  show a pick whose reveal was spent weeks ago.
+- **The two card games were eating one deck.** `game_picks` was unique on
+  `(couple, card, profile)` with no notion of *which game*, so a card played in
+  This or that was spent for Know me? and the reverse. `mode` is in the key now,
+  which means the board has to be **two maps** — folding both games into one
+  entry per card let a guess silently overwrite a pick.
+- **Splitting the reveal by game broke the game it protected, for ten minutes.**
+  A written card's answer was a `match` row and its guesser only ever writes a
+  `guess` row, so a per-mode reveal meant the guesser could never see the
+  answer. The modelling was wrong: answering a card you wrote *is* your move in
+  the guessing game. `i_have_played` replaces `i_have_picked` and asks whether
+  you finished **your own part**, which differs by person — a guess for the
+  guesser, an answer for the author. That also let the half-written-row
+  constraint go: it was a proxy, and the reveal is where the rule belonged.
 - **Turning the 18+ packs on unlocked almost nothing you could see.** It added
   six prompts to the daily rotation — invisible — and one topic pack, leaving both
   card games untouched. There are twelve gated this-or-that cards now, in a

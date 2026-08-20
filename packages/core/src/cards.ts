@@ -1,6 +1,6 @@
 import raw from '../content/cards.json' with { type: 'json' };
 
-import { deterministicId } from './daily.ts';
+import { daysBetween, deterministicId } from './daily.ts';
 
 /**
  * The game, and the things to talk about.
@@ -177,4 +177,65 @@ export function matchLabel(agreed: number, total: number): string {
   if (share >= 0.35) return `${agreed} of ${total} the same, which is most couples`;
   if (agreed === 0) return `Nothing in common across ${total}, and still here`;
   return `${agreed} of ${total} the same, and still here`;
+}
+
+// ── one card a day ───────────────────────────────────────────────────────────
+
+export interface DailyCard {
+  card: MatchCard;
+  /**
+   * How many times the deck has been all the way round. Zero the first time
+   * through; one or more means this card has been here before, and the screen
+   * should say so rather than quietly showing an old answer.
+   */
+  cycle: number;
+  /** Where in the deck today falls, for "12 of 48". */
+  position: number;
+  size: number;
+}
+
+/**
+ * Today's card.
+ *
+ * This or that used to be a deck you walked with Back and Next, which meant it
+ * was a thing you could *finish* — one evening, and then a tally that never grew
+ * again. For an app whose whole premise is that you come back tomorrow, a game
+ * you complete is a game that stops working.
+ *
+ * So: the same shape as `promptForDay`, which has served one question a day
+ * since Phase 4 and never once run out. A seeded shuffle keyed on the couple id,
+ * a walk indexed by the date, and a modulo that brings it round again. Both
+ * phones compute the same card for the same day without talking to each other.
+ *
+ * **Coming round is a feature and not a fallback.** Forty-eight cards is seven
+ * weeks; after that a card returns, and what makes the second pass worth having
+ * is seeing what you each said the first time. `cycle` is how the screen knows
+ * to say so.
+ */
+export function cardForDay(
+  coupleId: string,
+  localDate: string,
+  deck: readonly MatchCard[],
+): DailyCard | null {
+  if (deck.length === 0) return null;
+
+  const order = deckOrder(deck, coupleId);
+
+  /*
+    The same fixed epoch `promptForDay` uses. Arbitrary, and it must never move:
+    it anchors the walk, so changing it would hand every couple a different card
+    tomorrow and make every "you said this in July" point at the wrong card.
+  */
+  const day = daysBetween('2026-01-01', localDate);
+  const size = order.length;
+
+  // Floor division rather than truncation, so a date before the epoch walks
+  // backwards rather than reflecting around zero.
+  const position = ((day % size) + size) % size;
+  const cycle = Math.floor(day / size);
+
+  const card = order[position];
+  if (!card) return null;
+
+  return { card, cycle: Math.max(0, cycle), position, size };
 }

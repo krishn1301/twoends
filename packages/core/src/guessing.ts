@@ -34,6 +34,12 @@ export interface GuessCard {
    * nobody to wait for.
    */
   authorId: string | null;
+  /**
+   * Which game it was written for. `guess` is a card about its author; `match`
+   * joins the daily this-or-that deck. Null on the shipped deck, which is
+   * neither and both.
+   */
+  kind?: 'match' | 'guess' | null;
 }
 
 /** A shipped two-option card, widened to the shape above. */
@@ -43,6 +49,7 @@ export const fromDeck = (card: MatchCard): GuessCard => ({
   a: card.a,
   b: card.b,
   authorId: null,
+  kind: null,
 });
 
 /**

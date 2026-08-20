@@ -4,6 +4,7 @@ import {
   THIS_OR_THAT,
   THIS_OR_THAT_ADULT,
   TOPIC_PACKS,
+  cardForDay,
   matchCardsFor,
   deckOrder,
   matchLabel,
@@ -152,5 +153,81 @@ describe('the 18+ half of the deck', () => {
     for (const card of THIS_OR_THAT_ADULT) {
       expect(ordinary.has(card.id), `${card.a} / ${card.b} is in the open deck`).toBe(false);
     }
+  });
+});
+
+describe('one card a day', () => {
+  const deck = THIS_OR_THAT;
+
+  it('gives both phones the same card on the same day', () => {
+    // The only thing that makes it a game they play together rather than two
+    // solitaires. Neither device asks the other.
+    const a = cardForDay('couple-1', '2026-08-20', deck);
+    const b = cardForDay('couple-1', '2026-08-20', deck);
+    expect(a?.card.id).toBe(b?.card.id);
+  });
+
+  it('gives different couples different cards', () => {
+    expect(cardForDay('couple-1', '2026-08-20', deck)?.card.id).not.toBe(
+      cardForDay('couple-2', '2026-08-20', deck)?.card.id,
+    );
+  });
+
+  it('moves on tomorrow', () => {
+    expect(cardForDay('couple-1', '2026-08-20', deck)?.card.id).not.toBe(
+      cardForDay('couple-1', '2026-08-21', deck)?.card.id,
+    );
+  });
+
+  it('walks the whole deck before repeating anything', () => {
+    /*
+      The property that makes "came round again" mean something. If the walk
+      repeated early, the second-pass copy would be a lie about a card you saw
+      last week.
+    */
+    const seen = new Set<string>();
+    for (let i = 0; i < deck.length; i++) {
+      const day = new Date(Date.UTC(2026, 7, 20) + i * 86_400_000).toISOString().slice(0, 10);
+      seen.add(cardForDay('couple-1', day, deck)!.card.id);
+    }
+
+    // Any run of `deck.length` days, wherever it starts, covers the deck exactly
+    // once. Starting mid-deck crosses into the next cycle partway through, which
+    // is correct and is why this asserts coverage rather than a fixed cycle.
+    expect(seen.size).toBe(deck.length);
+  });
+
+  it('raises the cycle only once the deck is spent', () => {
+    const first = cardForDay('couple-1', '2026-01-01', deck)!;
+    expect(first.cycle).toBe(0);
+
+    const dayAfterTheDeck = new Date(Date.UTC(2026, 0, 1) + deck.length * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const second = cardForDay('couple-1', dayAfterTheDeck, deck)!;
+
+    expect(second.cycle).toBe(1);
+    expect(second.card.id, 'the second pass should start where the first did').toBe(first.card.id);
+  });
+
+  it('never divides by zero', () => {
+    expect(cardForDay('couple-1', '2026-08-20', [])).toBeNull();
+    expect(cardForDay('couple-1', '2026-08-20', deck.slice(0, 1))?.card.id).toBe(deck[0]!.id);
+  });
+
+  it('does not go backwards before the epoch', () => {
+    // A couple whose device clock is wrong, or a date typed by a test. It must
+    // hand back a real card rather than a negative index.
+    const early = cardForDay('couple-1', '2025-06-01', deck);
+    expect(early).not.toBeNull();
+    expect(early!.position).toBeGreaterThanOrEqual(0);
+    expect(early!.position).toBeLessThan(deck.length);
+    expect(early!.cycle).toBe(0);
+  });
+
+  it('gets longer when the 18+ cards are on', () => {
+    const open = cardForDay('couple-1', '2026-08-20', matchCardsFor({}))!;
+    const all = cardForDay('couple-1', '2026-08-20', matchCardsFor({ adultEnabled: true }))!;
+    expect(all.size).toBeGreaterThan(open.size);
   });
 });
