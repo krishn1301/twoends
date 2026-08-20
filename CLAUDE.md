@@ -594,6 +594,24 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   days is not. **A month too short to contain their day lands on its last** —
   skipping would quietly give a couple who started on the 31st seven a year
   instead of twelve, with nothing on screen to explain the gap.
+- **Quiet mode exists now, and it needed a table rather than a date.**
+  `couples.quiet_until` can say when a hush *ends* and not which days were
+  inside it — so the streak holds while quiet mode is on and breaks the morning
+  it lifts, which is the penalty the promise rules out, arriving late and looking
+  like a bug in the streak. `quiet_periods` keeps `from_date`/`to_date` forever,
+  one open period at a time by unique index, and `quietDays()` expands them into
+  the set `computeStreak` has accepted since Phase 2 and had never once been
+  given.
+- **`is_quiet()` is a function, not a derived column.** `adult_packs_enabled` is
+  a column kept by a trigger, and that is right for a flag that changes when
+  somebody presses something. This one changes because *a date passes*, and
+  nothing fires a trigger at midnight — a derived column would be correct until
+  the first morning nobody opened the app, which is the only morning it matters.
+- **Both edge functions guarded on a column nothing could write.** `notify` and
+  `occasions` checked `couples.quiet_until` before sending, which reads as an off
+  switch and was not one. They ask `is_quiet` now, and `occasions` asks it with
+  the couple's own local date and only after the hour gate — it is a round trip
+  per couple, and the gate discards twenty-three hours in twenty-four.
 - **The app now wishes them without being opened.** `supabase/functions/occasions`
   runs hourly via `pg_cron` + `pg_net`, acts on a couple only when it is 09:00
   *where they live*, and pushes the anniversary, either birthday and the day

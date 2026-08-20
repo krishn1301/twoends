@@ -38,6 +38,8 @@ const TABLES = [
   // What the two of you said about each other's photos. Exported beside the
   // photos themselves, which is the only place they mean anything.
   'snap_comments',
+  // The weeks they asked to be left out of. Part of the record of a year.
+  'quiet_periods',
   /*
     Your own picks, and their picks on every card you have both played. The
     cards they picked and you did not are simply absent — the reveal policy

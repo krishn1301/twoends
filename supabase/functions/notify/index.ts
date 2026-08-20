@@ -65,17 +65,23 @@ Deno.serve(async (req) => {
   // The couple, read as the caller — so this can only ever act on their own.
   const { data: couple } = await caller
     .from('couples')
-    .select('id, member_a, member_b, quiet_until')
+    .select('id, member_a, member_b')
     .maybeSingle();
 
   if (!couple?.member_b) return json({ sent: 0, reason: 'not paired' });
 
   const partnerId = couple.member_a === auth.user.id ? couple.member_b : couple.member_a;
 
-  // Quiet mode silences everything. Not a preference — a promise.
-  if (couple.quiet_until && new Date(couple.quiet_until) >= new Date()) {
-    return json({ sent: 0, reason: 'quiet mode' });
-  }
+  /*
+    Quiet mode silences everything. Not a preference — a promise.
+
+    Asked of `is_quiet`, which reads the periods, rather than of
+    `couples.quiet_until`, which nothing has written since migration 21 and which
+    this checked for months while being impossible to set. A guard against a
+    column nobody can fill is not a guard.
+  */
+  const { data: quiet } = await admin.rpc('is_quiet', { p_couple_id: couple.id });
+  if (quiet === true) return json({ sent: 0, reason: 'quiet mode' });
 
   const since = new Date(Date.now() - 86_400_000).toISOString();
   const { count } = await admin

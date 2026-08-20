@@ -75,7 +75,7 @@ export function Home({
   const loadAvatars = useAvatars((s) => s.load);
   const loadLocation = useLocation((s) => s.load);
   const distance = useDistanceReading(partner?.display_name);
-  const { snaps, urls, canvas, streak, week, load } = useShared();
+  const { snaps, urls, canvas, streak, week, quietNow, load } = useShared();
 
   const myId = profile?.id;
 
@@ -197,9 +197,20 @@ export function Home({
           >
             twoends
           </span>
+          {/*
+            Dimmed rather than hidden or zeroed while quiet mode is on. The
+            streak is paused, not lost, and a counter that vanished would look
+            exactly like one that had broken — which is the thing quiet mode
+            exists to promise will not happen.
+          */}
           <span
             className="bg-surface-2 counter flex items-center gap-1.5 rounded-full px-3 py-2 text-sm"
-            title={`${streak.current} day streak — two missed days a month are forgiven`}
+            style={quietNow ? { opacity: 0.45 } : undefined}
+            title={
+              quietNow
+                ? `Quiet mode is on. Your streak is paused at ${streak.current} and these days will not count as missed.`
+                : `${streak.current} day streak — two missed days a month are forgiven`
+            }
           >
             <Flame color={mine} />
             {streak.current}

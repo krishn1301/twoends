@@ -7,11 +7,13 @@ import {
   SIGNATURE,
   adultState,
   getAccent,
+  localDateIn,
   timeTogether,
   type AccentKey,
 } from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 
+import { endQuiet, startQuiet } from '../db/quiet.ts';
 import { Monogram } from '../components/Monogram.tsx';
 import { Sheet } from '../components/Sheet.tsx';
 import { Colophon } from './Colophon.tsx';
@@ -25,6 +27,7 @@ import { supabase } from '../lib/supabase.ts';
 import { useAvatars } from '../state/avatars.ts';
 import { useDistanceReading, useLocation } from '../state/location.ts';
 import { useSession } from '../state/session.ts';
+import { useShared } from '../state/shared.ts';
 import { useNow } from '../state/useNow.ts';
 
 /**
@@ -52,6 +55,27 @@ export function Us() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [colophon, setColophon] = useState(false);
+
+  const quietNow = useShared((s) => s.quietNow);
+  const reloadShared = useShared((s) => s.load);
+
+  /*
+    Either of them may ask for quiet and either may lift it. Deliberately unlike
+    the 18+ opt-in, where consent belongs to a person: this is done to the pair
+    rather than to the other one, and a hush that needed both to agree first
+    would be no use on the week somebody actually needed it.
+  */
+  async function toggleQuiet() {
+    if (!couple) return;
+    setBusy(true);
+
+    const today = localDateIn(couple.day_timezone ?? 'UTC');
+    if (quietNow) await endQuiet(couple.id, today);
+    else await startQuiet(couple.id, today);
+
+    await reloadShared(couple);
+    setBusy(false);
+  }
 
   const adult = adultState(profile?.adult_opt_in_at, partner?.adult_opt_in_at);
   const optedIn = profile?.adult_opt_in_at != null;
@@ -466,6 +490,44 @@ export function Us() {
             </>
           )}
         </Group>
+
+        {/*
+          Quiet mode.
+
+          The one switch in here that turns things off rather than on, and the
+          reason it finally exists: the occasions job started pushing at nine in
+          the morning and checked `quiet_until` before sending, which sounded
+          like an off switch and was not one, because nothing could set it.
+
+          What it stops is said plainly rather than left to be discovered. A
+          switch whose effects are a mystery gets turned on once and never
+          again.
+        */}
+        {couple?.member_b && (
+          <Group title="Quiet">
+            <Row label={quietNow ? 'On' : 'Off'}>
+              <button
+                type="button"
+                onClick={() => void toggleQuiet()}
+                disabled={busy}
+                className="text-ash h-11 text-sm disabled:opacity-40"
+              >
+                {quietNow ? 'Turn off' : 'Turn on'}
+              </button>
+            </Row>
+
+            <div className="px-4 py-3.5">
+              <p className="text-ash text-sm leading-relaxed">
+                {quietNow
+                  ? 'Nothing is being sent to either of you, and the streak is paused. It stays paused for these days afterwards — coming back does not cost you the week.'
+                  : 'Stops every notification for both of you and pauses the streak. Days inside it are not missed days, then or later.'}
+              </p>
+              <p className="text-ash/70 mt-2 text-sm leading-relaxed">
+                Either of you can turn it on, and either of you can turn it off.
+              </p>
+            </div>
+          </Group>
+        )}
 
         {/*
           The 18+ packs.

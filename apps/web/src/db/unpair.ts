@@ -85,6 +85,7 @@ async function leftovers(coupleId: string): Promise<string[]> {
     'canvases',
     'photos',
     'snap_comments',
+    'quiet_periods',
     'countdowns',
     'journal_entries',
     'list_items',

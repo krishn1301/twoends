@@ -740,6 +740,38 @@ export type Database = {
           },
         ]
       }
+      quiet_periods: {
+        Row: {
+          couple_id: string
+          created_at: string
+          from_date: string
+          id: string
+          to_date: string | null
+        }
+        Insert: {
+          couple_id: string
+          created_at?: string
+          from_date: string
+          id?: string
+          to_date?: string | null
+        }
+        Update: {
+          couple_id?: string
+          created_at?: string
+          from_date?: string
+          id?: string
+          to_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiet_periods_couple_id_fkey"
+            columns: ["couple_id"]
+            isOneToOne: false
+            referencedRelation: "couples"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       snap_comments: {
         Row: {
           author_id: string
@@ -856,6 +888,10 @@ export type Database = {
         Returns: boolean
       }
       is_member_of: { Args: { c: string }; Returns: boolean }
+      is_quiet: {
+        Args: { p_couple_id: string; p_on?: string }
+        Returns: boolean
+      }
       partner_has_answered: {
         Args: { p_prompt_day_id: string }
         Returns: boolean

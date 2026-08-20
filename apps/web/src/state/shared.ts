@@ -1,13 +1,17 @@
 import {
   computeStreak,
+  isQuietNow,
   localDateIn,
+  quietDays,
   readDistance,
   weekMarks,
   type DayMark,
+  type QuietPeriod,
 } from '@twoends/core';
 import { create } from 'zustand';
 
 import { loadCanvas, type SharedCanvas } from '../db/canvas.ts';
+import { loadQuiet } from '../db/quiet.ts';
 import { completedDays } from '../db/daily.ts';
 import {
   openedCapsules,
@@ -37,6 +41,10 @@ interface SharedState {
   urls: Map<string, string>;
   /** What either of you said about each snap, keyed by photo id. */
   comments: Map<string, SnapComment[]>;
+  /** Every hush they have asked for, kept — see `quietDays`. */
+  quiet: QuietPeriod[];
+  /** Whether one is running right now. */
+  quietNow: boolean;
   canvas: SharedCanvas | null;
   entries: JournalEntry[];
   sealed: SealedCapsule[];
@@ -57,6 +65,8 @@ export const useShared = create<SharedState>((set) => ({
   snaps: [],
   urls: new Map(),
   comments: new Map(),
+  quiet: [],
+  quietNow: false,
   canvas: null,
   entries: [],
   sealed: [],
@@ -66,7 +76,7 @@ export const useShared = create<SharedState>((set) => ({
   loaded: false,
 
   load: async (couple) => {
-    const [snaps, canvas, days, entries, sealed, opened, comments] = await Promise.all([
+    const [snaps, canvas, days, entries, sealed, opened, comments, quiet] = await Promise.all([
       recentSnaps(couple.id),
       loadCanvas(couple.id),
       completedDays(couple.id),
@@ -74,6 +84,7 @@ export const useShared = create<SharedState>((set) => ({
       sealedCapsules(),
       openedCapsules(couple.id),
       loadComments(couple.id),
+      loadQuiet(couple.id),
     ]);
 
     const urls = await signedUrls(snaps.map((s) => s.storage_path));
@@ -81,7 +92,14 @@ export const useShared = create<SharedState>((set) => ({
     // The couple's day, not this device's — the streak has to agree on both
     // phones even when they are in different timezones.
     const today = localDateIn(couple.day_timezone ?? 'UTC');
-    const streak = computeStreak(days, today);
+
+    /*
+      The set `computeStreak` has accepted since Phase 2 and had never once been
+      given. Without it a week they asked to be excused from breaks the streak —
+      not while quiet mode is on, but on the morning it lifts, which reads as a
+      bug in the streak rather than as the promise it actually is.
+    */
+    const streak = computeStreak(days, today, quietDays(quiet, today));
 
     const week = weekMarks(days, today);
 
@@ -89,6 +107,8 @@ export const useShared = create<SharedState>((set) => ({
       snaps,
       urls,
       comments,
+      quiet,
+      quietNow: isQuietNow(quiet, today),
       canvas,
       entries,
       sealed,

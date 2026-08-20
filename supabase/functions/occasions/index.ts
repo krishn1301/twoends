@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
 
   const { data: couples } = await admin
     .from('couples')
-    .select('id, member_a, member_b, started_on, day_timezone, quiet_until');
+    .select('id, member_a, member_b, started_on, day_timezone');
 
   let sent = 0;
   let considered = 0;
@@ -104,14 +104,29 @@ Deno.serve(async (req) => {
   for (const couple of couples ?? []) {
     if (!couple.member_b) continue;
 
-    // Quiet mode silences everything. Not a preference — a promise.
-    if (couple.quiet_until && new Date(couple.quiet_until) >= now) continue;
-
     const zone = couple.day_timezone ?? 'UTC';
     if (hourIn(zone, now) !== HOUR) continue;
 
     considered++;
     const localDate = localDateIn(zone, now);
+
+    /*
+      Quiet mode silences everything, including this. Asked of `is_quiet`, which
+      reads the periods, rather than of `couples.quiet_until` — nothing has
+      written that column since migration 21, and a guard against a column
+      nobody can fill is not a guard.
+
+      After the hour gate rather than before it. This is a round trip per couple
+      and the gate throws away twenty-three hours in twenty-four for nothing.
+
+      Given their own local date, not the server's: a hush that lifted yesterday
+      where they live should not still be silencing them.
+    */
+    const { data: quiet } = await admin.rpc('is_quiet', {
+      p_couple_id: couple.id,
+      p_on: localDate,
+    });
+    if (quiet === true) continue;
 
     const { data: people } = await admin
       .from('profiles')
