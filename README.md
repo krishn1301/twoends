@@ -1,11 +1,20 @@
 # TwoEnds
 
-A private, two-person app for couples. Everything the paid apps in this space
-gate behind a subscription is free here, permanently.
+A free app for two people. Everything the paid apps in this space put behind a
+subscription is free here, permanently — every question pack, every widget,
+every game.
 
-**Status: in development.** Phases 0–2 are done — the schema and its security
-boundary, email sign-in, onboarding, and pairing. The daily loop, offline sync
-and the home-screen widgets are not built yet.
+**In use.** Shipped as a PWA and a sideloaded Android APK, and used daily by real
+couples, which is where most of the interesting bugs in this repository came
+from.
+
+**[Open it →](https://krishn1301.github.io/twoends/)**
+
+<p align="center">
+  <img src="docs/screenshots/widgets-picker.png" width="30%" alt="The Android widget picker, showing four TwoEnds widgets with generated preview art" />
+  <img src="docs/screenshots/occasion-birthday.png" width="30%" alt="A full-screen card on a birthday, in the couple's own two accent colours" />
+  <img src="docs/screenshots/pairing.png" width="30%" alt="The pre-pairing screen, with the dedication at the foot" />
+</p>
 
 ## The one job
 
@@ -15,17 +24,40 @@ open the app.
 That is why home-screen widgets are the core feature rather than a bonus. A
 version of this without widgets is a chat app with extra steps.
 
-## Principles
+## What is in it
 
-- **Free means free.** No tier, no unlock, no "pro" badge, no ads, no upsell
-  surface anywhere in the UI.
-- **Two people, one pair.** No feeds, no discovery, no other users. There is no
-  social graph and there never will be.
-- **Offline first.** Every screen renders from local data. The network is an
-  enhancement.
-- **The data belongs to them.** Full export, and a delete that actually deletes.
-- **Zero-to-low running cost**, because there is no revenue. Every feature is
-  costed before it is built.
+A daily question with a both-must-answer reveal · a shared canvas · daily photos
+that expire in 30 days unless either partner keeps them · an anniversary counter
+· countdowns · a streak that forgives two missed days a month · a journal ·
+distance apart · a shared list · time capsules · three games · and **six
+home-screen widgets** on Android.
+
+## Three things worth reading the code for
+
+**The reveal is a Postgres policy, not a curtain.** "You cannot see their answer
+until you have written your own" is the core mechanic, and a client that receives
+both answers and declines to render one has implemented a *delay* — anybody with
+dev tools can skip a delay. So it lives in a restrictive row-level-security
+policy, with a `security definer` function to dodge the infinite recursion a
+policy querying its own table causes. See
+[`00000000000008_reveal_recursion.sql`](supabase/migrations/00000000000008_reveal_recursion.sql)
+and [`00000000000016_game.sql`](supabase/migrations/00000000000016_game.sql).
+
+**The location feature is enforced by the database, not the app.** Sharing is
+off by default and per person; readings are coarsened to a grid by a trigger;
+withdrawing consent re-coarsens the *partner's* stored row without them opening
+the app; and the read policy stops matching when the subject stops sharing. The
+widget is handed two finished strings and never a number it could turn back into
+a position. See
+[`00000000000013_location.sql`](supabase/migrations/00000000000013_location.sql).
+
+**The widgets are drawn from a snapshot, and count dates themselves.** Six
+background processes holding auth tokens is how a widget gets uninstalled, so the
+app pushes a snapshot and the widget process never touches the network. Dates are
+stored as anchors and counted at draw time, so a widget the launcher has not
+redrawn since yesterday still says the right thing this morning. Kotlin and
+Jetpack Glance, in
+[`apps/web/android/…/widget`](apps/web/android/app/src/main/java/com/twoends/app/widget).
 
 ## Security
 
@@ -37,27 +69,57 @@ project. So:
 - Storage is three private buckets, secured by the same predicate. Never a
   public bucket.
 - A migration-time guard fails the deploy if any table has RLS switched off.
-- `supabase/tests/` holds a leak suite: three users, two couples, asserting that
-  a stranger reads zero rows and cannot write to any table or bucket. Every
-  "they see nothing" assertion is paired with a "the partner sees it" one, so
-  the suite cannot pass against an empty database.
+- [`supabase/tests/`](supabase/tests) holds a **leak suite**: three users, two
+  couples, asserting that a stranger reads zero rows and cannot write to any
+  table or bucket. Every "they see nothing" assertion is paired with a "the
+  partner sees it" one, so the suite cannot pass against an empty database. One
+  test compares the table list against the API's own catalogue and fails on any
+  new table nobody has covered — it has caught three.
 
-The suite runs before every merge, and it has been made to fail on purpose to
-prove it works.
+The suite runs before every merge, and **it has been made to fail on purpose to
+prove it works**: a policy was deliberately dropped, the suite went red on
+exactly the right assertion, and it was restored.
+
+## Deliberate constraints
+
+- **Free means free.** No tier, no unlock, no "pro" badge, no ads, no upsell
+  surface anywhere in the UI.
+- **Two people, one pair.** No feeds, no discovery, no other users. There is no
+  social graph and there never will be.
+- **Offline first.** Every screen renders from local data; the network is an
+  enhancement.
+- **No dependency with a paid tier we would need.** The ZIP writer for the
+  export and the PNG encoder for the icons and widget previews are both written
+  by hand, because pulling a library for either would have been a supply-chain
+  risk and a cold-start cost for about sixty lines.
+- **The data belongs to them.** Full export, and a delete that actually deletes —
+  storage first, while the policies still match, then a check of what survived.
 
 ## Stack
 
-React 19 · TypeScript · Vite 8 · Tailwind 4 · Supabase · Dexie (local-first) ·
-Capacitor for the Android and iOS shells · Kotlin/Glance and WidgetKit for the
-widgets.
+React 19 · TypeScript · Vite 8 · Tailwind 4 · Dexie (local-first) · Supabase
+(Postgres, RLS, Storage, Edge Functions) · Capacitor · Kotlin + Jetpack Glance
+for the Android widgets · Web Push, encrypted by hand.
 
-No Docker anywhere, at any phase.
+`packages/core` has no platform imports, enforced by a test. That was written in
+Phase 0 for tidiness, and it is what later let a Deno edge function import and
+run the *same* "what day is it" rule the two phones run, rather than a second
+copy of it in SQL that would drift.
+
+## Testing
+
+| | |
+|---|---|
+| **264** unit tests | `pnpm check` — typecheck, lint, vitest. The gate before every commit. |
+| **86** leak assertions | `pnpm test:rls` — cross-couple isolation, against a real Postgres. |
+| Per-feature RLS suites | the reveal, pairing, capsules, the guessing game, consent, quiet mode |
+| CI | GitHub Actions builds and signature-verifies the Android APK on every push |
 
 ## Running it
 
 ```bash
 pnpm install
-cp .env.example .env.local     # then fill in from your Supabase project
+cp .env.example .env.local     # then fill in from your own Supabase project
 pnpm dev
 ```
 
@@ -65,10 +127,9 @@ pnpm dev
 | --------------- | ------------------------------------------------- |
 | `pnpm check`    | typecheck, lint, unit tests — the gate            |
 | `pnpm test:rls` | the cross-couple leak suite, against the database |
-| `pnpm verify`   | both of the above                                 |
 | `pnpm db:push`  | apply migrations                                  |
 | `pnpm db:types` | regenerate types from the live schema             |
-| `pnpm devlink`  | print a sign-in code without sending email        |
+| `pnpm occasions`| print which days the app will mark, and when      |
 | `pnpm deploy`   | build and publish to GitHub Pages                 |
 
 ## Self-hosting
@@ -76,8 +137,8 @@ pnpm dev
 Point it at your own Supabase project and it is yours: apply
 `supabase/migrations/` in order, fill in `.env.local`, and build. Nothing here
 phones home, there is no analytics SDK, and the only third party is the database
-you chose. See `docs/SELFHOST.md`.
+you chose. See [`docs/SELFHOST.md`](docs/SELFHOST.md).
 
 ## Licence
 
-Not yet chosen.
+[MIT](LICENSE).
