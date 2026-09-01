@@ -643,6 +643,26 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   one open period at a time by unique index, and `quietDays()` expands them into
   the set `computeStreak` has accepted since Phase 2 and had never once been
   given.
+- **Turning quiet mode off did not turn it off, and the tests stepped around
+  it.** A hush is closed by writing `to_date = today` — deliberately, so the
+  streak still excuses the day you came back. `is_quiet` then answered "is it
+  on?" with `to_date >= p_on`, which for a hush ended today is *true*: the write
+  landed, the reload came back, and the switch still said On. The second press
+  could not help either, because `endQuiet` filters on `to_date is null` and from
+  then on matched no rows at all. Stuck until midnight, with the server still
+  refusing to send. **One predicate was being asked two different questions** —
+  *is the switch on* and *is this day forgiven* — and only the second one wanted
+  the closing day. Running means `to_date is null`; forgiveness stays in
+  `quietDays`. Migration 24.
+  Both suites missed it by closing a period on one date and asking about
+  another — the RLS one opened on the 20th, closed on the 22nd and asserted the
+  22nd and 23rd, every combination except the one the app performs, which is
+  **close today and ask today**. A test for a toggle has to press it twice.
+- **`toggleQuiet` threw away what the write returned**, which is the other half
+  of why this arrived as "it doesn't work" rather than as an error. A refused
+  write and a successful one looked identical from the screen: the button simply
+  went on saying what it had said before. Any handler that flips a switch and
+  discards its result can only ever fail this way.
 - **`is_quiet()` is a function, not a derived column.** `adult_packs_enabled` is
   a column kept by a trigger, and that is right for a flag that changes when
   somebody presses something. This one changes because *a date passes*, and

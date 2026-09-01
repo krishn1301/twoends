@@ -90,7 +90,16 @@ describe('turning it off', () => {
       .is('to_date', null);
     expect(ended.error).toBeNull();
 
-    expect(await quietOn('2026-08-22'), 'the last day should still be quiet').toBe(true);
+    /*
+      Off on the closing day itself, which is the case the app actually performs
+      and the one this suite used to step around. `endQuiet` writes `to_date =
+      today` so the streak still excuses today; sending must resume now.
+    */
+    expect(await quietOn('2026-08-22'), 'lifting it should lift it today').toBe(false);
+    expect(
+      await quietOn('2026-08-21'),
+      'a lifted hush is not running on any date, including ones inside it',
+    ).toBe(false);
     expect(await quietOn('2026-08-23')).toBe(false);
   });
 

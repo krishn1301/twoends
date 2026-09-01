@@ -114,7 +114,7 @@ copy of it in SQL that would drift.
 
 | | |
 |---|---|
-| **268** unit tests | `pnpm check` — typecheck, lint, vitest. The gate before every commit. |
+| **270** unit tests | `pnpm check` — typecheck, lint, vitest. The gate before every commit. |
 | **86** leak assertions | `pnpm test:rls` — cross-couple isolation, against a real Postgres. |
 | Per-feature RLS suites | the reveal, pairing, capsules, the guessing game, consent, quiet mode |
 | CI | builds and signature-verifies the APK on every push, and publishes a signed release on a tag |

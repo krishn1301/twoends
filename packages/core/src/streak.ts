@@ -85,6 +85,21 @@ export function quietDays(periods: readonly QuietPeriod[], today: string): Set<s
   return days;
 }
 
-/** Whether quiet mode is running right now. */
+/**
+ * Whether quiet mode is running right now — which is to say, whether the switch
+ * is on, not whether today is forgiven.
+ *
+ * **Those are two different questions and sharing one answer was a bug.** A
+ * period is closed by writing `to_date = today`, deliberately, so that the day
+ * you came back is still excused from the streak. Reading "on" as `to_date >=
+ * today` therefore made turning it off do nothing you could see: the row was
+ * written, the reload came back, and the switch still said On. Pressing it again
+ * could not help — `endQuiet` filters on `to_date is null` and matched no rows
+ * from then on — so it was stuck until midnight, and the only symptom was a
+ * button that did not work.
+ *
+ * Running means open. `quietDays` still expands a closed period through its last
+ * day, so the streak keeps the promise that `to_date = today` was there to make.
+ */
 export const isQuietNow = (periods: readonly QuietPeriod[], today: string): boolean =>
-  periods.some((p) => p.from_date <= today && (p.to_date === null || p.to_date >= today));
+  periods.some((p) => p.to_date === null && p.from_date <= today);

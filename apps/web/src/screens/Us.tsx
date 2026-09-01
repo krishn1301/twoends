@@ -68,10 +68,21 @@ export function Us() {
   async function toggleQuiet() {
     if (!couple) return;
     setBusy(true);
+    setError(null);
 
     const today = localDateIn(couple.day_timezone ?? 'UTC');
-    if (quietNow) await endQuiet(couple.id, today);
-    else await startQuiet(couple.id, today);
+
+    /*
+      The result was being thrown away, which is half of why the off switch was
+      reported as broken rather than as failing: a refused write and a successful
+      one looked exactly alike from here — the button simply went on saying what
+      it had said before.
+    */
+    const { error: failed } = quietNow
+      ? await endQuiet(couple.id, today)
+      : await startQuiet(couple.id, today);
+
+    if (failed) setError(failed);
 
     await reloadShared(couple);
     setBusy(false);

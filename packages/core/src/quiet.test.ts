@@ -80,9 +80,37 @@ describe('whether it is on now', () => {
     expect(isQuietNow([run('2026-08-01', null)], '2026-08-20')).toBe(true);
   });
 
-  it('is on through the last day of a closed one, and off after', () => {
-    expect(isQuietNow([run('2026-08-01', '2026-08-20')], '2026-08-20')).toBe(true);
+  it('is off the moment it is lifted, including on the day it is lifted', () => {
+    /*
+      The regression. `endQuiet` closes a hush with `to_date = today`, so this is
+      the state the app is in one round trip after somebody presses Turn off —
+      and reading it as still running is what made the switch appear dead. The
+      second press could not rescue it either: `endQuiet` filters on `to_date is
+      null`, so from here on it matches no rows at all.
+
+      Ask on the closing day, not a day either side of it. Both suites used to
+      close on the 22nd and ask about the 22nd and the 23rd, which is every
+      combination except the one the app performs.
+    */
+    expect(isQuietNow([run('2026-08-20', '2026-08-20')], '2026-08-20')).toBe(false);
+    expect(isQuietNow([run('2026-08-01', '2026-08-20')], '2026-08-20')).toBe(false);
     expect(isQuietNow([run('2026-08-01', '2026-08-19')], '2026-08-20')).toBe(false);
+  });
+
+  it('still forgives the day it was lifted, which is why to_date is today', () => {
+    // The other half of the split. Off for sending, quiet for the streak — the
+    // promise `to_date = today` exists to keep.
+    expect(quietDays([run('2026-08-18', '2026-08-20')], '2026-08-20').has('2026-08-20')).toBe(
+      true,
+    );
+  });
+
+  it('is on again after they ask a second time', () => {
+    // Toggling twice in one day is the ordinary case for anybody trying the
+    // switch out, and it leaves two rows for the same date.
+    const periods = [run('2026-08-20', '2026-08-20'), run('2026-08-20', null)];
+    expect(isQuietNow(periods, '2026-08-20')).toBe(true);
+    expect([...quietDays(periods, '2026-08-20')]).toEqual(['2026-08-20']);
   });
 
   it('is off before it starts', () => {
