@@ -69,3 +69,6 @@ pnpm-debug.log*
 *credentials*
 *.pem
 *.key
+
+# The visual review. Personal names in it, and this repo is public.
+TWOENDS_VISUAL_CHANGES.md
