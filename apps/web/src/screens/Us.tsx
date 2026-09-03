@@ -56,6 +56,7 @@ export function Us() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [colophon, setColophon] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   const quietNow = useShared((s) => s.quietNow);
   const reloadShared = useShared((s) => s.load);
@@ -811,13 +812,53 @@ export function Us() {
           </Row>
         </Group>
 
-        <button
-          type="button"
-          onClick={() => void signOut()}
-          className="text-ash mt-8 h-12 w-full text-sm"
-        >
-          Sign out
-        </button>
+        {/*
+          Signing out asks first.
+
+          It is one tap under everything else on the longest screen in the app,
+          and on an anonymous account it is not a log out — it is the end of the
+          account, because the only thing that was holding it was this browser.
+          A mis-tap should not be able to do that, and the sentence that says so
+          is the whole point of the confirmation.
+
+          Two states rather than a dialog: nothing to dismiss, nothing that can
+          land under a thumb already on its way down, and the cancel is the
+          bigger of the two targets.
+        */}
+        {leaving ? (
+          <div className="bg-surface lift mt-8 rounded-[28px] p-5">
+            <p className="font-display text-[1.15rem] leading-snug font-semibold">Sign out?</p>
+            <p className="text-ash mt-1.5 text-sm leading-relaxed">
+              {isAnonymous
+                ? 'This account has no email on it, so this device is the only thing holding it. Signing out ends it, and everything the two of you made goes with it.'
+                : 'You will need your email to get back in. Nothing is deleted.'}
+            </p>
+            <div className="mt-4 flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={() => setLeaving(false)}
+                className="bg-surface-2 text-chalk h-12 w-full rounded-full text-[0.95rem] font-medium"
+              >
+                Stay
+              </button>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="text-ash h-12 w-full text-sm"
+              >
+                {isAnonymous ? 'Sign out and lose it' : 'Sign out'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setLeaving(true)}
+            className="text-ash mt-8 h-12 w-full text-sm"
+          >
+            Sign out
+          </button>
+        )}
 
         {/*
           The last thing on the last screen, in the space that was empty under
@@ -829,14 +870,19 @@ export function Us() {
           type="button"
           onClick={() => setColophon(true)}
           aria-label={COLOPHON.title}
-          className="mx-auto mt-6 mb-2 flex flex-col items-center gap-2 py-2 opacity-70"
+          className="mx-auto mt-8 mb-2 flex flex-col items-center gap-3 py-2 opacity-80"
         >
+          {/*
+            The best mark in the app used to sit here at 44px, which is the size
+            of a favicon. It is the two of them overlapping and it is the last
+            thing on the last screen; there is nothing under it to crowd.
+          */}
           <Monogram
             mine={profile?.display_name}
             theirs={partner?.display_name}
             myAccent={profile?.accent_key}
             theirAccent={partner?.accent_key}
-            size={44}
+            size={104}
           />
           <span className="counter text-ash text-[0.7rem] tracking-[0.3em] uppercase">
             {SIGNATURE.mark}
