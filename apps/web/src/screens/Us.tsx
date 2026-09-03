@@ -25,6 +25,7 @@ import { useChrome, useDesignVersion } from '../design/version.ts';
 import { saveFile } from '../lib/saveFile.ts';
 import { disablePush, enablePush, pushState, type PushState } from '../db/push.ts';
 import { supabase } from '../lib/supabase.ts';
+import { APP_VERSION, canUpdate, checkForUpdate, type UpdateResult } from '../lib/update.ts';
 import { useAvatars } from '../state/avatars.ts';
 import { useDistanceReading, useLocation } from '../state/location.ts';
 import { useSession } from '../state/session.ts';
@@ -57,6 +58,8 @@ export function Us() {
   const [busy, setBusy] = useState(false);
   const [colophon, setColophon] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [update, setUpdate] = useState<UpdateResult | null>(null);
+  const [checking, setChecking] = useState(false);
 
   const quietNow = useShared((s) => s.quietNow);
   const reloadShared = useShared((s) => s.load);
@@ -757,6 +760,67 @@ export function Us() {
                 </p>
               </div>
             )}
+          </Group>
+        )}
+
+        {/*
+          Whether there is a newer APK than this one.
+
+          Only in the native app: the PWA replaces itself through its service
+          worker and has nothing to tell you.
+
+          It asks when you press it and not before. The colophon two rows down
+          promises no analytics, no tracking and no third parties, and a check
+          that ran on every launch would quietly make that untrue — a server
+          asked once a day learns how often you open this. A check you asked for
+          is a different thing, and the line below says who it asks.
+        */}
+        {canUpdate() && (
+          <Group title="Version">
+            <Row label={APP_VERSION === 'dev' ? 'A local build' : APP_VERSION}>
+              <button
+                type="button"
+                disabled={checking}
+                onClick={() => {
+                  setChecking(true);
+                  setUpdate(null);
+                  void checkForUpdate()
+                    .then(setUpdate)
+                    .finally(() => setChecking(false));
+                }}
+                className="text-ash h-11 text-sm disabled:opacity-40"
+              >
+                {checking ? 'Checking…' : 'Check for a newer one'}
+              </button>
+            </Row>
+
+            <div className="px-4 py-3.5">
+              {update?.state === 'newer' ? (
+                <>
+                  <p className="text-sm leading-relaxed">
+                    {update.release.version} is out. It installs over this one — nothing is lost and
+                    you stay paired.
+                  </p>
+                  <a
+                    href={update.release.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-void mt-3 flex h-12 w-full items-center justify-center rounded-full text-[0.95rem] font-semibold"
+                    style={{ background: mine }}
+                  >
+                    Download it
+                  </a>
+                </>
+              ) : (
+                <p className="text-ash text-sm leading-relaxed">
+                  {update?.state === 'current'
+                    ? 'This is the newest one.'
+                    : update?.state === 'failed'
+                      ? update.reason
+                      : 'Nothing is sent anywhere until you press it, and then only to GitHub, to ask what the newest release is called.'}
+                </p>
+              )}
+            </div>
           </Group>
         )}
 

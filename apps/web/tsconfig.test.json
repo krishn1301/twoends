@@ -6,7 +6,11 @@
     // These tests read the app's own source and stylesheet off disk, so they
     // need Node types. The app itself does not have them and must not — see
     // tsconfig.json, which is what keeps browser code browser code.
-    "types": ["node"]
+    // `vite/client` for `import.meta.env`, which the app's own modules read.
+    "types": ["node", "vite/client"]
   },
-  "include": ["test/**/*.ts"]
+  // The theme test reads files off disk; the update test imports one. Both
+  // belong to the app, which is why this project compiles them itself rather
+  // than referencing one that has no Node types.
+  "include": ["test/**/*.ts", "src/lib/update.ts"]
 }

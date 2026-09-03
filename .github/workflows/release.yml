@@ -59,6 +59,9 @@ jobs:
           # Not the Pages prefix. The WebView serves from the bundle root, and a
           # '/twoends/' base there is a white screen with no error.
           VITE_BASE: /
+          # What the in-app update check compares against. Without it every
+          # build calls itself `dev` and never reports an update.
+          VITE_APP_VERSION: ${{ github.event.inputs.tag || github.ref_name }}
         run: pnpm --filter @twoends/web build
 
       - name: Sync Capacitor
