@@ -16,8 +16,8 @@ import { useEffect, useState } from 'react';
  * says what caused it. One screenshot of this settles what a week of reasoning
  * from pictures could not.
  *
- * It lives on the colophon because a colophon is where a build says what it is,
- * and because nobody arrives here by accident.
+ * It lives in Us rather than on the colophon: the colophon is a page of
+ * promises and a table of pixel measurements is not one of them.
  */
 export function Viewport() {
   const [, tick] = useState(0);
@@ -62,8 +62,7 @@ export function Viewport() {
   ];
 
   return (
-    <div className="bg-surface mt-8 rounded-2xl p-4">
-      <p className="text-ash mb-2 text-[0.7rem] tracking-[0.18em] uppercase">this screen</p>
+    <div className="px-4 py-3.5">
       <dl className="counter grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[0.72rem]">
         {rows.map(([k, v]) => (
           <div key={k} className="contents">
@@ -73,8 +72,8 @@ export function Viewport() {
         ))}
       </dl>
       <p className="text-ash mt-3 text-[0.72rem] leading-relaxed">
-        A scale that is not 1.000, or an overflow above 0, means the page is wider than the
-        screen and everything pinned to an edge will move.
+        A scale that is not 1.000, or an overflow above 0, means the page is wider than the screen
+        and everything pinned to an edge will move.
       </p>
       <span
         id="safe-area-probe"

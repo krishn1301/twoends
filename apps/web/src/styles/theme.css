@@ -352,10 +352,53 @@
   animation: fade-in 600ms ease 400ms both;
 }
 
+/*
+  The app is a shell that does not scroll. Each screen scrolls inside it.
+
+  This is the fix for a tab bar that sat in a different place on every screen of
+  an iPhone PWA and never moved on Android. Three earlier attempts missed it
+  because they were all about the bar. Measured on the device: the pill sits 45
+  CSS px above the bottom edge on an empty Dates and 81 px on a Dates with one
+  row in it — same screen, same session, one minute apart, differing only in how
+  much content is on the page. And the readout in Us says `scale 1.000`,
+  `overflow 0`, so it is not zoom and it is not a page wider than the screen.
+
+  What is left is the layout viewport itself. `window.innerHeight` reports 797
+  on a 844pt iPhone 13, and on iOS that number moves with whether the document
+  scrolls — so `position: fixed; bottom: 0` lands somewhere different depending
+  on how tall the page happens to be. There is no value of `bottom` that fixes
+  that, because `bottom` is not the part that is wrong.
+
+  A document that cannot scroll has no reason to be re-measured. `#root` is
+  pinned to the screen, the screen inside it scrolls, and the bar is positioned
+  against the shell rather than against a viewport that moves. It is also the
+  ordinary way to build an app shell, and the only reason it was not done this
+  way from the start is that the browser made the simpler thing look fine.
+*/
 html,
-body,
-#root {
+body {
   height: 100%;
+  overflow: hidden;
+}
+
+#root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+  The one scrolling box in the app. `min-height: 0` is what lets a flex child
+  actually shrink and scroll rather than growing to fit its content, and
+  `overscroll-behavior` stops a rubber-band at the end of a rail or a list from
+  dragging the whole shell.
+*/
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
 }
 
 /*

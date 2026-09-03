@@ -1,7 +1,6 @@
 import { COLOPHON, SIGNATURE, herLine, isHer } from '@twoends/core';
 
 import { Monogram } from '../components/Monogram.tsx';
-import { Viewport } from '../components/Viewport.tsx';
 import { useSession } from '../state/session.ts';
 
 /**
@@ -73,8 +72,6 @@ export function Colophon() {
           <p className="mt-6 max-w-[22rem] text-[0.9rem] leading-relaxed italic">{forHer}</p>
         )}
       </div>
-
-      <Viewport />
     </div>
   );
 }

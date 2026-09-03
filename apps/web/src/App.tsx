@@ -88,7 +88,7 @@ export function App() {
         nothing here to animate.
       */
       return (
-        <div className="bg-void grid min-h-full place-items-center">
+        <div className="screen bg-void grid place-items-center">
           {v2 && (
             <span className="patient inline-flex opacity-70">
               <Monogram mine={null} theirs={null} myAccent={null} theirAccent={null} size={72} />
@@ -98,13 +98,25 @@ export function App() {
       );
 
     case 'signing-in':
-      return <SignIn />;
+      return (
+        <Screen>
+          <SignIn />
+        </Screen>
+      );
 
     case 'onboarding':
-      return <Onboarding />;
+      return (
+        <Screen>
+          <Onboarding />
+        </Screen>
+      );
 
     case 'solo':
-      return <Pair />;
+      return (
+        <Screen>
+          <Pair />
+        </Screen>
+      );
 
     case 'paired':
       /*
@@ -122,15 +134,26 @@ export function App() {
       // The one moment worth interrupting for: they have just become a pair, so
       // there is finally something worth not losing.
       if (isAnonymous && !offerDismissed) {
-        return <SaveAccount onDone={() => setOfferDismissed(true)} />;
+        return (
+          <Screen>
+            <SaveAccount onDone={() => setOfferDismissed(true)} />
+          </Screen>
+        );
       }
 
       return (
         <>
-          {tab === 'home' && <Home onOpen={setSheet} onGo={setTab} />}
-          {tab === 'dates' && <Dates />}
-          {tab === 'play' && <Play onGo={setTab} />}
-          {tab === 'us' && <Us />}
+          {/*
+            One scrolling box, keyed on the tab so switching starts at the top
+            rather than inheriting where you were on the screen before.
+          */}
+          <Screen key={tab}>
+            {tab === 'home' && <Home onOpen={setSheet} onGo={setTab} />}
+            {tab === 'dates' && <Dates />}
+            {tab === 'play' && <Play onGo={setTab} />}
+            {tab === 'us' && <Us />}
+          </Screen>
+
           {sheet && (
             <Sheet
               title={
@@ -152,4 +175,16 @@ export function App() {
         </>
       );
   }
+}
+
+/**
+ * The only thing in the app that scrolls.
+ *
+ * `#root` is pinned to the screen and does not move; everything that can grow
+ * lives in here. See the note above `.screen` in `theme.css` for why — briefly,
+ * a document that scrolls lets iOS change the layout viewport under it, and
+ * anything anchored to an edge then lands somewhere different on every screen.
+ */
+function Screen({ children }: { children: React.ReactNode }) {
+  return <div className="screen">{children}</div>;
 }

@@ -713,6 +713,36 @@ references profiles on delete cascade`**, so deleting one anonymous auth user
   write and a successful one looked identical from the screen: the button simply
   went on saying what it had said before. Any handler that flips a switch and
   discards its result can only ever fail this way.
+- **The document must never scroll; the screen inside it does.** A tab bar
+  anchored to the bottom sat in a different place on every screen of an iPhone
+  PWA and never moved on Android. It took four attempts because three of them
+  were about the bar. Measured on the device: 45 CSS px above the bottom edge on
+  an empty Dates and 81 px on a Dates with one row — same screen, same session,
+  a minute apart, differing only in page height. The readout in Us said
+  `scale 1.000` and `overflow 0`, which killed both the zoom theory and the
+  page-wider-than-the-screen theory and left the only thing that was actually
+  moving: `window.innerHeight`, which iOS re-measures when the document's
+  scrollability changes and which reports **797 on an 844pt iPhone 13**. No
+  value of `bottom` fixes that, because `bottom` is not the part that is wrong.
+  `#root` is `position: fixed; inset: 0` now, one `.screen` scrolls inside it,
+  and the bar is `absolute` against the shell. Verified in Chrome: scrolling the
+  screen 1200px leaves the bar's bottom edge at exactly `innerHeight`, and
+  `document.scrollTop` never leaves 0. **Anything anchored to a viewport edge on
+  iOS is anchored to a number that moves** unless the document cannot scroll.
+- **Diagnostics beat reasoning from screenshots.** Three of those four attempts
+  were plausible readings of a picture and all three were wrong. The fix came
+  from six numbers — layout size, visual size, scale, sideways overflow,
+  safe-area inset, dpr — printed in **Us → This screen** by
+  `components/Viewport.tsx`. It is on a settings screen rather than the
+  colophon, which is a page of promises and no place for a table of pixels.
+  A two-person app with no analytics has no other way to learn anything about
+  the devices it runs on.
+- **`input[type='date']` on iOS carries an intrinsic minimum width** and ignores
+  `width: 100%` when its content is wider, so a date field can hang off the edge
+  of the screen. `appearance: none` plus `min-width: 0` on every input, and
+  `html { overflow-x: hidden }` as the guard for the next one. This was _not_
+  the tab-bar bug — the readout proved the page was never wider than the screen
+  — but it is a real overflow and it is fixed.
 - **`theme.css` sets `button, a, [role='button'] { min-height: 44px }` as plain
   CSS, and it lands after the utilities.** So on a `<button>`, `min-h-full`
   loses at equal specificity and a full-screen takeover renders in a 44px strip

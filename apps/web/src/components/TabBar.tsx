@@ -50,7 +50,7 @@ export function TabBar({
       {v2 && (
         <div
           aria-hidden="true"
-          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 h-28"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-40 h-28"
           style={{
             background: 'linear-gradient(to top, var(--color-void) 45%, transparent)',
           }}
@@ -79,7 +79,7 @@ export function TabBar({
       */}
       <nav
         aria-label="Main"
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-5"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex justify-center px-5"
         style={{ paddingBottom: 'max(0.85rem, env(safe-area-inset-bottom))' }}
       >
         <div
