@@ -148,6 +148,15 @@ beforeAll(async () => {
     ],
     ['list_items', { couple_id: coupleA, title: 'Watch the sequel' }],
     ['quiet_periods', { couple_id: coupleA, from_date: '2026-08-01', to_date: '2026-08-03' }],
+    [
+      'visits',
+      {
+        couple_id: coupleA,
+        started_at: '2026-08-01T09:00:00Z',
+        ended_at: '2026-08-07T18:00:00Z',
+        place_label: 'Pune',
+      },
+    ],
     /*
       Both of them, and that is the point rather than thoroughness. A moment is
       hidden from the other member until they have taken their own — the same
@@ -353,6 +362,9 @@ describe('a stranger writes nothing', () => {
       });
     }
     if (table === 'quiet_periods') Object.assign(row, { from_date: '2026-08-01' });
+    if (table === 'visits') {
+      Object.assign(row, { started_at: '2026-09-01T09:00:00Z' });
+    }
     if (table === 'moment_shots') {
       Object.assign(row, {
         author_id: mallory.id,

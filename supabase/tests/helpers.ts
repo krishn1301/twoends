@@ -107,6 +107,7 @@ export const COUPLE_TABLES = [
   'recaps',
   'voice_notes',
   'moment_shots',
+  'visits',
 ] as const;
 
 export type CoupleTable = (typeof COUPLE_TABLES)[number];

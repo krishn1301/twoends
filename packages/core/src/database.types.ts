@@ -251,6 +251,7 @@ export type Database = {
           quiet_until: string | null
           relationship_type: string | null
           started_on: string | null
+          together: boolean
           unpair_requested_at: string | null
           unpair_requested_by: string | null
         }
@@ -265,6 +266,7 @@ export type Database = {
           quiet_until?: string | null
           relationship_type?: string | null
           started_on?: string | null
+          together?: boolean
           unpair_requested_at?: string | null
           unpair_requested_by?: string | null
         }
@@ -279,6 +281,7 @@ export type Database = {
           quiet_until?: string | null
           relationship_type?: string | null
           started_on?: string | null
+          together?: boolean
           unpair_requested_at?: string | null
           unpair_requested_by?: string | null
         }
@@ -951,6 +954,41 @@ export type Database = {
           },
         ]
       }
+      visits: {
+        Row: {
+          couple_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          place_label: string | null
+          started_at: string
+        }
+        Insert: {
+          couple_id: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          place_label?: string | null
+          started_at?: string
+        }
+        Update: {
+          couple_id?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          place_label?: string | null
+          started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visits_couple_id_fkey"
+            columns: ["couple_id"]
+            isOneToOne: false
+            referencedRelation: "couples"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       voice_notes: {
         Row: {
           author_id: string
@@ -1042,6 +1080,7 @@ export type Database = {
         Args: { p_couple_id: string; p_on?: string }
         Returns: boolean
       }
+      is_together: { Args: { p_couple_id: string }; Returns: boolean }
       partner_has_answered: {
         Args: { p_prompt_day_id: string }
         Returns: boolean

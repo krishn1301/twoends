@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
 
   const { data: couples } = await admin
     .from('couples')
-    .select('id, member_a, member_b, started_on, day_timezone');
+    .select('id, member_a, member_b, started_on, day_timezone, together');
 
   let sent = 0;
   let considered = 0;
@@ -152,7 +152,17 @@ Deno.serve(async (req) => {
       about is gone twenty minutes after it starts. Logged per person per day
       like everything else, so a scheduler firing twice cannot double it.
     */
-    if (localHour === momentHour && moment) {
+    /*
+      Quieter while they are in the same place.
+
+      The spec asks for at most one notification a day during a visit, and the
+      one worth keeping is the occasion — a birthday matters whoever is in the
+      room. The moment is the one that goes: asking two people sitting together
+      to each photograph the nearest window is a game they can play by talking,
+      and a phone buzzing twice in a house where both phones are is the app
+      failing to notice where it is.
+    */
+    if (localHour === momentHour && moment && !couple.together) {
       await pushMoment(admin, couple, moment.prompt, localDate, dryRun, would);
       if (localHour !== HOUR) continue;
     }

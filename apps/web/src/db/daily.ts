@@ -74,6 +74,13 @@ export function todaysPrompt(couple: Couple): {
       all. See the note on `promptsFor`.
     */
     hasHer: isHerCouple(couple.member_a, couple.member_b),
+    /*
+      Drops the distance pack while they are in the same room. Off the couple
+      row, like everything else here — a phone that had loaded the open visit
+      and one that had not would build different lists and quietly break the
+      reveal for the morning.
+    */
+    together: couple.together,
   });
 
   return {

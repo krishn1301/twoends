@@ -1,5 +1,6 @@
 import { Avatar, Faces, Pill, Rail, Scribble, Section, Snapshot, Tile } from '@twoends/ui';
 
+import { Arrival } from '../components/Arrival.tsx';
 import { DrawSurface } from '../components/DrawSurface.tsx';
 
 import { useEffect, useState, type ReactNode } from 'react';
@@ -439,6 +440,27 @@ export function Home({
           twenty-three hours saying "you missed it" would make a gentle thing
           into a scoreboard.
         */}
+        {/*
+          Being in the same place, offered rather than assumed.
+
+          Above the moment because it changes what the rest of the screen means:
+          while it is open the distance card is gone, the questions stop being
+          about being apart, and nothing nudges. It shows a plain prompt the
+          rest of the time, which is the cost of never triggering on GPS — a
+          coarse, opt-in, sometimes hours-old position is not something to
+          rearrange an interface on.
+        */}
+        <div className="rise mb-9 px-5" style={{ animationDelay: '75ms' }}>
+          <Arrival
+            mine={mine}
+            theirs={theirs}
+            arrived={countdown && countdownDays === 0 ? { title: countdown.title } : null}
+            onChanged={() => {
+              if (couple) void load(couple);
+            }}
+          />
+        </div>
+
         <div className="rise mb-9 px-5" style={{ animationDelay: '90ms' }}>
           <MomentCard minutes={minutesNow} localDate={coupleToday} mine={mine} theirs={theirs} />
         </div>
@@ -742,7 +764,12 @@ export function Home({
                   precisely because `Tile` pins its own label block to the
                   bottom, which is the thing being undone.
                 */}
-                {v2 ? (
+                {/*
+                  Nothing at all while they are together. "0 km" is a worse
+                  answer than not asking, and the together-since counter above
+                  is already saying the true thing.
+                */}
+                {couple?.together ? null : v2 ? (
                   <Tile onClick={() => onGo?.('us')}>
                     <div className="flex h-full flex-col justify-between p-3.5">
                       <div className="flex items-center">

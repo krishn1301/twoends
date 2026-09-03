@@ -50,6 +50,16 @@ export interface Couple {
   day_timezone: string | null;
   unpair_requested_by: string | null;
   /**
+   * True while a visit is open — the two of them are in the same place.
+   *
+   * Derived by a trigger on `visits`, never written by the app, and read here
+   * rather than worked out per device *for the same reason
+   * `adult_packs_enabled` is*: the daily question is built from a list, and two
+   * phones that disagree about the list derive different questions on the same
+   * morning with no error anywhere.
+   */
+  together: boolean;
+  /**
    * Derived by the server from both members' `adult_opt_in_at` — never written
    * by the app. **This, and not the two timestamps, is what content is gated
    * on**, because it is a single value both phones read from the same row.
@@ -203,7 +213,7 @@ export const useSession = create<SessionState>((set, get) => ({
       supabase
         .from('couples')
         .select(
-          'id, member_a, member_b, started_on, relationship_type, day_timezone, unpair_requested_by, adult_packs_enabled',
+          'id, member_a, member_b, started_on, relationship_type, day_timezone, unpair_requested_by, adult_packs_enabled, together',
         )
         .maybeSingle(),
     ]);

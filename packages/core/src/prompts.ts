@@ -65,10 +65,29 @@ export function promptsFor(options: {
   adultEnabled?: boolean;
   /** True for the one couple this app was written for. See `isHerCouple`. */
   hasHer?: boolean;
+  /**
+   * They are in the same place right now.
+   *
+   * Drops the distance pack for as long as that is true. "What is the hardest
+   * hour of the day to be apart" is a strange question to be asked in the
+   * kitchen, and it is the same objection that keeps that pack away from
+   * couples who never said they were apart in the first place — this is the
+   * temporary version of it.
+   *
+   * There is no separate "together" pack to switch to, and that is deliberate:
+   * `core` already is one. Every question in it works in either state, which is
+   * what made it the default.
+   *
+   * A property of the couple, like everything else here. A visit is on the
+   * `visits` table, not on whoever is holding the phone.
+   */
+  together?: boolean;
 }): Prompt[] {
   const packs = PROMPT_PACKS.filter((pack) => {
     if (pack.isAdult) return options.adultEnabled === true;
-    if (pack.key === 'distance') return options.relationshipType === 'long_distance';
+    if (pack.key === 'distance') {
+      return options.relationshipType === 'long_distance' && options.together !== true;
+    }
     return true;
   }).flatMap((pack) => pack.prompts);
 

@@ -140,6 +140,23 @@ Built in one sitting from a written spec, in the order it gives.
 - **The indicator is the dotted line going solid**, not a badge. A dot saying
   "online" is a thing to check; a line between two faces going solid is noticed
   rather than read, and it never says either of them is _absent_.
+- **Arrival mode never triggers on GPS, and `together` is a couple column.**
+  A visit starts because somebody said so, or because a countdown they set
+  reached zero and they confirmed it — location here is coarse, opt-in and can
+  be hours stale, and an interface that flips itself on that fails silently. The
+  flag is on `couples`, kept by a trigger on `visits`, **not** read per device:
+  the daily question is built from a list, and a phone that had loaded the open
+  visit and one that had not would derive different questions on the same
+  morning with no error anywhere. Exactly the Phase 13 prompt-pack bug wearing
+  new clothes.
+- **A visit is counted in calendar days, in the couple's own calendar.** Elapsed
+  hours calls a Saturday-morning-to-Thursday-morning trip five days instead of
+  six, and a UTC day boundary takes a day off every evening arrival in India.
+  Both were caught by tests written before the implementation was trusted.
+- **Photos join a visit by timestamp, not a foreign key.** One index, and the
+  boundaries can be corrected afterwards — somebody who taps "we're together"
+  the morning after they landed — without rewriting a photo row. A key would
+  freeze the first guess.
 - **Live strokes are broadcast, never stored.** They arrive only while both are
   on the channel, and are cleared on save — otherwise the refresh brings the
   same strokes back through the canvas row and the pen appears to have got

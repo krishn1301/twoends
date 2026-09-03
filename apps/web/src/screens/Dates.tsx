@@ -1,12 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { daysUntil, getAccent, localDateIn, recapTitle } from '@twoends/core';
+import {
+  daysUntil,
+  getAccent,
+  localDateIn,
+  recapTitle,
+  visitTitle,
+  zoneOffsetMinutes,
+  type Visit,
+} from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 import { Empty, GhostCountdown, GhostMemory } from '../components/Empty.tsx';
 import { Button, Field, TextInput } from '../components/Field.tsx';
 import { catchUpRecaps, type Recap as RecapRow } from '../db/recap.ts';
+import { pastVisits } from '../db/visits.ts';
 import { Capsules } from './Capsules.tsx';
 import { SharedList } from './SharedList.tsx';
 import { addEntry, deleteEntry, type JournalEntry } from '../db/journal.ts';
@@ -63,6 +72,27 @@ export function Dates() {
   */
   const [recaps, setRecaps] = useState<RecapRow[]>([]);
   const [openRecap, setOpenRecap] = useState<RecapRow | null>(null);
+
+  /*
+    Finished visits, which are the other kind of memory the app makes on its
+    own. A closed visit is one object — the dates, how long, and every
+    photograph taken between them — rather than a scatter of snaps somebody has
+    to recognise as having been the same week.
+  */
+  const [visits, setVisits] = useState<Visit[]>([]);
+
+  useEffect(() => {
+    const coupleId = couple?.id;
+    if (!coupleId) return;
+
+    let alive = true;
+    void pastVisits(coupleId).then((found) => {
+      if (alive) setVisits(found);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [couple?.id, couple?.together]);
 
   useEffect(() => {
     if (!couple?.started_on) return;
@@ -140,6 +170,26 @@ export function Dates() {
 
         {view === 'ahead' && (
           <Ahead coupleId={couple?.id} tint={chrome} now={now} rows={countdowns ?? []} />
+        )}
+
+        {view === 'behind' && visits.length > 0 && (
+          <section className="mb-7">
+            <h2 className="text-ash mb-3 text-xs tracking-[0.18em] uppercase">Visits</h2>
+            <div className="flex flex-col gap-3">
+              {visits.map((visit) => (
+                <div key={visit.id} className="bg-surface lift rounded-3xl px-5 py-4">
+                  <p className="font-medium">
+                    {visitTitle(
+                      visit,
+                      now,
+                      zoneOffsetMinutes(couple?.day_timezone ?? 'UTC', new Date(now)),
+                    )}
+                  </p>
+                  <p className="text-ash text-sm">{visitSpan(visit)}</p>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
 
         {view === 'behind' && recaps.length > 0 && (
@@ -401,4 +451,14 @@ function Behind({
       </ul>
     </>
   );
+}
+
+/** "1 – 6 August", the two ends of a visit. */
+function visitSpan(visit: { started_at: string; ended_at: string | null }): string {
+  const day = (iso: string): string =>
+    new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+
+  return visit.ended_at
+    ? `${day(visit.started_at)} – ${day(visit.ended_at)}`
+    : day(visit.started_at);
 }
