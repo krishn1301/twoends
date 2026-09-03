@@ -83,8 +83,20 @@ Commands: `pnpm db:push`, `pnpm db:types`, `pnpm test:rls`, `pnpm verify`,
 
 ## Current phase
 
-**Phases 16–18 built from `TWOENDS_FEATURES_SPEC.md`. Phase 15 and everything
-before it shipped and confirmed on a paired device.**
+**All six phases of `TWOENDS_FEATURES_SPEC.md` are built, deployed and tagged
+`v1.2.0`. Phase 15 and everything before it shipped and confirmed on a paired
+device; the six below are verified in Chrome and against the live database, and
+have not yet been used on a phone.**
+
+Shipped as: retention (v1.1.0) · recap · voice notes · same thing same time ·
+both here · arrival mode. Migrations 25–30. **355 unit tests, 180 RLS.**
+
+Not yet exercised on a real device, and the first things to check:
+
+- a recap generating for a couple with real history (the test pair has none)
+- recording a voice note on a phone, and the microphone-refused path
+- a moment opening at its hour, and the twenty minutes running out
+- the diptych reveal, which needs both people inside the same window
 
 ### Phases 16–18 — retention, the monthly recap, voice notes
 
