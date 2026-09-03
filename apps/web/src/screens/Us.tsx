@@ -13,7 +13,6 @@ import {
 } from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 
-import { Viewport } from '../components/Viewport.tsx';
 import { endQuiet, startQuiet } from '../db/quiet.ts';
 import { Monogram } from '../components/Monogram.tsx';
 import { Sheet } from '../components/Sheet.tsx';
@@ -787,28 +786,10 @@ export function Us() {
           <div className="px-4 py-3.5">
             <p className="text-ash text-sm leading-relaxed">
               {design === 'v2'
-                ? 'Cards lift off the page, the interface is one colour that belongs to neither of you, and your two colours are kept for saying whose something is. The original is one tap away and nothing about your data changes either way.'
-                : 'The app as it first shipped. The updated look raises the cards off the black, fixes the labels that were unreadable on a coloured card, and keeps your two colours for authorship instead of spending them on buttons.'}
+                ? 'Cards lift off the black, the labels on a coloured card are readable whichever two colours you have, and an empty screen shows what it looks like once there is something in it. The original is one tap away and nothing about your data changes either way.'
+                : 'The app as it first shipped. The updated look raises the cards off the black, fixes the labels that were unreadable on a coloured card, and shows you what an empty screen would look like filled.'}
             </p>
           </div>
-        </Group>
-
-        {/*
-          What this device thinks the screen is.
-
-          Here rather than on the colophon, which is a page of promises and had
-          no business carrying a table of pixel measurements. It is here because
-          a bug about the tab bar took four attempts to place and every one
-          before this was a guess from a screenshot: the numbers below are what
-          finally said it was the layout viewport and not the bar, not the
-          page scale, and not an overflow.
-
-          It stays. A two-person app with no analytics has no other way to learn
-          anything about the devices it runs on, and this is the version of that
-          which the owner reads and nothing leaves the phone.
-        */}
-        <Group title="This screen">
-          <Viewport />
         </Group>
 
         {/*

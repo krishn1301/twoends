@@ -99,18 +99,20 @@ that came with them was that the original had to still be there.
 `?design=classic` does the same and sticks. With `data-design` absent the app is
 what shipped, token for token.
 
-- **Item 1 is the one everything else hangs off.** `DesignModel.chrome` is the
-  interface colour, and in the proposed look it is a fixed warm bone belonging
-  to neither of you — so `myAccent` / `theirAccent` are reserved, strictly, for
-  authorship. Screens that need nothing else from the model take `useChrome(mine)`
-  instead, which returns `mine` unchanged in `classic`, so a call site never has
-  to know which look it is in. Bone rather than the review's other two
-  candidates: the _blend_ of the two accents is the most on-brief answer on
-  paper and puts a third colour on screen competing with the two that are
-  supposed to be the only colour in the app.
-- **The daily card's ground tint stayed an accent**, against the review's list.
-  It answers "whose move is it" and changes with the person, which is the
-  authorship question the accents are being kept for.
+- **Item 1 was built and then reverted, which is the most useful thing the
+  phase learned.** `DesignModel.chrome` made the interface a fixed warm bone so
+  `myAccent` / `theirAccent` could mean authorship and nothing else. The
+  argument is sound and the result was not: picking your colour on the first
+  screen and watching the whole app become it is the most personal minute in
+  the app, and a rule about what an accent may mean is not worth losing it.
+  `chrome` still exists and now returns the person's own accent in both looks —
+  kept as a named thing because the two jobs really are two jobs and a call
+  site that means _interface_ should say so.
+- **The lift was too far before it was right.** `void -> surface` went 1.13 →
+  1.60 → **1.37**. At 1.13 a card was invisible against the page; at 1.60 it was
+  pale enough that text on it read as washed out on a real phone. The test
+  bounds it on _both_ sides now, because this one has been wrong in both
+  directions.
 - **Items 2 and 15 are pure CSS** and cost no TypeScript at all — the utilities
   already point at the variables, so redefining the tokens under
   `[data-design='v2']` carries every screen. The two elevation steps are

@@ -113,25 +113,25 @@ export function startDesignVersion(): void {
 /** Sugar for the common `version === 'v2'` test inside a component. */
 export const useIsV2 = (): boolean => useDesignVersion((s) => s.version === 'v2');
 
-/*
-  Item 1's colour, kept in step with `--color-chrome` in `theme.css` by hand.
-  Two copies because one of them has to be a string an inline style can take and
-  the other has to be a variable the utilities can point at.
-*/
-export const CHROME = '#ede4da';
-export const CHROME_INK = '#141110';
-
 /**
- * The interface colour, given the one this screen would otherwise have used.
+ * The interface colour: everything a person did not author.
+ *
+ * **Item 1 was tried and reverted.** For a while this returned a fixed warm
+ * bone in the proposed look, so that `mine` and `theirs` could be reserved
+ * strictly for authorship. The argument was sound and the result was not: the
+ * moment you pick a colour on the first screen the whole app used to become it,
+ * and that is the thing people actually notice about this app. Taking it away
+ * to win a rule made every screen after the picker read as somebody else's.
+ *
+ * So it is the person's own accent again, in both looks. The plumbing stays
+ * because it is one honest place to make that decision, and because every call
+ * site that means *interface* now says so rather than saying `mine` and leaving
+ * the reader to work out which of the two jobs it is doing.
  *
  * Screens that need nothing else from the design model take this rather than
  * `useDesignModel()`, which runs a one-second ticker for the anniversary
  * counter and has no business being mounted for the sake of a button.
- *
- * Pass what the original look used and it comes back unchanged in `classic`,
- * so a call site never has to know which look it is in. See `DesignModel.chrome`
- * for what the split is and why the third colour is bone.
  */
 export function useChrome(mine: string): string {
-  return useDesignVersion((s) => s.version) === 'v2' ? CHROME : mine;
+  return mine;
 }

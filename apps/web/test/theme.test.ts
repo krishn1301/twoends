@@ -107,9 +107,17 @@ describe('the original look', () => {
 describe('the proposed look', () => {
   const v2 = (name: string) => token("[data-design='v2']", name);
 
-  it('lifts a card off the page', () => {
-    // The claim in the comment above the block is 1.60:1.
-    expect(contrast(VOID, v2('color-surface'))).toBeGreaterThanOrEqual(1.5);
+  /*
+    Bounded on both sides, because this one has now been wrong in both
+    directions. At 1.13 a card was invisible against the page, which is what the
+    review was about. At 1.60 it was pale enough that the text on it read as
+    washed out on a real phone. The claim in the comment above the block is
+    1.37, and the window is what keeps the next adjustment honest.
+  */
+  it('lifts a card off the page without washing it out', () => {
+    const lift = contrast(VOID, v2('color-surface'));
+    expect(lift).toBeGreaterThanOrEqual(1.3);
+    expect(lift).toBeLessThanOrEqual(1.45);
   });
 
   it('separates a pressable surface from a card', () => {
@@ -118,6 +126,17 @@ describe('the proposed look', () => {
 
   it('makes the hairline a line again', () => {
     expect(contrast(v2('color-hairline'), v2('color-surface'))).toBeGreaterThanOrEqual(1.7);
+  });
+
+  /*
+    The reason the first step is capped rather than maximised. Everything
+    written on a card has to stay comfortably clear of the bar, and a lighter
+    card spends that margin.
+  */
+  it('keeps chalk far clear of a card', () => {
+    expect(contrast(token('@theme', 'color-chalk'), v2('color-surface'))).toBeGreaterThanOrEqual(
+      10,
+    );
   });
 
   /*
@@ -157,36 +176,5 @@ describe('the proposed look', () => {
     // `rgb(148 138 130 / 0.6)` is `ash/60`, to the digit. Anything else here
     // would be a change to the look that is supposed to be unchanged.
     expect(token(':root', 'color-placeholder')).toBe('rgb(148 138 130 / 0.6)');
-  });
-});
-
-describe('the chrome colour', () => {
-  /*
-    Item 1's third colour exists twice — as a CSS variable the utilities can
-    point at, and as a string an inline style can take. There is no route
-    between the two that does not cost a paint, so they are kept in step by
-    hand, and this is the thing that notices when a hand slips.
-  */
-  /*
-    Read off disk rather than imported. `version.ts` reaches for `document` and
-    `localStorage` at module scope, which is right for the browser and means
-    this test would need a DOM to do nothing but look at two strings.
-  */
-  const ts = read('../src/design/version.ts');
-  const constant = (name: string): string => {
-    const key = `export const ${name} = '`;
-    const at = ts.indexOf(key);
-    expect(at, `no ${name} in design/version.ts`).toBeGreaterThan(-1);
-    return ts.slice(at + key.length, ts.indexOf("'", at + key.length));
-  };
-
-  it('agrees with the copy of it in TypeScript', () => {
-    expect(token(':root', 'color-chrome')).toBe(constant('CHROME'));
-    expect(token(':root', 'color-on-chrome')).toBe(constant('CHROME_INK'));
-  });
-
-  it('is legible as a button, both ways round', () => {
-    expect(contrast(constant('CHROME_INK'), constant('CHROME'))).toBeGreaterThanOrEqual(4.5);
-    expect(contrast(constant('CHROME'), VOID)).toBeGreaterThanOrEqual(4.5);
   });
 });

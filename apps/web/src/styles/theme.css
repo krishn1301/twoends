@@ -75,27 +75,33 @@
   After. The page stays true black — the OLED argument above is untouched, and
   it is the *cards* that had to lift off it:
 
-    void -> surface        1.60:1
+    void -> surface        1.37:1
     surface -> surface-2   1.22:1
-    hairline on surface    1.89:1
+    hairline on surface    1.91:1
+
+  The first step was 1.60:1 for a while, and on a phone it was too far: the
+  cards went warm and pale enough that the text on them read as washed out
+  rather than as raised. Pulled back to 1.37, which still separates a card from
+  the page at a glance — the whole complaint was that 1.13 did not — and buys
+  back most of a stop of contrast for everything written on one.
 
   The two steps are deliberately lopsided. Lifting the card off the page is the
-  change that carries every screen; opening the second step as wide would have
-  put `ash` under 4.5:1 on the lightest ground it sits on, and losing a
-  legibility guarantee to win a shade of depth is a bad trade. The rest of the
-  separation comes from direction instead — see `.lift` below, which is the
-  document's other suggestion and costs no contrast at all.
+  change that carries every screen; opening the second step as wide would put
+  `ash` under 4.5:1 on the lightest ground it sits on, and losing a legibility
+  guarantee to win a shade of depth is a bad trade. The rest of the separation
+  comes from direction instead — see `.lift` below, which is the document's
+  other suggestion and costs no contrast at all.
 
   `ash` is re-solved rather than kept, because a fixed grey against a moving
   ground is how contrast is lost silently:
 
-    ash on void        8.87:1   (was 6.22)
-    ash on surface     5.55:1   (was 5.52)
-    ash on surface-2   4.54:1   (was 5.34)
+    ash on void        7.67:1   (was 6.22)
+    ash on surface     5.60:1   (was 5.52)
+    ash on surface-2   4.60:1   (was 5.34)
 
   **Item 15 — placeholders.** `ash/60` on `surface-2` measured 2.91:1. The
   label above the field was always fine; the example text inside it was not.
-  In this look a placeholder is `ash` at full strength — 4.54:1 — which needs a
+  In this look a placeholder is `ash` at full strength — 4.60:1 — which needs a
   token rather than a utility, because the two looks want different alphas of
   different colours and `placeholder:text-ash/60` can only say one of them.
 */
@@ -120,21 +126,13 @@
   /* Identical to `placeholder:text-ash/60` over `surface-2`. */
   --color-placeholder: rgb(148 138 130 / 0.6);
 
-  /*
-    Item 1. The interface colour, for everything a person did not author.
-
-    In this look it is unused — the app's chrome is still `mine`, which is what
-    the review is arguing about. `design/model.ts` is where the choice is made.
-  */
-  --color-chrome: #ede4da;
-  --color-on-chrome: #141110;
 }
 
 [data-design='v2'] {
-  --color-surface: #372f27;
-  --color-surface-2: #463c32;
-  --color-hairline: #605853;
-  --color-ash: #b4a69b;
+  --color-surface: #2a241e;
+  --color-surface-2: #3a3229;
+  --color-hairline: #564f4a;
+  --color-ash: #a79a90;
   --color-placeholder: var(--color-ash);
 }
 

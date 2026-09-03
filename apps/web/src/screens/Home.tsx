@@ -239,7 +239,7 @@ export function Home({
                 : `${streak.current} day streak — two missed days a month are forgiven`
             }
           >
-            <Flame color={m.chrome} />
+            <Flame color={mine} />
             {streak.current}
           </span>
         </header>
