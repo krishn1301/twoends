@@ -1,4 +1,10 @@
-import { useEffect, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react';
+import {
+  useEffect,
+  useState,
+  type CSSProperties,
+  type HTMLAttributes,
+  type ReactNode,
+} from 'react';
 
 /**
  * Faces, photographs and hand-made marks.
@@ -154,6 +160,7 @@ export function Faces({
   middle,
   size = 62,
   lineColor,
+  bothHere = false,
   myPress,
   theirPress,
 }: {
@@ -166,6 +173,16 @@ export function Faces({
   middle?: ReactNode;
   size?: number;
   lineColor: string;
+  /**
+   * Both of them have the app open right now.
+   *
+   * The line goes solid, and that is the entire indicator. It was going to be
+   * a dot, or a label, and both are worse: a badge saying "online" is a thing
+   * to check, and this is meant to be noticed rather than read. The line
+   * between two faces going solid says they are both here without ever having
+   * said either of them was not.
+   */
+  bothHere?: boolean;
   /**
    * Pointer handlers for one face and the other.
    *
@@ -189,13 +206,12 @@ export function Faces({
     <div className="flex items-start gap-3">
       <Named name={myName} accent={myAccent} size={size} src={mySrc} press={myPress} />
       {/* Exactly as tall as a face, so the badge sits on the faces' centre line. */}
-      <div
-        className="relative flex flex-1 items-center justify-center"
-        style={{ height: size }}
-      >
+      <div className="relative flex flex-1 items-center justify-center" style={{ height: size }}>
         <span
-          className="absolute inset-x-0 top-1/2 border-t border-dashed"
-          style={{ borderColor: lineColor }}
+          className={`absolute inset-x-0 top-1/2 border-t transition-[border-color,opacity] duration-500 ${
+            bothHere ? 'border-solid' : 'border-dashed'
+          }`}
+          style={{ borderColor: bothHere ? myAccent : lineColor, opacity: bothHere ? 0.9 : 1 }}
           aria-hidden="true"
         />
         {middle}
@@ -231,11 +247,7 @@ function Named({
   press?: HTMLAttributes<HTMLDivElement>;
 }) {
   return (
-    <div
-      {...press}
-      className="flex shrink-0 flex-col items-center gap-1.5"
-      style={{ width: size }}
-    >
+    <div {...press} className="flex shrink-0 flex-col items-center gap-1.5" style={{ width: size }}>
       <Avatar name={name} accent={accent} size={size} src={src} />
       <span
         className="w-full truncate text-center text-[0.7rem] leading-tight text-[#948A82]"

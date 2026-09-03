@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase.ts';
 import { clearWidgets } from '../lib/widgets.ts';
 import { useGame } from './game.ts';
 import { useLocation } from './location.ts';
+import { usePresence } from './presence.ts';
 
 /**
  * Who is using this app, and how far through the setup they are.
@@ -145,6 +146,7 @@ export const useSession = create<SessionState>((set, get) => ({
           await wipeLocal();
           await clearWidgets();
     useLocation.getState().clear();
+    usePresence.getState().leave();
     useGame.getState().clear();
           await supabase.auth.signInAnonymously();
           await get().refresh();
@@ -246,6 +248,7 @@ export const useSession = create<SessionState>((set, get) => ({
     // after sign-out is the copy nobody thinks to check.
     await clearWidgets();
     useLocation.getState().clear();
+    usePresence.getState().leave();
     useGame.getState().clear();
     set({
       status: 'loading',
@@ -272,6 +275,7 @@ export async function recoverSession(): Promise<void> {
   await wipeLocal();
   await clearWidgets();
     useLocation.getState().clear();
+    usePresence.getState().leave();
     useGame.getState().clear();
   await supabase.auth.signInAnonymously();
   await useSession.getState().refresh();

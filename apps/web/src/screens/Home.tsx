@@ -38,6 +38,7 @@ import { useLongPress, useBothPressed, useTapRun } from '../lib/gestures.ts';
 import { useAvatars } from '../state/avatars.ts';
 import { useDistanceReading, useLocation } from '../state/location.ts';
 import { useOccasion } from '../state/occasion.ts';
+import { usePresence } from '../state/presence.ts';
 import { markSeenToday, seenToday } from '../state/seenToday.ts';
 import { useNow } from '../state/useNow.ts';
 import { useSession } from '../state/session.ts';
@@ -129,6 +130,36 @@ export function Home({
     into it they are, and two people in two cities do not. `day_timezone` is the
     same field the streak and the daily question are keyed on.
   */
+  /*
+    Presence: joined while this screen is on and the app is in front.
+
+    Left on background rather than left running, and that is the promise
+    working rather than housekeeping — a channel held open while the phone is in
+    a pocket would say somebody is here when they are not, which is the one
+    thing this indicator must never do.
+  */
+  const bothHere = usePresence((s) => s.bothHere);
+  const joinPresence = usePresence((s) => s.join);
+  const leavePresence = usePresence((s) => s.leave);
+
+  useEffect(() => {
+    const coupleId = couple?.id;
+    if (!coupleId || !myId) return;
+
+    const sync = () => {
+      if (document.visibilityState === 'visible') joinPresence(coupleId, myId);
+      else leavePresence();
+    };
+
+    sync();
+    document.addEventListener('visibilitychange', sync);
+
+    return () => {
+      document.removeEventListener('visibilitychange', sync);
+      leavePresence();
+    };
+  }, [couple?.id, myId, joinPresence, leavePresence]);
+
   const zone = couple?.day_timezone ?? 'UTC';
   const coupleToday = localDateIn(zone, new Date(nowMs));
   const minutesNow = minutesPastMidnightIn(zone, new Date(nowMs));
@@ -351,6 +382,7 @@ export function Home({
             theirAccent={theirs}
             theirSrc={partner?.avatar_path ? avatarUrls.get(partner.avatar_path) : null}
             lineColor="#3A322D"
+            bothHere={bothHere}
             middle={
               /*
                 The distance badge, and the only place on Home that says anything

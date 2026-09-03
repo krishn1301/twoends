@@ -5,6 +5,7 @@ import { ACCENTS, emptyDrawing, getAccent, type Drawing, type Stroke } from '@tw
 import { DrawSurface } from '../components/DrawSurface.tsx';
 import { appendStrokes, clearCanvas } from '../db/canvas.ts';
 import { notifyPartner } from '../db/push.ts';
+import { usePresence } from '../state/presence.ts';
 import { useSession } from '../state/session.ts';
 import { useShared } from '../state/shared.ts';
 
@@ -62,8 +63,29 @@ export function Draw({ onSent }: { onSent?: () => void }) {
 
   useEffect(refresh, [refresh]);
 
+  /*
+    Their strokes, arriving as they are drawn rather than when they send.
+
+    Only while both of them are on the channel — which is the point of the
+    feature and also what keeps it honest: a stroke broadcast to somebody who
+    is not looking would be lost, and a stroke *stored* to reach them later is
+    just the ordinary send with extra steps. Live means live or not at all.
+
+    Held apart from `added` and from `base`: these are not this person's to
+    send, and they will arrive again through the canvas row when the other
+    person saves. Cleared on save for exactly that reason, or the same strokes
+    would be drawn twice.
+  */
+  const bothHere = usePresence((state) => state.bothHere);
+  const incoming = usePresence((state) => state.incoming);
+  const sendStroke = usePresence((state) => state.sendStroke);
+  const clearIncoming = usePresence((state) => state.clearIncoming);
+
   // Rendered as one picture; kept apart so only the new part travels.
-  const combined: Drawing = { version: 1, strokes: [...base.strokes, ...added] };
+  const combined: Drawing = {
+    version: 1,
+    strokes: [...base.strokes, ...incoming, ...added],
+  };
 
   function undo() {
     setAdded((strokes) => strokes.slice(0, -1));
@@ -89,6 +111,13 @@ export function Draw({ onSent }: { onSent?: () => void }) {
     // canvas for a frame while the store catches up.
     if (couple) await load(couple);
     setAdded([]);
+    /*
+      And the live ones, which the refresh has just brought back as part of the
+      saved canvas. Keeping them would draw the other person's strokes twice —
+      once from the broadcast and once from the row — which reads as the pen
+      having got heavier.
+    */
+    clearIncoming();
     setBusy(false);
     notifyPartner('drawing');
     onSent?.();
@@ -120,10 +149,29 @@ export function Draw({ onSent }: { onSent?: () => void }) {
           color={color}
           erasing={erasing}
           drawing={combined}
-          onStroke={(stroke) => setAdded((strokes) => [...strokes, stroke])}
+          onStroke={(stroke) => {
+            setAdded((strokes) => [...strokes, stroke]);
+            // Straight to the other screen, if they are on it. Nothing is
+            // stored by this; the canvas row is still written on save.
+            sendStroke(stroke);
+          }}
           className="aspect-square"
         />
       </div>
+
+      {/*
+        Said once, quietly, and only while it is true.
+
+        Without it the feature is invisible until the other person happens to
+        draw something, and a line appearing out of nowhere on a canvas reads as
+        a glitch rather than as them. It is not a presence badge: it says what
+        the canvas is doing, not where anybody is.
+      */}
+      {bothHere && (
+        <p className="text-ash text-center text-[0.85rem]">
+          {partner?.display_name ?? 'They'} have this open. Strokes are landing on both.
+        </p>
+      )}
 
       <div className="flex items-center gap-2">
         {palette.map((swatch) => {

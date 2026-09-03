@@ -130,6 +130,20 @@ Built in one sitting from a written spec, in the order it gives.
   was. Seeding only one side made the leak suite's "a member can read this
   table" control fail, which looks exactly like a broken read policy and is the
   feature working. Same trap the sealed capsules had.
+- **Presence writes nothing down, and that is the feature.** No table, no
+  `last_seen`, no log — Realtime presence lives in the server's memory and
+  disappears with the socket. The same thing built with history is a
+  surveillance tool inside a relationship: _"you were online at 2am and did not
+  answer me"_ is a sentence this app must never be able to support. The channel
+  is joined on foreground and **left on background**, because a socket held open
+  in a pocket would claim somebody is here when they are not.
+- **The indicator is the dotted line going solid**, not a badge. A dot saying
+  "online" is a thing to check; a line between two faces going solid is noticed
+  rather than read, and it never says either of them is _absent_.
+- **Live strokes are broadcast, never stored.** They arrive only while both are
+  on the channel, and are cleared on save — otherwise the refresh brings the
+  same strokes back through the canvas row and the pen appears to have got
+  heavier.
 - **The moment's push cannot be late.** The window is twenty minutes, so a
   notification an hour after it opens is about something already gone. It is
   gated on the moment's own hour inside `occasions` rather than given a second
