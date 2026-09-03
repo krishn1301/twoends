@@ -79,6 +79,7 @@ export function Tile({
   badge,
   wide,
   onDark = true,
+  onAccent = false,
   onClick,
   children,
   style,
@@ -97,6 +98,29 @@ export function Tile({
   wide?: boolean;
   /** False when the ground is light enough to need dark text. */
   onDark?: boolean;
+  /**
+   * True when `ground` is a full-strength accent or a gradient across both.
+   *
+   * **Item 4 of the visual review.** There were two ground cases here and the
+   * liveliest card in the app needed a third. The accents are engineered
+   * against black and there is a test asserting it; nothing ever covered text
+   * placed *on top* of one. Measured on the anniversary card's rose-to-iris
+   * gradient, the "DAY / HR / MIN / SEC" row came out at 2.7:1 and the
+   * "anniversary" eyebrow at 2.3:1 — and on the lighter half of the picker,
+   * teal, citron, amber and moss, the same labels land at 1.6-1.9:1, which is
+   * close to invisible.
+   *
+   * The fix is a scrim under the label zone rather than a per-accent label
+   * colour, because `ground` can be a gradient and there is no single colour to
+   * measure against. At 0.5-0.62 black the worst case in the palette — white on
+   * citron — goes from 2.03:1 to about 7:1, and every other accent is further
+   * clear. It is one rule that cannot be wrong for a particular pair, which a
+   * table of twelve hand-picked label colours could very easily be.
+   *
+   * Passed by the call site rather than read from the design version, because
+   * this package may not know the app exists.
+   */
+  onAccent?: boolean;
   /** Makes the whole card a button. Cards that do nothing take no handler. */
   onClick?: () => void;
   children?: ReactNode;
@@ -120,19 +144,30 @@ export function Tile({
     <Element
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`relative h-44 shrink-0 snap-start overflow-hidden rounded-[28px] text-left ${wide ? 'w-[76vw] max-w-[19rem]' : 'w-[44vw] max-w-[10.5rem]'}`}
+      className={`lift relative h-44 shrink-0 snap-start overflow-hidden rounded-[28px] text-left ${wide ? 'w-[76vw] max-w-[19rem]' : 'w-[44vw] max-w-[10.5rem]'}`}
       style={{ background: ground ?? 'var(--color-surface)', ...style }}
     >
       <div className="absolute inset-0">{children}</div>
 
       {badge && <div className="absolute top-3.5 left-3.5 z-10">{badge}</div>}
 
+      {onAccent && (eyebrow ?? headline ?? footnote) && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2"
+          style={{
+            background:
+              'linear-gradient(to top, rgb(0 0 0 / 0.62) 0%, rgb(0 0 0 / 0.5) 45%, rgb(0 0 0 / 0) 100%)',
+          }}
+        />
+      )}
+
       {(eyebrow ?? headline ?? footnote) && (
         <div className="absolute inset-x-0 bottom-0 z-10 p-3.5">
           {eyebrow && (
             <p
               className="mb-1 text-[0.78rem] leading-none"
-              style={{ color: onDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.55)' }}
+              style={{ color: labelColour(onDark, onAccent, 'eyebrow') }}
             >
               {eyebrow}
             </p>
@@ -140,7 +175,7 @@ export function Tile({
           {headline && (
             <p
               className="font-display line-clamp-2 text-[1.1rem] leading-[1.16] font-semibold tracking-[-0.01em]"
-              style={{ color: onDark ? '#FFFFFF' : '#141110' }}
+              style={{ color: labelColour(onDark, onAccent, 'headline') }}
             >
               {headline}
             </p>
@@ -148,7 +183,7 @@ export function Tile({
           {footnote && (
             <p
               className="mt-1 truncate text-[0.68rem] leading-none"
-              style={{ color: onDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.42)' }}
+              style={{ color: labelColour(onDark, onAccent, 'footnote') }}
             >
               {footnote}
             </p>
@@ -157,6 +192,40 @@ export function Tile({
       )}
     </Element>
   );
+}
+
+/**
+ * The three label colours, in one place so the scrim and the alphas it was
+ * measured against cannot drift apart.
+ *
+ * On an accent the translucency comes right down: the whole reason the labels
+ * were faint is that a hairline of white at 60% is what an eyebrow wants on
+ * *black*, and nobody re-checked it when the ground became a colour.
+ */
+function labelColour(
+  onDark: boolean,
+  onAccent: boolean,
+  part: 'eyebrow' | 'headline' | 'footnote',
+): string {
+  if (!onDark) {
+    return part === 'headline'
+      ? '#141110'
+      : part === 'eyebrow'
+        ? 'rgba(0,0,0,0.55)'
+        : 'rgba(0,0,0,0.42)';
+  }
+  if (onAccent) {
+    return part === 'headline'
+      ? '#FFFFFF'
+      : part === 'eyebrow'
+        ? 'rgba(255,255,255,0.86)'
+        : 'rgba(255,255,255,0.74)';
+  }
+  return part === 'headline'
+    ? '#FFFFFF'
+    : part === 'eyebrow'
+      ? 'rgba(255,255,255,0.6)'
+      : 'rgba(255,255,255,0.45)';
 }
 
 /** Translucent pill, for "new", a lock, or a streak count. */

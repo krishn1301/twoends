@@ -23,6 +23,7 @@ import type { TabId } from '../components/TabBar.tsx';
 import { askQuestion, askToday } from '../db/asks.ts';
 import { todaysPrompt } from '../db/daily.ts';
 import { notifyPartner } from '../db/push.ts';
+import { useChrome, useIsV2 } from '../design/version.ts';
 import { supabase } from '../lib/supabase.ts';
 import { useAvatars } from '../state/avatars.ts';
 import { EMPTY_CARD } from '../db/game.ts';
@@ -62,6 +63,8 @@ export function Play({ onGo }: { onGo?: (tab: TabId) => void }) {
 
   const mine = getAccent(profile?.accent_key ?? 'teal').onDark;
   const theirs = getAccent(partner?.accent_key ?? 'rose').onDark;
+  const chrome = useChrome(mine);
+  const v2 = useIsV2();
 
   return (
     <div className="bg-void text-chalk min-h-full px-5 pt-6 pb-32">
@@ -89,7 +92,7 @@ export function Play({ onGo }: { onGo?: (tab: TabId) => void }) {
               className={`h-10 flex-1 rounded-full text-[0.78rem] font-medium transition-colors ${
                 view === key ? 'text-void' : 'text-ash'
               }`}
-              style={view === key ? { background: mine } : undefined}
+              style={view === key ? { background: chrome } : undefined}
             >
               {label}
             </button>
@@ -97,8 +100,8 @@ export function Play({ onGo }: { onGo?: (tab: TabId) => void }) {
         </div>
 
         {view === 'match' && <Match myTint={mine} theirTint={theirs} />}
-        {view === 'guess' && <Guess myTint={mine} theirTint={theirs} />}
-        {view === 'talk' && <Talk tint={mine} />}
+        {view === 'guess' && <Guess myTint={mine} theirTint={theirs} chrome={chrome} />}
+        {view === 'talk' && <Talk tint={chrome} />}
 
         {/*
           Where the 18+ packs are, said once, at the bottom.
@@ -111,13 +114,20 @@ export function Play({ onGo }: { onGo?: (tab: TabId) => void }) {
 
           When it is on, this says so. A switch whose effect you cannot see is a
           switch people turn on twice and then stop trusting.
+
+          **Item 12.** Two things were wrong with it as a permanent fixture at
+          the bottom of every sub-tab. It measured 3.43:1 — `ash/70` on black,
+          under the bar for text anybody is expected to read — and it was two
+          lines of prose that are read once and then sit there forever. One line,
+          at full strength, in the proposed look.
         */}
         {couple?.member_b && (
           <div className="mt-10 px-1">
             {couple.adult_packs_enabled ? (
-              <p className="text-ash/70 text-sm leading-relaxed">
-                18+ is on. There are extra cards in the deck and a Just us pack in Talk
-                about.{' '}
+              <p className={`${v2 ? 'text-ash' : 'text-ash/70'} text-sm leading-relaxed`}>
+                {v2
+                  ? '18+ is on. '
+                  : '18+ is on. There are extra cards in the deck and a Just us pack in Talk about. '}
                 <button
                   type="button"
                   onClick={() => onGo?.('us')}
@@ -128,9 +138,10 @@ export function Play({ onGo }: { onGo?: (tab: TabId) => void }) {
                 .
               </p>
             ) : (
-              <p className="text-ash/70 text-sm leading-relaxed">
-                There is more, if you both want it — extra cards and a pack of things to
-                talk about.{' '}
+              <p className={`${v2 ? 'text-ash' : 'text-ash/70'} text-sm leading-relaxed`}>
+                {v2
+                  ? 'There is more, if you both want it. '
+                  : 'There is more, if you both want it — extra cards and a pack of things to talk about. '}
                 <button
                   type="button"
                   onClick={() => onGo?.('us')}
@@ -358,8 +369,8 @@ function Match({ myTint, theirTint }: { myTint: string; theirTint: string }) {
           {matchLabel(tally.agreed, tally.played)}
         </p>
         <p className="text-ash mt-1.5 text-sm leading-relaxed">
-          One card a day, out of {todays.size}. Agreeing on everything is not the goal —
-          knowing which ones you do not is the point.
+          One card a day, out of {todays.size}. Agreeing on everything is not the goal — knowing
+          which ones you do not is the point.
         </p>
       </div>
     </>
@@ -421,6 +432,8 @@ function Option({
   them: { name: string; src?: string | null };
   onClick: () => void;
 }) {
+  const v2 = useIsV2();
+
   /*
     Both of you on one option needs a gradient across the two accents; one of
     you needs that person's colour; neither needs the plain surface. Three
@@ -428,12 +441,34 @@ function Option({
   */
   const ground =
     chosenByMe && chosenByThem
-      ? `linear-gradient(135deg, color-mix(in oklab, ${myTint} 26%, #15120F), color-mix(in oklab, ${theirTint} 26%, #15120F))`
+      ? `linear-gradient(135deg, color-mix(in oklab, ${myTint} 26%, var(--color-surface)), color-mix(in oklab, ${theirTint} 26%, var(--color-surface)))`
       : chosenByMe
-        ? `color-mix(in oklab, ${myTint} 22%, #15120F)`
+        ? `color-mix(in oklab, ${myTint} 22%, var(--color-surface))`
         : chosenByThem
-          ? `color-mix(in oklab, ${theirTint} 22%, #15120F)`
+          ? `color-mix(in oklab, ${theirTint} 22%, var(--color-surface))`
           : 'var(--color-surface)';
+
+  /*
+    **Item 10.** Yours had a border, a tint and a face; theirs had a tint and a
+    face and no border — so a disagreement read as "mine is selected and theirs
+    is merely coloured" rather than "we went two ways", which is the whole
+    point of the card. Theirs gets the same ring in their own colour, and both
+    of you on one option gets both rings, nested.
+
+    The option nobody has taken gets a hairline. Flat black next to a tinted
+    card reads as dead rather than as the other thing you could have chosen.
+  */
+  const outline = v2
+    ? chosenByMe && chosenByThem
+      ? `inset 0 0 0 1.5px ${myTint}, inset 0 0 0 3.5px ${theirTint}`
+      : chosenByMe
+        ? `inset 0 0 0 1.5px ${myTint}`
+        : chosenByThem
+          ? `inset 0 0 0 1.5px ${theirTint}`
+          : 'inset 0 0 0 1px var(--color-hairline)'
+    : chosenByMe
+      ? `inset 0 0 0 1.5px ${myTint}`
+      : undefined;
 
   return (
     <button
@@ -441,10 +476,7 @@ function Option({
       onClick={onClick}
       aria-pressed={chosenByMe}
       className="relative flex min-h-[6.5rem] w-full items-center rounded-[26px] p-5 text-left transition-[background] duration-200"
-      style={{
-        background: ground,
-        boxShadow: chosenByMe ? `inset 0 0 0 1.5px ${myTint}` : undefined,
-      }}
+      style={{ background: ground, boxShadow: outline }}
     >
       <span className="font-display flex-1 pr-16 text-[1.25rem] leading-[1.2] font-semibold tracking-[-0.01em]">
         {label}
@@ -452,10 +484,22 @@ function Option({
 
       <span className="absolute top-1/2 right-5 flex -translate-y-1/2 -space-x-2.5">
         {chosenByThem && (
-          <Avatar name={them.name} accent={theirTint} size={30} src={them.src} ring="#15120F" />
+          <Avatar
+            name={them.name}
+            accent={theirTint}
+            size={30}
+            src={them.src}
+            ring="var(--color-surface)"
+          />
         )}
         {chosenByMe && (
-          <Avatar name={me.name} accent={myTint} size={30} src={me.src} ring="#15120F" />
+          <Avatar
+            name={me.name}
+            accent={myTint}
+            size={30}
+            src={me.src}
+            ring="var(--color-surface)"
+          />
         )}
       </span>
     </button>
@@ -465,6 +509,7 @@ function Option({
 // ── talk about ───────────────────────────────────────────────────────────────
 
 function Talk({ tint }: { tint: string }) {
+  const v2 = useIsV2();
   const couple = useSession((s) => s.couple);
   const profile = useSession((s) => s.profile);
   const partner = useSession((s) => s.partner);
@@ -574,15 +619,36 @@ function Talk({ tint }: { tint: string }) {
         One topic, large, with nothing else on the screen competing with it.
         This card is meant to be read aloud, so it is set at the size you can
         read from a phone lying on a table.
+
+        **Item 14.** The copy calls these a deck and nothing about them said so:
+        "Another" replaced the text in place, so the card never moved and there
+        was never anything behind it. Two edges peek out below and a new topic
+        is dealt onto them — `key={at}` because an animation that has already
+        finished cannot be restarted by a class.
       */}
-      <div
-        className="rounded-[28px] p-6"
-        style={{ background: `color-mix(in oklab, ${tint} 14%, #15120F)` }}
-      >
-        <p className="text-[0.7rem] tracking-[0.2em] text-white/45 uppercase">talk about</p>
-        <p className="font-display mt-3 text-[1.5rem] leading-[1.25] font-semibold tracking-[-0.01em]">
-          {topic}
-        </p>
+      <div className="relative">
+        {v2 && (
+          <>
+            <span
+              aria-hidden="true"
+              className="bg-surface absolute inset-x-4 -bottom-2 h-12 rounded-[28px]"
+            />
+            <span
+              aria-hidden="true"
+              className="bg-surface/60 absolute inset-x-8 -bottom-4 h-12 rounded-[28px]"
+            />
+          </>
+        )}
+        <div
+          key={v2 ? at : undefined}
+          className={`relative rounded-[28px] p-6 ${v2 ? 'deal' : ''}`}
+          style={{ background: `color-mix(in oklab, ${tint} 14%, var(--color-surface))` }}
+        >
+          <p className="text-[0.7rem] tracking-[0.2em] text-white/45 uppercase">talk about</p>
+          <p className="font-display mt-3 text-[1.5rem] leading-[1.25] font-semibold tracking-[-0.01em]">
+            {topic}
+          </p>
+        </div>
       </div>
 
       <div className="mt-5 flex flex-col gap-2.5">
@@ -610,9 +676,9 @@ function Talk({ tint }: { tint: string }) {
       )}
 
       <p className="text-ash mt-6 text-[0.9rem] leading-relaxed">
-        Nothing here is saved. These are for saying out loud — read one to {theirName} and
-        see where it goes. If one of them deserves an answer in writing, send it up to
-        today&rsquo;s question instead.
+        Nothing here is saved. These are for saying out loud — read one to {theirName} and see where
+        it goes. If one of them deserves an answer in writing, send it up to today&rsquo;s question
+        instead.
       </p>
     </>
   );
@@ -632,12 +698,21 @@ function Talk({ tint }: { tint: string }) {
  *
  * The round is dealt by a tap — a user action, not an effect — and then held.
  */
-function Guess({ myTint, theirTint }: { myTint: string; theirTint: string }) {
+function Guess({
+  myTint,
+  theirTint,
+  chrome,
+}: {
+  myTint: string;
+  theirTint: string;
+  chrome: string;
+}) {
   const couple = useSession((s) => s.couple);
   const profile = useSession((s) => s.profile);
   const partner = useSession((s) => s.partner);
   const avatarUrls = useAvatars((s) => s.urls);
   const loadAvatars = useAvatars((s) => s.load);
+  const v2 = useIsV2();
 
   const boards = useGame((s) => s.boards);
   const board = boards.guess;
@@ -699,9 +774,7 @@ function Guess({ myTint, theirTint }: { myTint: string; theirTint: string }) {
   }, [boards]);
 
   const cards = matchCardsFor({ adultEnabled: couple?.adult_packs_enabled });
-  const mine = written.filter(
-    (c) => c.kind === 'guess' && ours18(c, couple?.adult_packs_enabled),
-  );
+  const mine = written.filter((c) => c.kind === 'guess' && ours18(c, couple?.adult_packs_enabled));
   const left = cardsLeft({ deck: cards, written: mine, done, myId: myId ?? '' });
 
   function deal() {
@@ -726,7 +799,7 @@ function Guess({ myTint, theirTint }: { myTint: string; theirTint: string }) {
     return (
       <>
         {finished && round && (
-          <Scoreboard round={round} board={board} theirName={theirName} tint={myTint} />
+          <Scoreboard round={round} board={board} theirName={theirName} tint={chrome} />
         )}
 
         <div className="bg-surface rounded-[28px] p-5">
@@ -734,8 +807,8 @@ function Guess({ myTint, theirTint }: { myTint: string; theirTint: string }) {
             {finished ? 'Another five?' : `How well do you know ${theirName}?`}
           </p>
           <p className="text-ash mt-1.5 text-sm leading-relaxed">
-            Five cards, and you answer as {theirName} — not what you would pick, what they
-            would. Nothing shows until they have answered too.
+            Five cards, and you answer as {theirName} — not what you would pick, what they would.
+            Nothing shows until they have answered too.
           </p>
           {left === 0 && (
             <p className="text-ash mt-2 text-sm leading-relaxed">
@@ -743,16 +816,16 @@ function Guess({ myTint, theirTint }: { myTint: string; theirTint: string }) {
             </p>
           )}
           <div className="mt-4 flex flex-col gap-2.5">
-            <Button accent={myTint} disabled={left === 0} onClick={deal}>
+            <Button accent={chrome} disabled={left === 0} onClick={deal}>
               {left === 0 ? 'No cards left' : `Deal five${left < 12 ? ` · ${left} left` : ''}`}
             </Button>
-            <Button variant="quiet" accent={myTint} onClick={() => setComposing(true)}>
+            <Button variant="quiet" accent={chrome} onClick={() => setComposing(true)}>
               Write one about yourself
             </Button>
           </div>
         </div>
 
-        {composing && <Compose tint={myTint} onDone={() => setComposing(false)} />}
+        {composing && <Compose tint={chrome} onDone={() => setComposing(false)} />}
       </>
     );
   }
@@ -800,9 +873,35 @@ function Guess({ myTint, theirTint }: { myTint: string; theirTint: string }) {
   return (
     <>
       <div className="mb-3 flex items-baseline justify-between gap-2">
-        <span className="text-ash counter text-sm">
-          {at + 1} / {round.length}
-        </span>
+        {v2 ? (
+          /*
+            The same number, as a thing that visibly shortens. "1 / 5" is a fact
+            about a deck; this is the deck. The card you are on is the wide one,
+            the ones behind you go to the hairline, the ones to come stay on the
+            raised surface.
+          */
+          <span
+            className="flex items-center gap-1.5"
+            role="img"
+            aria-label={`Card ${at + 1} of ${round.length}`}
+          >
+            {round.map((c, i) => (
+              <span
+                key={c.id}
+                className="h-1.5 rounded-full transition-all duration-300"
+                style={{
+                  width: i === at ? '1.4rem' : '0.5rem',
+                  background:
+                    i < at ? 'var(--color-hairline)' : i === at ? chrome : 'var(--color-surface-2)',
+                }}
+              />
+            ))}
+          </span>
+        ) : (
+          <span className="text-ash counter text-sm">
+            {at + 1} / {round.length}
+          </span>
+        )}
         <span className="flex items-center gap-2">
           {card.authorId != null && <Pill>{isTheirs ? `${theirName} wrote this` : 'yours'}</Pill>}
           {answered && !revealed && (
@@ -818,45 +917,54 @@ function Guess({ myTint, theirTint }: { myTint: string; theirTint: string }) {
         </span>
       </div>
 
-      {card.body && (
-        <p className="font-display mb-3 text-[1.15rem] leading-snug font-semibold">{card.body}</p>
-      )}
+      {/*
+        Dealt, rather than swapped. Keyed on the card so moving through a round
+        moves, and so that answering the one you are on — which re-renders this
+        block without changing `at` — does not re-deal it under your finger.
+      */}
+      <div key={v2 ? card.id : undefined} className={v2 ? 'deal' : undefined}>
+        {card.body && (
+          <p className="font-display mb-3 text-[1.15rem] leading-snug font-semibold">{card.body}</p>
+        )}
 
-      <p className="text-ash mb-3 text-sm">
-        {answered
-          ? 'You said:'
-          : asking === 'mine'
-            ? 'First — what would you pick?'
-            : `Now: what would ${theirName} pick?`}
-      </p>
+        <p className="text-ash mb-3 text-sm">
+          {answered
+            ? 'You said:'
+            : asking === 'mine'
+              ? 'First — what would you pick?'
+              : `Now: what would ${theirName} pick?`}
+        </p>
 
-      <div className="flex flex-col gap-3">
-        {([0, 1] as const).map((side) => (
-          <Option
-            key={side}
-            label={side === 0 ? card.a : card.b}
-            /*
+        <div className="flex flex-col gap-3">
+          {([0, 1] as const).map((side) => (
+            <Option
+              key={side}
+              label={side === 0 ? card.a : card.b}
+              /*
               Before the card is sent the highlight follows whichever half is
               being asked, so a tap you just made stays visible rather than
               vanishing when the question changes under it. Afterwards it means
               what it means everywhere else on this screen: your face on your
               answer, theirs on theirs.
             */
-            chosenByMe={answered ? state.myGuess === side : asking === 'guess' && pending === side}
-            chosenByThem={revealed && state.theirs === side}
-            myTint={myTint}
-            theirTint={theirTint}
-            me={{
-              name: profile?.display_name ?? 'you',
-              src: profile?.avatar_path ? avatarUrls.get(profile.avatar_path) : null,
-            }}
-            them={{
-              name: theirName,
-              src: partner?.avatar_path ? avatarUrls.get(partner.avatar_path) : null,
-            }}
-            onClick={() => tap(side)}
-          />
-        ))}
+              chosenByMe={
+                answered ? state.myGuess === side : asking === 'guess' && pending === side
+              }
+              chosenByThem={revealed && state.theirs === side}
+              myTint={myTint}
+              theirTint={theirTint}
+              me={{
+                name: profile?.display_name ?? 'you',
+                src: profile?.avatar_path ? avatarUrls.get(profile.avatar_path) : null,
+              }}
+              them={{
+                name: theirName,
+                src: partner?.avatar_path ? avatarUrls.get(partner.avatar_path) : null,
+              }}
+              onClick={() => tap(side)}
+            />
+          ))}
+        </div>
       </div>
 
       {/*
@@ -1018,8 +1126,7 @@ function Compose({ tint, onDone }: { tint: string; onDone: () => void }) {
     it comes round. A card about you does, and that answer is the whole thing
     being guessed at.
   */
-  const ready =
-    a.trim().length > 0 && b.trim().length > 0 && (kind === 'match' || answer != null);
+  const ready = a.trim().length > 0 && b.trim().length > 0 && (kind === 'match' || answer != null);
 
   async function save() {
     if (!couple || !profile) return;
@@ -1077,7 +1184,7 @@ function Compose({ tint, onDone }: { tint: string; onDone: () => void }) {
             className="h-11 flex-1 rounded-full text-[0.85rem] font-medium"
             style={
               kind === key
-                ? { background: tint, color: '#15120F' }
+                ? { background: tint, color: 'var(--color-void)' }
                 : { background: 'var(--color-surface-2)', color: 'var(--color-ash)' }
             }
           >
@@ -1115,33 +1222,33 @@ function Compose({ tint, onDone }: { tint: string; onDone: () => void }) {
         </Field>
 
         {kind === 'guess' && (
-        <div>
-          <p className="text-ash mb-2 text-sm">Which is true of you?</p>
-          <div className="flex gap-2.5">
-            {([0, 1] as const).map((side) => {
-              const label = (side === 0 ? a : b).trim();
-              return (
-                <button
-                  key={side}
-                  type="button"
-                  onClick={() => setAnswer(side)}
-                  disabled={label.length === 0}
-                  aria-pressed={answer === side}
-                  className="min-h-12 flex-1 rounded-2xl px-4 py-3 text-left text-sm disabled:opacity-40"
-                  style={{
-                    background:
-                      answer === side
-                        ? `color-mix(in oklab, ${tint} 24%, #15120F)`
-                        : 'var(--color-surface-2)',
-                    boxShadow: answer === side ? `inset 0 0 0 1.5px ${tint}` : undefined,
-                  }}
-                >
-                  {label || (side === 0 ? 'One answer' : 'The other')}
-                </button>
-              );
-            })}
+          <div>
+            <p className="text-ash mb-2 text-sm">Which is true of you?</p>
+            <div className="flex gap-2.5">
+              {([0, 1] as const).map((side) => {
+                const label = (side === 0 ? a : b).trim();
+                return (
+                  <button
+                    key={side}
+                    type="button"
+                    onClick={() => setAnswer(side)}
+                    disabled={label.length === 0}
+                    aria-pressed={answer === side}
+                    className="min-h-12 flex-1 rounded-2xl px-4 py-3 text-left text-sm disabled:opacity-40"
+                    style={{
+                      background:
+                        answer === side
+                          ? `color-mix(in oklab, ${tint} 24%, var(--color-surface))`
+                          : 'var(--color-surface-2)',
+                      boxShadow: answer === side ? `inset 0 0 0 1.5px ${tint}` : undefined,
+                    }}
+                  >
+                    {label || (side === 0 ? 'One answer' : 'The other')}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
         )}
 
         {/*
@@ -1157,7 +1264,7 @@ function Compose({ tint, onDone }: { tint: string; onDone: () => void }) {
             className="flex min-h-12 items-center justify-between rounded-2xl px-4 py-3 text-left text-sm"
             style={{
               background: isAdult
-                ? `color-mix(in oklab, ${tint} 24%, #15120F)`
+                ? `color-mix(in oklab, ${tint} 24%, var(--color-surface))`
                 : 'var(--color-surface-2)',
             }}
           >

@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { useLiveQuery } from 'dexie-react-hooks';
 
+import { Empty, GhostList } from '../components/Empty.tsx';
 import { Button, TextInput } from '../components/Field.tsx';
 import {
   LIST_KINDS,
@@ -141,7 +142,9 @@ export function SharedList({ coupleId, tint }: { coupleId?: string; tint: string
       </form>
 
       {open.length === 0 && done.length === 0 && (
-        <p className="text-ash text-[0.95rem] leading-relaxed">{LABELS[kind].empty}</p>
+        <Empty ghost={<GhostList chrome={tint} />}>
+          <p className="text-ash text-[0.95rem] leading-relaxed">{LABELS[kind].empty}</p>
+        </Empty>
       )}
 
       <ul className="flex flex-col gap-2.5">

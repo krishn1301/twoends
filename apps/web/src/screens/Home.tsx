@@ -30,6 +30,7 @@ import {
   widgetsSupported,
   type WidgetId,
 } from '../lib/widgets.ts';
+import { useIsV2 } from '../design/version.ts';
 import { useLongPress, useBothPressed, useTapRun } from '../lib/gestures.ts';
 import { useAvatars } from '../state/avatars.ts';
 import { useDistanceReading, useLocation } from '../state/location.ts';
@@ -182,7 +183,10 @@ export function Home({
   const occasion = useOccasion();
   const [dismissed, setDismissed] = useState<string | null>(null);
   const bigDay =
-    occasion && fillsTheScreen(occasion.kind) && occasion.key !== dismissed && !seenToday(occasion.key)
+    occasion &&
+    fillsTheScreen(occasion.kind) &&
+    occasion.key !== dismissed &&
+    !seenToday(occasion.key)
       ? occasion
       : null;
 
@@ -201,6 +205,7 @@ export function Home({
   const mine = m.myAccent.onDark;
   const theirs = m.theirAccent.onDark;
   const shared = `linear-gradient(145deg, ${mine}, ${theirs})`;
+  const v2 = useIsV2();
 
   return (
     <div className="bg-void text-chalk min-h-full">
@@ -234,7 +239,7 @@ export function Home({
                 : `${streak.current} day streak — two missed days a month are forgiven`
             }
           >
-            <Flame color={mine} />
+            <Flame color={m.chrome} />
             {streak.current}
           </span>
         </header>
@@ -307,7 +312,7 @@ export function Home({
                   className="bg-surface-2 relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm"
                   title={distance.note}
                 >
-                  <span className="counter" style={{ color: mine }}>
+                  <span className="counter" style={{ color: m.chrome }}>
                     {distance.label}
                   </span>
                   {distance.kind === 'apart' && <span className="text-ash">km</span>}
@@ -317,10 +322,7 @@ export function Home({
           />
 
           {minuteLine && (
-            <p
-              className="mt-3 text-center text-[0.8rem] leading-relaxed"
-              style={{ color: mine }}
-            >
+            <p className="mt-3 text-center text-[0.8rem] leading-relaxed" style={{ color: mine }}>
               {minuteLine}
             </p>
           )}
@@ -361,7 +363,7 @@ export function Home({
                   </Tile>
                 ) : (
                   <Tile
-                    ground={`color-mix(in oklab, ${mine} 18%, #15120F)`}
+                    ground={`color-mix(in oklab, ${mine} 18%, var(--color-surface))`}
                     eyebrow="snap"
                     headline="Send a photo of right now"
                     onClick={() => onOpen?.('snap')}
@@ -396,7 +398,7 @@ export function Home({
                 )}
 
                 <Tile
-                  ground={`color-mix(in oklab, ${mine} 18%, #15120F)`}
+                  ground={`color-mix(in oklab, ${mine} 18%, var(--color-surface))`}
                   eyebrow="your turn"
                   headline="Send one back"
                   badge={<Pill>you</Pill>}
@@ -409,7 +411,32 @@ export function Home({
           <div className="rise" style={{ animationDelay: '180ms' }}>
             <Section title="Together" action="All" onAction={() => onGo?.('dates')}>
               <Rail>
-                <Tile wide ground={shared} eyebrow="anniversary">
+                <Tile wide ground={shared} eyebrow="anniversary" onAccent={v2}>
+                  {/*
+                    **Item 4.** The accents are engineered against black and
+                    there is a test asserting it; nothing ever checked text put
+                    *on top* of one. Measured on this card's rose-to-iris
+                    gradient, the day/hr/min/sec row came out at 2.7:1 and the
+                    eyebrow at 2.3:1 — and a citron-and-amber pair gets the same
+                    labels at about 1.6:1, which is close to invisible.
+
+                    A scrim rather than a table of per-accent label colours,
+                    because the ground here is a gradient across two of them and
+                    there is no single colour to measure against. Weighted to
+                    the top so it covers the counter and fades out before
+                    `Tile`'s own bottom scrim starts, rather than doubling with
+                    it and flattening the best card in the app.
+                  */}
+                  {v2 && (
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0"
+                      style={{
+                        background:
+                          'linear-gradient(to bottom, rgb(0 0 0 / 0.52) 0%, rgb(0 0 0 / 0.46) 46%, rgb(0 0 0 / 0) 78%)',
+                      }}
+                    />
+                  )}
                   {/*
                     The whole card is the target, not just the numbers.
 
@@ -427,7 +454,7 @@ export function Home({
                   */}
                   <div
                     {...counterHold}
-                    className="absolute inset-0 z-20 [-webkit-touch-callout:none] [-webkit-user-select:none] select-none"
+                    className="absolute inset-0 z-20 select-none [-webkit-touch-callout:none] [-webkit-user-select:none]"
                   >
                     <div className="absolute inset-x-4 top-1/2 -translate-y-[60%]">
                       {heldCounter ? (
@@ -440,7 +467,9 @@ export function Home({
                             sec` row it replaces, so holding the card changes
                             what is counted and not how the card is built.
                           */}
-                          <p className="mt-2 text-[0.6rem] tracking-[0.2em] text-white/70 uppercase">
+                          <p
+                            className={`mt-2 text-[0.6rem] tracking-[0.2em] uppercase ${v2 ? 'text-white/90' : 'text-white/70'}`}
+                          >
                             hours
                           </p>
                           {/*
@@ -449,7 +478,9 @@ export function Home({
                             purpose, because two of them would be shouting.
                           */}
                           {quote && (
-                            <p className="mt-2 max-w-[15rem] text-[0.78rem] leading-snug text-white/85 italic">
+                            <p
+                              className={`mt-2 max-w-[15rem] text-[0.78rem] leading-snug italic ${v2 ? 'text-white/90' : 'text-white/85'}`}
+                            >
                               {quote}
                             </p>
                           )}
@@ -465,7 +496,9 @@ export function Home({
                             <span className="opacity-50">:</span>
                             {pad(m.elapsed.seconds)}
                           </p>
-                          <p className="mt-2 flex gap-[2.1rem] text-[0.6rem] tracking-[0.2em] text-white/70 uppercase">
+                          <p
+                            className={`mt-2 flex gap-[2.1rem] text-[0.6rem] tracking-[0.2em] uppercase ${v2 ? 'text-white/90' : 'text-white/70'}`}
+                          >
                             <span>day</span>
                             <span>hr</span>
                             <span>min</span>
@@ -485,7 +518,7 @@ export function Home({
                 */}
                 {countdown ? (
                   <Tile
-                    ground={`color-mix(in oklab, ${theirs} 20%, #15120F)`}
+                    ground={`color-mix(in oklab, ${theirs} 20%, var(--color-surface))`}
                     eyebrow="countdown"
                     headline={countdown.title}
                     footnote={whenLabel(countdown.target_at)}
@@ -520,17 +553,40 @@ export function Home({
                   eyebrow="this week"
                   headline={streak.current === 0 ? 'No streak yet' : `${streak.current} days`}
                 >
-                  <div className="absolute inset-x-3.5 top-4 grid grid-cols-4 gap-1.5">
+                  {/*
+                    **Item 11.** Seven markers in a four-column grid wrap to
+                    4 + 3 and read as a calendar row that has broken, which is
+                    the worst thing a streak tile can look like. One row of
+                    seven, smaller, in the proposed look: 7 x 1.15rem inside the
+                    tile's usable width.
+
+                    Seven columns that share the width, not seven fixed circles:
+                    the tile is `44vw`, so a fixed diameter that fits a 360px
+                    handset overflows a 320px one — and the failure mode of a
+                    row that does not fit is the same broken calendar this is
+                    fixing. `aspect-square` is only a hint when the content is
+                    bigger than the box, and here the content is one 8px letter.
+                  */}
+                  <div
+                    className={
+                      v2
+                        ? 'absolute inset-x-3.5 top-4 grid grid-cols-7 gap-1'
+                        : 'absolute inset-x-3.5 top-4 grid grid-cols-4 gap-1.5'
+                    }
+                  >
                     {week.map((mark, i) => (
                       <span
                         key={WEEK_LABELS[i]}
-                        className="grid h-7 w-7 place-items-center rounded-full text-[0.6rem]"
+                        className={`grid place-items-center rounded-full ${v2 ? 'aspect-square w-full text-[0.5rem]' : 'h-7 w-7 text-[0.6rem]'}`}
                         style={
                           mark === 'done'
-                            ? { background: mine, color: '#000' }
+                            ? { background: v2 ? m.chrome : mine, color: '#000' }
                             : mark === 'grace'
-                              ? { border: `1px dashed ${theirs}`, color: '#948A82' }
-                              : { background: 'rgba(255,255,255,0.07)', color: '#948A82' }
+                              ? { border: `1px dashed ${theirs}`, color: 'var(--color-ash)' }
+                              : {
+                                  background: 'rgba(255,255,255,0.07)',
+                                  color: 'var(--color-ash)',
+                                }
                         }
                         title={mark === 'grace' ? 'Missed, and forgiven' : mark}
                       >
@@ -545,24 +601,71 @@ export function Home({
                   people this is for are on iPhones and cannot install the APK at
                   all, so every feature has to be complete without one.
                 */}
-                <Tile
-                  eyebrow={distance.kind === 'apart' ? 'apart' : 'distance'}
-                  headline={distance.note}
-                  footnote={distance.since ? `as of ${distance.since}` : undefined}
-                  onClick={() => onGo?.('us')}
-                >
-                  <div className="absolute inset-x-4 top-4 flex items-center">
-                    <Avatar name={m.myName} accent={mine} size={28} />
-                    <span className="mx-1.5 flex-1 border-t border-dashed border-white/25" />
-                    <Avatar name={m.theirName} accent={theirs} size={28} />
-                  </div>
-                  <p
-                    className="counter absolute right-4 bottom-14 text-[1.6rem] leading-none font-medium"
-                    style={{ color: distance.km === null ? '#948A82' : mine }}
+                {/*
+                  **Item 5.** Everything on this tile was pinned independently:
+                  the number to `right-4 bottom-14`, the eyebrow and headline to
+                  the bottom with a two-line clamp. A two-line note — "km from
+                  Sansu Baby" — grows *upward*, straight into the number, and
+                  the empty state has the mirror problem, truncating to "Turn on
+                  location to se…".
+
+                  Three zones stacked in order instead, so the note cannot run
+                  under the number and the empty headline has two lines to use.
+                  The labels are rendered here rather than handed to `Tile`
+                  precisely because `Tile` pins its own label block to the
+                  bottom, which is the thing being undone.
+                */}
+                {v2 ? (
+                  <Tile onClick={() => onGo?.('us')}>
+                    <div className="flex h-full flex-col justify-between p-3.5">
+                      <div className="flex items-center">
+                        <Avatar name={m.myName} accent={mine} size={26} />
+                        <span className="mx-1.5 flex-1 border-t border-dashed border-white/25" />
+                        <Avatar name={m.theirName} accent={theirs} size={26} />
+                      </div>
+
+                      <p
+                        className="counter text-[1.6rem] leading-none font-medium"
+                        style={{ color: distance.km === null ? 'var(--color-ash)' : m.chrome }}
+                      >
+                        {distance.label}
+                      </p>
+
+                      <div>
+                        <p className="mb-1 text-[0.78rem] leading-none text-white/60">
+                          {distance.kind === 'apart' ? 'apart' : 'distance'}
+                        </p>
+                        <p className="font-display line-clamp-2 text-[1.05rem] leading-[1.16] font-semibold tracking-[-0.01em] text-white">
+                          {distance.note}
+                        </p>
+                        {distance.since && (
+                          <p className="mt-1 truncate text-[0.68rem] leading-none text-white/45">
+                            as of {distance.since}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </Tile>
+                ) : (
+                  <Tile
+                    eyebrow={distance.kind === 'apart' ? 'apart' : 'distance'}
+                    headline={distance.note}
+                    footnote={distance.since ? `as of ${distance.since}` : undefined}
+                    onClick={() => onGo?.('us')}
                   >
-                    {distance.label}
-                  </p>
-                </Tile>
+                    <div className="absolute inset-x-4 top-4 flex items-center">
+                      <Avatar name={m.myName} accent={mine} size={28} />
+                      <span className="mx-1.5 flex-1 border-t border-dashed border-white/25" />
+                      <Avatar name={m.theirName} accent={theirs} size={28} />
+                    </div>
+                    <p
+                      className="counter absolute right-4 bottom-14 text-[1.6rem] leading-none font-medium"
+                      style={{ color: distance.km === null ? '#948A82' : mine }}
+                    >
+                      {distance.label}
+                    </p>
+                  </Tile>
+                )}
               </Rail>
             </Section>
           </div>
@@ -580,20 +683,35 @@ export function Home({
             iOS widgets are Phase 8. The card below says both, which is more than
             "Widgets" and a row of teasers said.
           */}
-          {!hasWidgets && (
-            <div className="rise px-5" style={{ animationDelay: '240ms' }}>
-              <div className="bg-surface rounded-[28px] p-5">
-                <p className="font-display text-[1.25rem] leading-snug font-semibold">
-                  Home-screen widgets are on Android for now.
-                </p>
-                <p className="text-ash mt-1.5 text-sm leading-relaxed">
-                  Everything else works here exactly the same. Add TwoEnds to your Home Screen and
-                  turn on notifications, and {m.theirName} still reaches you without you opening
-                  anything. iPhone widgets are next.
-                </p>
+          {/*
+            **Item 12.** Both of the cards below are promises worth making and
+            they are made once and read once, after which they are simply the
+            bottom of the app, forever. One line each in the proposed look — the
+            long versions live in Us and the colophon, where the rest of the
+            promises already are.
+          */}
+          {!hasWidgets &&
+            (v2 ? (
+              <p
+                className="rise text-ash px-5 text-sm leading-relaxed"
+                style={{ animationDelay: '240ms' }}
+              >
+                Home-screen widgets are on Android for now. iPhone widgets are next.
+              </p>
+            ) : (
+              <div className="rise px-5" style={{ animationDelay: '240ms' }}>
+                <div className="bg-surface rounded-[28px] p-5">
+                  <p className="font-display text-[1.25rem] leading-snug font-semibold">
+                    Home-screen widgets are on Android for now.
+                  </p>
+                  <p className="text-ash mt-1.5 text-sm leading-relaxed">
+                    Everything else works here exactly the same. Add TwoEnds to your Home Screen and
+                    turn on notifications, and {m.theirName} still reaches you without you opening
+                    anything. iPhone widgets are next.
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            ))}
 
           {hasWidgets && (
             <div className="rise" style={{ animationDelay: '240ms' }}>
@@ -609,17 +727,26 @@ export function Home({
           )}
 
           {/* Where both reference apps put the paywall. */}
-          <div className="rise px-5" style={{ animationDelay: '300ms' }}>
-            <div className="bg-surface rounded-[28px] p-5">
-              <p className="font-display text-[1.25rem] leading-snug font-semibold">
-                Everything is already unlocked.
-              </p>
-              <p className="text-ash mt-1.5 text-sm leading-relaxed">
-                Every widget, every question pack, every game. No tier, no trial, no ads. It stays
-                that way.
-              </p>
+          {v2 ? (
+            <p
+              className="rise text-ash px-5 text-sm leading-relaxed"
+              style={{ animationDelay: '300ms' }}
+            >
+              Everything is already unlocked. No tier, no trial, no ads.
+            </p>
+          ) : (
+            <div className="rise px-5" style={{ animationDelay: '300ms' }}>
+              <div className="bg-surface rounded-[28px] p-5">
+                <p className="font-display text-[1.25rem] leading-snug font-semibold">
+                  Everything is already unlocked.
+                </p>
+                <p className="text-ash mt-1.5 text-sm leading-relaxed">
+                  Every widget, every question pack, every game. No tier, no trial, no ads. It stays
+                  that way.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -683,6 +810,7 @@ function WidgetsRail({
   mySrc?: string | null;
   theirSrc?: string | null;
 }) {
+  const v2 = useIsV2();
   const [canPin, setCanPin] = useState(false);
   const [asked, setAsked] = useState<string | null>(null);
 
@@ -707,12 +835,18 @@ function WidgetsRail({
   */
   const pair = (size: number, gap: boolean) => (
     <div className="flex items-center" style={{ marginLeft: gap ? 0 : -size * 0.22 }}>
-      <Avatar name={m.myName} accent={mine} size={size} src={mySrc} ring="#15120F" />
+      <Avatar name={m.myName} accent={mine} size={size} src={mySrc} ring="var(--color-surface)" />
       {gap && (
         <span className="mx-1 flex-1 border-t border-dashed border-white/25" aria-hidden="true" />
       )}
       <span style={{ marginLeft: gap ? 0 : -size * 0.22 }}>
-        <Avatar name={m.theirName} accent={theirs} size={size} src={theirSrc} ring="#15120F" />
+        <Avatar
+          name={m.theirName}
+          accent={theirs}
+          size={size}
+          src={theirSrc}
+          ring="var(--color-surface)"
+        />
       </span>
     </div>
   );
@@ -727,7 +861,13 @@ function WidgetsRail({
           aria-hidden="true"
         />
         <span className="absolute top-3 right-3">
-          <Avatar name={m.theirName} accent={theirs} size={26} src={theirSrc} ring="#15120F" />
+          <Avatar
+            name={m.theirName}
+            accent={theirs}
+            size={26}
+            src={theirSrc}
+            ring="var(--color-surface)"
+          />
         </span>
       </>
     ),
@@ -737,7 +877,13 @@ function WidgetsRail({
           <Scribble color={theirs} className="h-full w-full" />
         </div>
         <span className="absolute top-3 right-3">
-          <Avatar name={m.theirName} accent={theirs} size={26} src={theirSrc} ring="#15120F" />
+          <Avatar
+            name={m.theirName}
+            accent={theirs}
+            size={26}
+            src={theirSrc}
+            ring="var(--color-surface)"
+          />
         </span>
       </>
     ),
@@ -768,11 +914,14 @@ function WidgetsRail({
     ),
     distance: (
       <>
-        <p className="counter absolute top-4 left-4 text-[1.35rem] leading-none" style={{ color: theirs }}>
+        <p
+          className="counter absolute top-4 left-4 text-[1.35rem] leading-none"
+          style={{ color: theirs }}
+        >
           1150
         </p>
         <div className="absolute inset-x-4 top-[3.6rem] flex items-center">
-          <Avatar name={m.myName} accent={mine} size={30} src={mySrc} ring="#15120F" />
+          <Avatar name={m.myName} accent={mine} size={30} src={mySrc} ring="var(--color-surface)" />
           <span className="relative mx-1 flex-1">
             <span className="block border-t border-white/25" aria-hidden="true" />
             <Heart
@@ -781,14 +930,20 @@ function WidgetsRail({
               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
             />
           </span>
-          <Avatar name={m.theirName} accent={theirs} size={30} src={theirSrc} ring="#15120F" />
+          <Avatar
+            name={m.theirName}
+            accent={theirs}
+            size={30}
+            src={theirSrc}
+            ring="var(--color-surface)"
+          />
         </div>
       </>
     ),
     distanceStrip: (
       <div className="absolute inset-x-4 top-7 flex items-center gap-2.5">
         <span className="relative flex items-center">
-          <Avatar name={m.myName} accent={mine} size={22} src={mySrc} ring="#15120F" />
+          <Avatar name={m.myName} accent={mine} size={22} src={mySrc} ring="var(--color-surface)" />
           <span className="relative mx-1 w-5">
             <span className="block border-t border-white/25" aria-hidden="true" />
             <Heart
@@ -797,7 +952,13 @@ function WidgetsRail({
               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
             />
           </span>
-          <Avatar name={m.theirName} accent={theirs} size={22} src={theirSrc} ring="#15120F" />
+          <Avatar
+            name={m.theirName}
+            accent={theirs}
+            size={22}
+            src={theirSrc}
+            ring="var(--color-surface)"
+          />
         </span>
         <span className="counter text-[1.05rem] leading-none" style={{ color: theirs }}>
           1150
@@ -813,6 +974,8 @@ function WidgetsRail({
           <Tile
             key={widget.id}
             ground={widget.id === 'anniversary' ? shared : undefined}
+            /* Item 4: the one tile in this rail whose ground is a full accent. */
+            onAccent={v2 && widget.id === 'anniversary'}
             eyebrow={widget.name.toLowerCase()}
             headline={widget.note}
             footnote={asked === widget.id ? 'asked your launcher' : undefined}
@@ -833,8 +996,8 @@ function WidgetsRail({
 
       {!canPin && (
         <p className="text-ash px-5 text-sm leading-relaxed">
-          This launcher will not let an app place a widget for you. Long-press an empty part
-          of your home screen, tap Widgets, and look for TwoEnds.
+          This launcher will not let an app place a widget for you. Long-press an empty part of your
+          home screen, tap Widgets, and look for TwoEnds.
         </p>
       )}
     </Section>

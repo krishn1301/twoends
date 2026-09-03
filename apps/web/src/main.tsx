@@ -10,8 +10,13 @@ import '@fontsource/karla/500.css';
 import '@fontsource-variable/jetbrains-mono';
 
 import { App } from './App.tsx';
+import { startDesignVersion } from './design/version.ts';
 import { startServiceWorker } from './lib/serviceWorker.ts';
 import './styles/theme.css';
+
+// Before the first render, so nobody who chose the original look watches the
+// app flash the other one on every launch.
+startDesignVersion();
 
 startServiceWorker();
 

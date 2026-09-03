@@ -6,6 +6,7 @@ import { Button, Field } from '../components/Field.tsx';
 import { askQuestion, askToday } from '../db/asks.ts';
 import { todaysPrompt } from '../db/daily.ts';
 import { notifyPartner } from '../db/push.ts';
+import { useChrome } from '../design/version.ts';
 import { useSession } from '../state/session.ts';
 import { useToday } from '../state/today.ts';
 
@@ -31,7 +32,7 @@ export function Ask({ onAsked }: { onAsked?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const mine = getAccent(profile?.accent_key).onDark;
+  const chrome = useChrome(getAccent(profile?.accent_key).onDark);
   const theirName = partner?.display_name ?? 'them';
 
   async function send(e: React.FormEvent) {
@@ -88,11 +89,11 @@ export function Ask({ onAsked }: { onAsked?: () => void }) {
           onChange={(e) => setBody(e.target.value)}
           placeholder="Something you have been meaning to ask."
           maxLength={280}
-          className="bg-surface-2 text-chalk placeholder:text-ash/60 w-full resize-none rounded-2xl p-4 text-base outline-none focus:ring-2 focus:ring-white/25"
+          className="bg-surface-2 text-chalk w-full resize-none rounded-2xl p-4 text-base outline-none placeholder:text-[var(--color-placeholder)] focus:ring-2 focus:ring-white/25"
         />
       </Field>
 
-      <Button accent={mine} disabled={busy || body.trim().length < 3}>
+      <Button accent={chrome} disabled={busy || body.trim().length < 3}>
         {busy ? 'Asking…' : 'Ask it today'}
       </Button>
     </form>

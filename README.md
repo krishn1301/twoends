@@ -40,7 +40,7 @@ home-screen widgets** on Android.
 
 **The reveal is a Postgres policy, not a curtain.** "You cannot see their answer
 until you have written your own" is the core mechanic, and a client that receives
-both answers and declines to render one has implemented a *delay* — anybody with
+both answers and declines to render one has implemented a _delay_ — anybody with
 dev tools can skip a delay. So it lives in a restrictive row-level-security
 policy, with a `security definer` function to dodge the infinite recursion a
 policy querying its own table causes. See
@@ -49,7 +49,7 @@ and [`00000000000016_game.sql`](supabase/migrations/00000000000016_game.sql).
 
 **The location feature is enforced by the database, not the app.** Sharing is
 off by default and per person; readings are coarsened to a grid by a trigger;
-withdrawing consent re-coarsens the *partner's* stored row without them opening
+withdrawing consent re-coarsens the _partner's_ stored row without them opening
 the app; and the read policy stops matching when the subject stops sharing. The
 widget is handed two finished strings and never a number it could turn back into
 a position. See
@@ -107,17 +107,17 @@ for the Android widgets · Web Push, encrypted by hand.
 
 `packages/core` has no platform imports, enforced by a test. That was written in
 Phase 0 for tidiness, and it is what later let a Deno edge function import and
-run the *same* "what day is it" rule the two phones run, rather than a second
+run the _same_ "what day is it" rule the two phones run, rather than a second
 copy of it in SQL that would drift.
 
 ## Testing
 
-| | |
-|---|---|
-| **270** unit tests | `pnpm check` — typecheck, lint, vitest. The gate before every commit. |
-| **86** leak assertions | `pnpm test:rls` — cross-couple isolation, against a real Postgres. |
-| Per-feature RLS suites | the reveal, pairing, capsules, the guessing game, consent, quiet mode |
-| CI | builds and signature-verifies the APK on every push, and publishes a signed release on a tag |
+|                        |                                                                                              |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| **288** unit tests     | `pnpm check` — typecheck, lint, vitest. The gate before every commit.                        |
+| **86** leak assertions | `pnpm test:rls` — cross-couple isolation, against a real Postgres.                           |
+| Per-feature RLS suites | the reveal, pairing, capsules, the guessing game, consent, quiet mode                        |
+| CI                     | builds and signature-verifies the APK on every push, and publishes a signed release on a tag |
 
 ## Running it
 
@@ -127,14 +127,14 @@ cp .env.example .env.local     # then fill in from your own Supabase project
 pnpm dev
 ```
 
-| Command         | Does                                              |
-| --------------- | ------------------------------------------------- |
-| `pnpm check`    | typecheck, lint, unit tests — the gate            |
-| `pnpm test:rls` | the cross-couple leak suite, against the database |
-| `pnpm db:push`  | apply migrations                                  |
-| `pnpm db:types` | regenerate types from the live schema             |
-| `pnpm occasions`| print which days the app will mark, and when      |
-| `pnpm deploy`   | build and publish to GitHub Pages                 |
+| Command          | Does                                              |
+| ---------------- | ------------------------------------------------- |
+| `pnpm check`     | typecheck, lint, unit tests — the gate            |
+| `pnpm test:rls`  | the cross-couple leak suite, against the database |
+| `pnpm db:push`   | apply migrations                                  |
+| `pnpm db:types`  | regenerate types from the live schema             |
+| `pnpm occasions` | print which days the app will mark, and when      |
+| `pnpm deploy`    | build and publish to GitHub Pages                 |
 
 ## Self-hosting
 

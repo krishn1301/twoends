@@ -4,6 +4,7 @@ import { SIGNATURE, deviceTimezone, getAccent, nearestAccent, type AccentKey } f
 import { Avatar } from '@twoends/ui';
 
 import { Button, Field, TextInput } from '../components/Field.tsx';
+import { useChrome } from '../design/version.ts';
 import { supabase } from '../lib/supabase.ts';
 import { useAvatars } from '../state/avatars.ts';
 import { takeCoupleDraft } from '../state/coupleDraft.ts';
@@ -63,6 +64,7 @@ export function Pair() {
 
   const accent = getAccent(profile?.accent_key ?? 'teal');
   const tint = accent.onDark;
+  const chrome = useChrome(tint);
 
   // The inviter has nothing to do but wait, and nothing on this screen would
   // otherwise tell them the waiting is over.
@@ -211,10 +213,10 @@ export function Pair() {
             </p>
 
             <div className="mt-auto flex flex-col gap-2.5 pt-10">
-              <Button accent={tint} onClick={() => void startInvite()}>
+              <Button accent={chrome} onClick={() => void startInvite()}>
                 Invite them
               </Button>
-              <Button variant="quiet" accent={tint} onClick={() => setMode('join')}>
+              <Button variant="quiet" accent={chrome} onClick={() => setMode('join')}>
                 I have a code
               </Button>
 
@@ -249,7 +251,7 @@ export function Pair() {
 
             <div
               className="mt-8 rounded-[28px] px-6 py-8 text-center"
-              style={{ background: `color-mix(in oklab, ${tint} 16%, #15120F)` }}
+              style={{ background: `color-mix(in oklab, ${chrome} 16%, var(--color-surface))` }}
             >
               <p className="counter text-[2.4rem] leading-none font-medium tracking-[0.18em]">
                 {busy && !code ? '······' : code}
@@ -271,7 +273,7 @@ export function Pair() {
               <p className="text-ash mt-6 flex items-center justify-center gap-2.5 text-sm">
                 <span
                   className="inline-block h-2 w-2 animate-pulse rounded-full"
-                  style={{ background: tint }}
+                  style={{ background: chrome }}
                   aria-hidden="true"
                 />
                 Waiting for them to enter it. This screen moves on by itself.
@@ -279,7 +281,7 @@ export function Pair() {
             )}
 
             <div className="mt-auto flex flex-col gap-2.5 pt-10">
-              <Button accent={tint} onClick={() => void share()} disabled={!code}>
+              <Button accent={chrome} onClick={() => void share()} disabled={!code}>
                 {copied ? 'Copied' : 'Share the code'}
               </Button>
               {/*
@@ -289,10 +291,10 @@ export function Pair() {
                 "back" and "sign out" is a trap. One tap, always available,
                 costs a single query.
               */}
-              <Button variant="quiet" accent={tint} onClick={() => void refresh()}>
+              <Button variant="quiet" accent={chrome} onClick={() => void refresh()}>
                 Already paired? Check now
               </Button>
-              <Button variant="quiet" accent={tint} onClick={() => setMode('choose')}>
+              <Button variant="quiet" accent={chrome} onClick={() => setMode('choose')}>
                 Back
               </Button>
             </div>
@@ -323,13 +325,13 @@ export function Pair() {
             </div>
 
             <div className="mt-auto flex flex-col gap-2.5 pt-10">
-              <Button accent={tint} disabled={busy || entered.length < 6}>
+              <Button accent={chrome} disabled={busy || entered.length < 6}>
                 {busy ? 'Checking…' : 'Pair us'}
               </Button>
               <Button
                 type="button"
                 variant="quiet"
-                accent={tint}
+                accent={chrome}
                 onClick={() => {
                   setMode('choose');
                   setError(null);

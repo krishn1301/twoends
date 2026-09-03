@@ -3,9 +3,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { daysUntil, getAccent } from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 
+import { Empty, GhostCapsule } from '../components/Empty.tsx';
 import { Button, Field, TextInput } from '../components/Field.tsx';
 import { sealCapsule } from '../db/capsules.ts';
 import { notifyPartner } from '../db/push.ts';
+import { useChrome } from '../design/version.ts';
 import { useSession } from '../state/session.ts';
 import { useShared } from '../state/shared.ts';
 import { useNow } from '../state/useNow.ts';
@@ -40,6 +42,7 @@ export function Capsules() {
 
   const mine = getAccent(profile?.accent_key).onDark;
   const theirs = getAccent(partner?.accent_key).onDark;
+  const chrome = useChrome(mine);
   const now = useNow(60_000).getTime();
 
   const load = useCallback(() => {
@@ -104,7 +107,7 @@ export function Capsules() {
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder="Write it to whoever you both are by then."
-            className="bg-surface-2 text-chalk placeholder:text-ash/60 w-full resize-none rounded-2xl p-4 text-base outline-none focus:ring-2 focus:ring-white/25"
+            className="bg-surface-2 text-chalk w-full resize-none rounded-2xl p-4 text-base outline-none placeholder:text-[var(--color-placeholder)] focus:ring-2 focus:ring-white/25"
           />
         </Field>
 
@@ -123,10 +126,10 @@ export function Capsules() {
           </p>
         )}
 
-        <Button accent={mine} disabled={busy || !body.trim() || !deliverOn}>
+        <Button accent={chrome} disabled={busy || !body.trim() || !deliverOn}>
           {busy ? 'Sealing…' : 'Seal it'}
         </Button>
-        <Button type="button" variant="quiet" accent={mine} onClick={() => setWriting(false)}>
+        <Button type="button" variant="quiet" accent={chrome} onClick={() => setWriting(false)}>
           Cancel
         </Button>
       </form>
@@ -135,15 +138,17 @@ export function Capsules() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Button accent={mine} onClick={() => setWriting(true)}>
+      <Button accent={chrome} onClick={() => setWriting(true)}>
         Write one
       </Button>
 
       {sealed.length === 0 && opened.length === 0 && (
-        <p className="text-ash py-6 text-[0.95rem] leading-relaxed">
-          Nothing sealed yet. A letter for an anniversary, or for a day you already know will be
-          hard.
-        </p>
+        <Empty ghost={<GhostCapsule mine={mine} theirs={theirs} />}>
+          <p className="text-ash py-6 text-[0.95rem] leading-relaxed">
+            Nothing sealed yet. A letter for an anniversary, or for a day you already know will be
+            hard.
+          </p>
+        </Empty>
       )}
 
       {sealed.length > 0 && (

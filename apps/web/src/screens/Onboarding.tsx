@@ -5,6 +5,7 @@ import { Avatar } from '@twoends/ui';
 
 import { BackButton, Button, Field, Progress, TextInput } from '../components/Field.tsx';
 import { uploadAvatar } from '../db/avatars.ts';
+import { useChrome } from '../design/version.ts';
 import { dominantHue } from '../lib/dominantHue.ts';
 import { shrinkForUpload } from '../lib/image.ts';
 import { supabase } from '../lib/supabase.ts';
@@ -56,6 +57,11 @@ export function Onboarding() {
   const [error, setError] = useState<string | null>(null);
 
   const tint = getAccent(accent).onDark;
+  /*
+    Your own colour still paints the avatar two screens on — that is the point
+    of this flow. It is the progress bar and the buttons that stop being it.
+  */
+  const chrome = useChrome(tint);
   const photoRef = useRef<HTMLInputElement>(null);
 
   /**
@@ -147,7 +153,7 @@ export function Onboarding() {
       <div className="mx-auto flex w-full max-w-sm flex-1 flex-col">
         <div className="mb-8 flex items-center gap-3">
           {step > 0 ? <BackButton onClick={back} /> : <span className="h-11 w-11" />}
-          <Progress step={step + 1} total={TOTAL_STEPS} accent={tint} />
+          <Progress step={step + 1} total={TOTAL_STEPS} accent={chrome} />
         </div>
 
         <div className="flex flex-1 flex-col">
@@ -247,20 +253,20 @@ export function Onboarding() {
           {step < TOTAL_STEPS - 1 ? (
             <>
               <Button
-                accent={tint}
+                accent={chrome}
                 onClick={next}
                 disabled={step === 0 && name.trim().length === 0}
               >
                 Continue
               </Button>
               {step > 0 && (
-                <Button variant="quiet" accent={tint} onClick={next}>
+                <Button variant="quiet" accent={chrome} onClick={next}>
                   Skip
                 </Button>
               )}
             </>
           ) : (
-            <Button accent={tint} onClick={() => void finish()} disabled={busy}>
+            <Button accent={chrome} onClick={() => void finish()} disabled={busy}>
               {busy ? 'Saving…' : 'Done'}
             </Button>
           )}
@@ -319,7 +325,9 @@ function Choice({
       aria-pressed={selected}
       className="flex flex-col items-start rounded-2xl px-4 py-3.5 text-left transition-colors"
       style={{
-        background: selected ? `color-mix(in oklab, ${tint} 22%, #15120F)` : 'var(--color-surface)',
+        background: selected
+          ? `color-mix(in oklab, ${tint} 22%, var(--color-surface))`
+          : 'var(--color-surface)',
         boxShadow: selected ? `inset 0 0 0 1.5px ${tint}` : 'none',
       }}
     >

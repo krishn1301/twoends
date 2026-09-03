@@ -54,6 +54,287 @@
   */
 }
 
+/*
+  ── The proposed look ────────────────────────────────────────────────────────
+
+  Everything under `[data-design='v2']` is the visual review's proposal. With
+  the attribute absent the app is exactly what shipped, which is the whole
+  point: the switch lives in Us, and `design/version.ts` explains why it is a
+  runtime switch rather than a branch.
+
+  **Item 2 — make raised surfaces actually raised.** The three elevation tokens
+  described one visible plane. Measured, before:
+
+    void -> surface        1.13:1
+    surface -> surface-2   1.09:1
+    hairline on surface    1.24:1
+
+  A card was legible only because of its corner radius, which is why a settings
+  row, a memory, a form field and the tab bar all read as the same object.
+
+  After. The page stays true black — the OLED argument above is untouched, and
+  it is the *cards* that had to lift off it:
+
+    void -> surface        1.60:1
+    surface -> surface-2   1.22:1
+    hairline on surface    1.89:1
+
+  The two steps are deliberately lopsided. Lifting the card off the page is the
+  change that carries every screen; opening the second step as wide would have
+  put `ash` under 4.5:1 on the lightest ground it sits on, and losing a
+  legibility guarantee to win a shade of depth is a bad trade. The rest of the
+  separation comes from direction instead — see `.lift` below, which is the
+  document's other suggestion and costs no contrast at all.
+
+  `ash` is re-solved rather than kept, because a fixed grey against a moving
+  ground is how contrast is lost silently:
+
+    ash on void        8.87:1   (was 6.22)
+    ash on surface     5.55:1   (was 5.52)
+    ash on surface-2   4.54:1   (was 5.34)
+
+  **Item 15 — placeholders.** `ash/60` on `surface-2` measured 2.91:1. The
+  label above the field was always fine; the example text inside it was not.
+  In this look a placeholder is `ash` at full strength — 4.54:1 — which needs a
+  token rather than a utility, because the two looks want different alphas of
+  different colours and `placeholder:text-ash/60` can only say one of them.
+*/
+:root {
+  /* Identical to `placeholder:text-ash/60` over `surface-2`. */
+  --color-placeholder: rgb(148 138 130 / 0.6);
+
+  /*
+    Item 1. The interface colour, for everything a person did not author.
+
+    In this look it is unused — the app's chrome is still `mine`, which is what
+    the review is arguing about. `design/model.ts` is where the choice is made.
+  */
+  --color-chrome: #ede4da;
+  --color-on-chrome: #141110;
+}
+
+[data-design='v2'] {
+  --color-surface: #372f27;
+  --color-surface-2: #463c32;
+  --color-hairline: #605853;
+  --color-ash: #b4a69b;
+  --color-placeholder: var(--color-ash);
+}
+
+/*
+  The light has a direction: a one-pixel warm highlight along the top edge of
+  anything raised. It is the half of item 2 that buys separation without
+  spending contrast, and it is what keeps a card reading as a card now that the
+  luminance steps between the surfaces are narrower than the step off the page.
+
+  A no-op in the original look, so the class can sit in the markup unguarded.
+*/
+[data-design='v2'] .lift {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+/*
+  Item 8 — the both-answered reveal. The partner's answer arrives live and used
+  to swap into place with nothing marking the moment, which is the single most
+  anticipated event in the app's day. It unfolds now.
+
+  Height is animated from 0 rather than with a transform so the block below it
+  moves out of the way as it opens, and `overflow: hidden` is what makes the
+  first frame nothing at all rather than a full-height block at zero opacity.
+*/
+@keyframes unfold {
+  from {
+    opacity: 0;
+    grid-template-rows: 0fr;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    grid-template-rows: 1fr;
+    transform: translateY(0);
+  }
+}
+
+.unfold {
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: unfold 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.unfold > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /*
+    Still a moment, just not a movement: it fades rather than opening. Removing
+    it entirely would take the marker off the event it exists to mark.
+  */
+  .unfold {
+    animation: rise 320ms ease both;
+    animation-name: fade-in;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
+  Item 14 — the two decks. "Another" replaced the text in place and a Know-me
+  card advanced without moving, so neither read as a deck, which is what the
+  copy calls them. A dealt card comes in from under the one before it.
+*/
+@keyframes deal {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97) rotate(-0.6deg);
+  }
+}
+
+.deal {
+  animation: deal 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deal {
+    animation: fade-in 240ms ease both;
+  }
+}
+
+/*
+  Item 7 — the pairing moment.
+
+  The inviter's waiting screen simply became Home with no transition, and the
+  joiner got "You and Ravi are paired." followed immediately by an email form.
+  The one moment the app turns into a two-person app was spent on a text input.
+
+  This is built out of what the "It takes two" screen already shows: two
+  circles with a dashed line between them. They close, the line goes, and the
+  mark the two of them make together takes their place.
+
+  One shot, about two and a half seconds, skippable by tapping. Gated on the
+  proposed look like everything else here.
+*/
+@keyframes pair-close-left {
+  from {
+    transform: translateX(-2.4rem);
+  }
+}
+
+@keyframes pair-close-right {
+  from {
+    transform: translateX(2.4rem);
+  }
+}
+
+@keyframes pair-thread {
+  0% {
+    opacity: 0.9;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(0.05);
+  }
+}
+
+@keyframes pair-faces-out {
+  0%,
+  55% {
+    opacity: 1;
+  }
+  78%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes pair-mark-in {
+  0%,
+  52% {
+    opacity: 0;
+    transform: scale(0.68);
+  }
+  80%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pair-line-in {
+  0%,
+  72% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pair-close-left {
+  animation: pair-close-left 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.pair-close-right {
+  animation: pair-close-right 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.pair-thread {
+  animation: pair-thread 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.pair-faces {
+  animation: pair-faces-out 2000ms ease both;
+}
+.pair-mark {
+  animation: pair-mark-in 2000ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.pair-line {
+  animation: pair-line-in 2400ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /*
+    The mark and the sentence still arrive — taking them away would leave the
+    moment blank for anybody who asked for less movement — but nothing travels.
+  */
+  .pair-close-left,
+  .pair-close-right,
+  .pair-thread {
+    animation: fade-in 600ms ease both;
+  }
+  .pair-faces {
+    animation: pair-faces-out 2000ms ease both;
+  }
+  .pair-mark {
+    animation: fade-in 900ms ease 700ms both;
+  }
+  .pair-line {
+    animation: fade-in 700ms ease 1500ms both;
+  }
+}
+
+/*
+  Item 13 — the cold open.
+
+  The mark is the best thing in the app and it appears at about 20px at the foot
+  of a settings list. The loading state was a blank black screen, and the note
+  there was right that a spinner for a session check which usually resolves
+  inside a frame is a flash of anxiety.
+
+  So it waits. Nothing at all for the first four hundred milliseconds — a normal
+  launch never gets here — and the mark fades up only for a boot that is
+  genuinely slow. That is the honest answer to "does the cold open animate":
+  it does not, unless there is something to wait for.
+*/
+.patient {
+  animation: fade-in 600ms ease 400ms both;
+}
+
 html,
 body,
 #root {

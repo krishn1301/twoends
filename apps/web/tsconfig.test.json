@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist-test",
+    "rootDir": ".",
+    // These tests read the app's own source and stylesheet off disk, so they
+    // need Node types. The app itself does not have them and must not — see
+    // tsconfig.json, which is what keeps browser code browser code.
+    "types": ["node"]
+  },
+  "include": ["test/**/*.ts"]
+}

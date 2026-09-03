@@ -39,7 +39,7 @@ export function TextInput({ className = '', ...props }: InputHTMLAttributes<HTML
   return (
     <input
       {...props}
-      className={`bg-surface-2 text-chalk placeholder:text-ash/60 w-full rounded-2xl px-4 py-3.5 text-base outline-none focus:ring-2 focus:ring-white/25 ${className}`}
+      className={`bg-surface-2 text-chalk w-full rounded-2xl px-4 py-3.5 text-base outline-none placeholder:text-[var(--color-placeholder)] focus:ring-2 focus:ring-white/25 ${className}`}
     />
   );
 }

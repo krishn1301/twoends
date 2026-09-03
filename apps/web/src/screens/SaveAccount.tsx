@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { getAccent } from '@twoends/core';
 
 import { Button, Field, TextInput } from '../components/Field.tsx';
+import { useChrome } from '../design/version.ts';
 import { signInReturnUrl, supabase } from '../lib/supabase.ts';
 import { markEmailOffered } from '../state/emailOffer.ts';
 import { useSession } from '../state/session.ts';
@@ -32,7 +33,7 @@ export function SaveAccount({ onDone }: { onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const tint = getAccent(profile?.accent_key ?? 'teal').onDark;
+  const tint = useChrome(getAccent(profile?.accent_key ?? 'teal').onDark);
 
   function done() {
     markEmailOffered();

@@ -4,12 +4,14 @@ import { daysUntil, getAccent } from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 
+import { Empty, GhostCountdown, GhostMemory } from '../components/Empty.tsx';
 import { Button, Field, TextInput } from '../components/Field.tsx';
 import { Capsules } from './Capsules.tsx';
 import { SharedList } from './SharedList.tsx';
 import { addEntry, deleteEntry, type JournalEntry } from '../db/journal.ts';
 import { addCountdown, removeCountdown } from '../db/repository.ts';
 import { db } from '../db/schema.ts';
+import { useChrome } from '../design/version.ts';
 import { useAvatars } from '../state/avatars.ts';
 import { useShared } from '../state/shared.ts';
 import { useSession } from '../state/session.ts';
@@ -41,6 +43,12 @@ export function Dates() {
 
   const mine = getAccent(profile?.accent_key ?? 'teal').onDark;
   const theirs = getAccent(partner?.accent_key ?? 'rose').onDark;
+  /*
+    The whole `tint` prop below is chrome — a sub-tab pill, an Add button, the
+    day count on a Coming-up row. `mine` stays behind for `avatarFor`, which is
+    the one thing on this screen that is about *whose* something is.
+  */
+  const chrome = useChrome(mine);
   const now = useNow(60_000).getTime();
 
   const countdowns = useLiveQuery(
@@ -87,7 +95,7 @@ export function Dates() {
               className={`h-10 flex-1 rounded-full text-[0.78rem] font-medium transition-colors ${
                 view === key ? 'text-void' : 'text-ash'
               }`}
-              style={view === key ? { background: mine } : undefined}
+              style={view === key ? { background: chrome } : undefined}
             >
               {label}
             </button>
@@ -101,17 +109,19 @@ export function Dates() {
           a deliberate cap — see TabBar — and "things we mean to do" is the same
           thought as "things that are coming", one step less committed.
         */}
-        {view === 'list' && <SharedList coupleId={couple?.id} tint={mine} />}
+        {view === 'list' && <SharedList coupleId={couple?.id} tint={chrome} />}
 
         {view === 'ahead' && (
-          <Ahead coupleId={couple?.id} tint={mine} now={now} rows={countdowns ?? []} />
+          <Ahead coupleId={couple?.id} tint={chrome} now={now} rows={countdowns ?? []} />
         )}
 
         {view === 'behind' && (
           <Behind
             coupleId={couple?.id}
             authorId={profile?.id}
-            tint={mine}
+            tint={chrome}
+            mine={mine}
+            theirs={theirs}
             entries={entries}
             onChanged={loadEntries}
             avatarFor={(id) => {
@@ -175,9 +185,11 @@ function Ahead({
       </form>
 
       {rows.length === 0 && (
-        <p className="text-ash text-[0.95rem] leading-relaxed">
-          Nothing yet. A trip, a birthday, the next time you are in the same room.
-        </p>
+        <Empty ghost={<GhostCountdown chrome={tint} />}>
+          <p className="text-ash text-[0.95rem] leading-relaxed">
+            Nothing yet. A trip, a birthday, the next time you are in the same room.
+          </p>
+        </Empty>
       )}
 
       <ul className="flex flex-col gap-3">
@@ -214,6 +226,8 @@ function Behind({
   coupleId,
   authorId,
   tint,
+  mine,
+  theirs,
   entries,
   onChanged,
   avatarFor,
@@ -221,6 +235,14 @@ function Behind({
   coupleId?: string;
   authorId?: string;
   tint: string;
+  /*
+    The two accents, for the ghosted memory in the empty state. `avatarFor`
+    cannot supply them: it takes an id, and the partner's id is not in scope
+    here — which is exactly the point of the empty state, since a couple with
+    nothing written down may not have a second row to read one from.
+  */
+  mine: string;
+  theirs: string;
   entries: JournalEntry[];
   onChanged: () => void;
   avatarFor: (id: string) => { name: string; accent: string; src?: string | null };
@@ -259,7 +281,7 @@ function Behind({
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder="The bench by the lake, and the dog that would not leave."
-            className="bg-surface-2 text-chalk placeholder:text-ash/60 w-full resize-none rounded-2xl p-4 text-base outline-none focus:ring-2 focus:ring-white/25"
+            className="bg-surface-2 text-chalk w-full resize-none rounded-2xl p-4 text-base outline-none placeholder:text-[var(--color-placeholder)] focus:ring-2 focus:ring-white/25"
           />
         </Field>
         <div className="flex gap-3">
@@ -289,9 +311,11 @@ function Behind({
       </form>
 
       {entries.length === 0 && (
-        <p className="text-ash text-[0.95rem] leading-relaxed">
-          Nothing written down yet. The small ones are the ones you forget.
-        </p>
+        <Empty ghost={<GhostMemory mine={mine} theirs={theirs} />}>
+          <p className="text-ash text-[0.95rem] leading-relaxed">
+            Nothing written down yet. The small ones are the ones you forget.
+          </p>
+        </Empty>
       )}
 
       <ul className="flex flex-col gap-3">

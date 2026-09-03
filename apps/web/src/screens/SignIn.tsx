@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { Button, Field, TextInput } from '../components/Field.tsx';
+import { useChrome } from '../design/version.ts';
 import { signInReturnUrl, supabase } from '../lib/supabase.ts';
 import { useSession } from '../state/session.ts';
 
@@ -63,6 +64,12 @@ function isInstalledOnIOS(): boolean {
  * recovery for free: whoever can read the email is the account.
  */
 export function SignIn() {
+  /*
+    Nobody has a colour yet on this screen, which is why `ACCENT` is a constant
+    at all. In the proposed look the interface is not a colour, so it takes the
+    same bone as every other screen rather than a teal that belongs to nobody.
+  */
+  const tint = useChrome(ACCENT);
   const cancelSignIn = useSession((s) => s.cancelSignIn);
   const sessionError = useSession((s) => s.error);
 
@@ -165,7 +172,7 @@ export function SignIn() {
                 placeholder="you@example.com"
               />
             </Field>
-            <Button accent={ACCENT} disabled={busy || email.trim().length < 3}>
+            <Button accent={tint} disabled={busy || email.trim().length < 3}>
               {busy ? 'Sending…' : 'Email me a link'}
             </Button>
             {/*
@@ -187,7 +194,7 @@ export function SignIn() {
             <Button
               type="button"
               variant="quiet"
-              accent={ACCENT}
+              accent={tint}
               disabled={email.trim().length < 3}
               onClick={() => {
                 setError(null);
@@ -197,7 +204,7 @@ export function SignIn() {
             >
               I already have a code
             </Button>
-            <Button type="button" variant="quiet" accent={ACCENT} onClick={cancelSignIn}>
+            <Button type="button" variant="quiet" accent={tint} onClick={cancelSignIn}>
               Back
             </Button>
           </form>
@@ -229,9 +236,9 @@ export function SignIn() {
                   on the home screen stays empty.
                 */}
                 {isInstalledOnIOS() && (
-                  <p className="mt-2 text-sm leading-relaxed" style={{ color: ACCENT }}>
-                    You are in the installed app — the link will open your browser and sign you
-                    in there instead. Ask for a code and type it here.
+                  <p className="mt-2 text-sm leading-relaxed" style={{ color: tint }}>
+                    You are in the installed app — the link will open your browser and sign you in
+                    there instead. Ask for a code and type it here.
                   </p>
                 )}
               </div>
@@ -239,7 +246,9 @@ export function SignIn() {
 
             <Field
               label={given ? `The code for ${sentTo}` : 'Or paste a code, if you have one'}
-              hint={given ? 'Six or eight digits. It works once.' : 'Only some sign-ins send a code.'}
+              hint={
+                given ? 'Six or eight digits. It works once.' : 'Only some sign-ins send a code.'
+              }
               error={error}
             >
               {/*
@@ -259,13 +268,13 @@ export function SignIn() {
                 className="counter text-center text-2xl tracking-[0.4em]"
               />
             </Field>
-            <Button accent={ACCENT} disabled={busy || code.length < 6}>
+            <Button accent={tint} disabled={busy || code.length < 6}>
               {busy ? 'Checking…' : 'Continue'}
             </Button>
             <Button
               type="button"
               variant="quiet"
-              accent={ACCENT}
+              accent={tint}
               onClick={() => {
                 setSentTo(null);
                 setGiven(false);

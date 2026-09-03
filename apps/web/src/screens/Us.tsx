@@ -21,6 +21,7 @@ import { Colophon } from './Colophon.tsx';
 import { removeAvatar, uploadAvatar } from '../db/avatars.ts';
 import { exportEverything, type ExportProgress } from '../db/exportAll.ts';
 import { cancelUnpair, confirmUnpair, requestUnpair, unpairState } from '../db/unpair.ts';
+import { useChrome, useDesignVersion } from '../design/version.ts';
 import { saveFile } from '../lib/saveFile.ts';
 import { disablePush, enablePush, pushState, type PushState } from '../db/push.ts';
 import { supabase } from '../lib/supabase.ts';
@@ -125,6 +126,9 @@ export function Us() {
 
   const mine = getAccent(profile?.accent_key ?? 'teal').onDark;
   const theirs = getAccent(partner?.accent_key ?? 'rose').onDark;
+  const chrome = useChrome(mine);
+  const design = useDesignVersion((d) => d.version);
+  const setDesign = useDesignVersion((d) => d.set);
   const now = useNow(1000);
 
   const syncAvatars = useCallback(() => {
@@ -279,7 +283,7 @@ export function Us() {
             />
             <span
               className="text-void absolute -right-1 -bottom-1 grid h-8 w-8 place-items-center rounded-full text-lg"
-              style={{ background: mine }}
+              style={{ background: chrome }}
               aria-hidden="true"
             >
               +
@@ -423,10 +427,12 @@ export function Us() {
                 <button
                   type="button"
                   onClick={() =>
-                    void (profile &&
+                    void (
+                      profile &&
                       (location.presence.sharing
                         ? location.disable(profile.id)
-                        : location.enable(profile.id)))
+                        : location.enable(profile.id))
+                    )
                   }
                   disabled={location.busy || location.state === 'denied'}
                   className="text-ash h-11 text-sm disabled:opacity-40"
@@ -444,8 +450,10 @@ export function Us() {
                   <button
                     type="button"
                     onClick={() =>
-                      void (profile &&
-                        location.togglePrecise(profile.id, !location.presence.wantsPrecise))
+                      void (
+                        profile &&
+                        location.togglePrecise(profile.id, !location.presence.wantsPrecise)
+                      )
                     }
                     disabled={location.busy}
                     className="text-ash h-11 text-sm disabled:opacity-40"
@@ -645,7 +653,8 @@ export function Us() {
                     className="h-full rounded-full transition-[width] duration-300"
                     style={{
                       background: mine,
-                      width: exporting.ratio === null ? '15%' : `${Math.round(exporting.ratio * 100)}%`,
+                      width:
+                        exporting.ratio === null ? '15%' : `${Math.round(exporting.ratio * 100)}%`,
                     }}
                   />
                 </div>
@@ -664,7 +673,11 @@ export function Us() {
             {unpair.kind === 'waiting' ? (
               <>
                 <Row label="Waiting for them">
-                  <button type="button" onClick={() => void callOff()} className="text-ash h-11 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => void callOff()}
+                    className="text-ash h-11 text-sm"
+                  >
                     Call it off
                   </button>
                 </Row>
@@ -679,14 +692,18 @@ export function Us() {
             ) : unpair.kind === 'asked' ? (
               <>
                 <Row label={`${partner?.display_name ?? 'They'} asked to unpair`}>
-                  <button type="button" onClick={() => void callOff()} className="text-ash h-11 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => void callOff()}
+                    className="text-ash h-11 text-sm"
+                  >
                     Call it off
                   </button>
                 </Row>
                 <div className="px-4 py-3.5">
                   <p className="text-sm leading-relaxed">
-                    Confirming deletes everything the two of you made — every photo, answer,
-                    drawing and note — on both phones and on the server. It cannot be undone.
+                    Confirming deletes everything the two of you made — every photo, answer, drawing
+                    and note — on both phones and on the server. It cannot be undone.
                   </p>
                   <p className="text-ash mt-2 text-sm leading-relaxed">
                     Export first if you want to keep any of it.
@@ -741,6 +758,39 @@ export function Us() {
             )}
           </Group>
         )}
+
+        {/*
+          Which look the app is wearing.
+
+          The visual review proposes fifteen changes and the ask that came with
+          it was that the original had to still be there — so every one of them
+          is behind this switch, and it lives here rather than behind a gesture
+          because a thing you are meant to compare has to be findable by the
+          person comparing it. `?design=classic` on the URL does the same and
+          sticks, which is the only way to hand somebody a link to one of them.
+
+          It is not meant to be permanent. When one of the two wins the other
+          gets deleted and this row goes with it.
+        */}
+        <Group title="Look">
+          <Row label={design === 'v2' ? 'Updated' : 'Original'}>
+            <button
+              type="button"
+              onClick={() => setDesign(design === 'v2' ? 'classic' : 'v2')}
+              className="text-ash h-11 text-sm"
+            >
+              {design === 'v2' ? 'Use the original' : 'Use the updated one'}
+            </button>
+          </Row>
+
+          <div className="px-4 py-3.5">
+            <p className="text-ash text-sm leading-relaxed">
+              {design === 'v2'
+                ? 'Cards lift off the page, the interface is one colour that belongs to neither of you, and your two colours are kept for saying whose something is. The original is one tap away and nothing about your data changes either way.'
+                : 'The app as it first shipped. The updated look raises the cards off the black, fixes the labels that were unreadable on a coloured card, and keeps your two colours for authorship instead of spending them on buttons.'}
+            </p>
+          </div>
+        </Group>
 
         {/*
           The promises the app makes, where somebody can actually read them.

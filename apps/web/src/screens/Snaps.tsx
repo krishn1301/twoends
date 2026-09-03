@@ -12,6 +12,7 @@ import {
   type Snap,
   type SnapComment,
 } from '../db/photos.ts';
+import { Empty, GhostSnap } from '../components/Empty.tsx';
 import { notifyPartner } from '../db/push.ts';
 import { formatBytes, shrinkForUpload } from '../lib/image.ts';
 import { useSession } from '../state/session.ts';
@@ -143,7 +144,7 @@ export function Snaps() {
             onChange={(e) => setCaption(e.target.value)}
             maxLength={80}
             placeholder="Say something about it (optional)"
-            className="bg-surface-2 text-chalk placeholder:text-ash/60 w-full rounded-2xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-white/25"
+            className="bg-surface-2 text-chalk w-full rounded-2xl px-4 py-3.5 outline-none placeholder:text-[var(--color-placeholder)] focus:ring-2 focus:ring-white/25"
           />
 
           <p className="text-ash text-xs">
@@ -198,9 +199,11 @@ export function Snaps() {
           )}
 
           {snaps.length === 0 ? (
-            <p className="text-ash py-8 text-center text-[0.95rem] leading-relaxed">
-              Nothing here yet. A photo of what you are looking at right now is the whole idea.
-            </p>
+            <Empty ghost={<GhostSnap mine={mine} theirs={theirs} />}>
+              <p className="text-ash py-8 text-center text-[0.95rem] leading-relaxed">
+                Nothing here yet. A photo of what you are looking at right now is the whole idea.
+              </p>
+            </Empty>
           ) : (
             <div className="flex flex-col gap-4">
               {snaps.map((snap) => {
@@ -465,7 +468,7 @@ function Comments({
             maxLength={300}
             placeholder={`Say something to ${partnerName}`}
             aria-label="Say something about this photo"
-            className="bg-surface-2 text-chalk placeholder:text-ash/60 h-11 w-full rounded-full px-4 text-[0.9rem] outline-none focus:ring-2 focus:ring-white/25"
+            className="bg-surface-2 text-chalk h-11 w-full rounded-full px-4 text-[0.9rem] outline-none placeholder:text-[var(--color-placeholder)] focus:ring-2 focus:ring-white/25"
           />
         </div>
         <div className="shrink-0">
@@ -473,7 +476,7 @@ function Comments({
             type="submit"
             disabled={busy || body.trim().length === 0}
             className="h-11 rounded-full px-4 text-[0.85rem] font-medium disabled:opacity-35"
-            style={{ background: myTint, color: '#15120F' }}
+            style={{ background: myTint, color: 'var(--color-void)' }}
           >
             {busy ? '…' : 'Say it'}
           </button>

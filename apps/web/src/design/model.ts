@@ -2,6 +2,7 @@ import { getAccent, timeTogether, type Accent, type Elapsed } from '@twoends/cor
 
 import { useSession } from '../state/session.ts';
 import { useNow } from '../state/useNow.ts';
+import { CHROME, CHROME_INK, useDesignVersion } from './version.ts';
 
 /**
  * Who the two of you are, and how long it has been.
@@ -18,7 +19,9 @@ import { useNow } from '../state/useNow.ts';
  * countdown the couple had actually entered.
  *
  * What is left is identity and arithmetic — the two things every screen needs
- * and no screen should compute for itself.
+ * and no screen should compute for itself. Plus one decision: which colour the
+ * interface is, which is item 1 of the visual review and is made here so that
+ * it is made once.
  */
 
 export interface DesignModel {
@@ -28,6 +31,40 @@ export interface DesignModel {
   myAccent: Accent;
   theirAccent: Accent;
   elapsed: Elapsed;
+
+  /**
+   * The colour of everything neither of you authored.
+   *
+   * **Item 1 — split the accent in two.** `mine` was doing two jobs at once: it
+   * was the authorship colour *and* the interface colour, so Continue, the
+   * progress bar, every sub-tab pill, every category chip and the day count on
+   * a Coming-up row all took it. Confirmed live rather than inferred — an
+   * account assigned teal during the review turned the entire app teal. Which
+   * means "my colour" was indistinguishable from "the app's colour", and the
+   * best idea in the design could not be read.
+   *
+   * In the proposed look this is a fixed warm bone belonging to neither of you,
+   * and `myAccent` / `theirAccent` become reserved, strictly, for authorship:
+   * avatars, the name above an answer, the two dots on the distance card, a
+   * Play pick, and the gradient drawn when both are present. The moment a red
+   * thing on screen is *always* Krishn, the app starts telling you who is in
+   * the room.
+   *
+   * Bone rather than the other two candidates in the review — a fixed neutral,
+   * or the blend of the two accents. The blend is the most on-brief answer on
+   * paper and the wrong one here: it puts a third colour on screen competing
+   * with the two that are supposed to be the only colour in the app. Keeping
+   * the chrome monochrome is what makes an accent mean something when it
+   * appears. It is one constant away if that reads wrong on a phone — see
+   * `--color-chrome` in `theme.css`.
+   *
+   * In `classic` this is `myAccent.onDark`, which is what the app has always
+   * done, so every call site can pass this unconditionally.
+   */
+  chrome: string;
+
+  /** Text and icons drawn *on* `chrome`. */
+  chromeInk: string;
 }
 
 export function useDesignModel(): DesignModel {
@@ -35,13 +72,18 @@ export function useDesignModel(): DesignModel {
   const profile = useSession((s) => s.profile);
   const partner = useSession((s) => s.partner);
   const couple = useSession((s) => s.couple);
+  const version = useDesignVersion((s) => s.version);
+
+  const myAccent = getAccent(profile?.accent_key ?? 'teal');
 
   return {
     myId: profile?.id ?? '',
     myName: profile?.display_name ?? 'you',
     theirName: partner?.display_name ?? 'them',
-    myAccent: getAccent(profile?.accent_key ?? 'teal'),
+    myAccent,
     theirAccent: getAccent(partner?.accent_key ?? 'rose'),
+    chrome: version === 'v2' ? CHROME : myAccent.onDark,
+    chromeInk: version === 'v2' ? CHROME_INK : '#000000',
     /*
       Falls back to today rather than to a date in the past. A couple whose
       `started_on` has not been set yet should see a counter at zero and

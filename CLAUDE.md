@@ -83,7 +83,56 @@ Commands: `pnpm db:push`, `pnpm db:types`, `pnpm test:rls`, `pnpm verify`,
 
 ## Current phase
 
-**Phase 14 built. Phases 0–13 shipped and confirmed on a paired device.**
+**Phase 15 built. Phases 0–14 shipped and confirmed on a paired device.**
+
+### Phase 15 — two looks, one switch
+
+`TWOENDS_VISUAL_CHANGES.md` is a fifteen-item review of the live app, measured
+rather than felt: the elevation tokens describe one visible plane (void →
+surface is **1.13:1**), the accent is doing two jobs at once so "my colour" and
+"the app's colour" are the same colour, and every empty state is a button, a
+grey sentence and four hundred pixels of black.
+
+All fifteen are built, and **all fifteen are behind a switch**, because the ask
+that came with them was that the original had to still be there.
+`apps/web/src/design/version.ts` holds it; the row is **Us → Look**;
+`?design=classic` does the same and sticks. With `data-design` absent the app is
+what shipped, token for token.
+
+- **Item 1 is the one everything else hangs off.** `DesignModel.chrome` is the
+  interface colour, and in the proposed look it is a fixed warm bone belonging
+  to neither of you — so `myAccent` / `theirAccent` are reserved, strictly, for
+  authorship. Screens that need nothing else from the model take `useChrome(mine)`
+  instead, which returns `mine` unchanged in `classic`, so a call site never has
+  to know which look it is in. Bone rather than the review's other two
+  candidates: the _blend_ of the two accents is the most on-brief answer on
+  paper and puts a third colour on screen competing with the two that are
+  supposed to be the only colour in the app.
+- **The daily card's ground tint stayed an accent**, against the review's list.
+  It answers "whose move is it" and changes with the person, which is the
+  authorship question the accents are being kept for.
+- **Items 2 and 15 are pure CSS** and cost no TypeScript at all — the utilities
+  already point at the variables, so redefining the tokens under
+  `[data-design='v2']` carries every screen. The two elevation steps are
+  deliberately lopsided (1.60 off the page, 1.22 between the surfaces): opening
+  the second as wide puts `ash` under 4.5:1 on the lightest ground it sits on.
+- **Item 4 is a scrim, not a table of per-accent label colours.** The ground can
+  be a gradient across two accents, so there is no single colour to measure
+  against; a scrim is one rule that cannot be wrong for a particular pair.
+  White on citron goes from **2.03:1** to about **7:1**.
+- **Item 7's reveal comes before the email ask, and does not replace it.**
+  Moving the ask to "later, some quieter time" moves it to _never_ for anybody
+  who does not go looking, and an anonymous account with no address is one
+  cleared browser away from gone. The moment is no longer spent on a form; the
+  form is what is waiting after it.
+- The review's eight taste decisions are still Krishn's. What is built is one
+  answer to each, and each is a constant or a branch away from another.
+
+Verified in Chrome on a fresh pair (Ravi + Meera, two origins so the two
+sessions do not share `localStorage`): the split accent, the lifted surfaces,
+the seven-day strip, the three-zone distance card, the ghosted empty states, the
+symmetrical Play reveal, the pairing monogram, and the switch flipping the whole
+app back to the original in place. `pnpm check` green, **288 tests**.
 
 ### Phase 14 — the 18+ switch, a game about knowing each other, and comments
 
@@ -94,13 +143,13 @@ Commands: `pnpm db:push`, `pnpm db:types`, `pnpm test:rls`, `pnpm verify`,
   by its owner, because `update own profile` is scoped to `id = auth.uid()`.
   `couples.adult_packs_enabled` stays, derived by a trigger, and is what the app
   gates on: one value read from one row by both phones.
-- **“Do you know me?”** — a third mode in Play. Five cards, you answer *as* the
+- **“Do you know me?”** — a third mode in Play. Five cards, you answer _as_ the
   other person, and the reveal shows both directions at once. One nullable column
   on `game_picks` rather than a new table, plus `couple_cards` for ones they
   wrote. A written card holds **no answer**: the author's answer is an ordinary
   pick, so the existing reveal policy hides it until the other person guesses.
 - **Comments on snaps.** A photo used to arrive with nothing to do about it, so
-  the reply happened on WhatsApp. Deliberately *not* a both-must-move reveal, and
+  the reply happened on WhatsApp. Deliberately _not_ a both-must-move reveal, and
   cascaded from `photos` so nothing outlives the picture it is about.
 
 `pnpm check` green, **219 tests**. RLS: 8 for the opt-in, 12 for the game, 8 for
@@ -118,7 +167,7 @@ personalised to whoever finds them, and **one line only she ever sees**.
   because this couple has three occasions inside four days every April. 365 and
   730 were removed from `MILESTONES` rather than resolved against the
   anniversary: a rule that cannot fire twice beats a rule about which one wins.
-- **The clock egg.** Hour = month, minute = day, *and* the reverse when the day
+- **The clock egg.** Hour = month, minute = day, _and_ the reverse when the day
   is 23 or less. Month-as-hour is the reading that always exists but is always
   before midday; for this couple that is 04:16, which nobody is awake for. The
   second reading is the one they will catch.
@@ -138,11 +187,11 @@ personalised to whoever finds them, and **one line only she ever sees**.
 **Two bugs the design caught before the code existed, both invisible in review:**
 
 1. **A per-reader prompt pack desynchronises the two phones.** The daily question
-   is `promptForDay(couple id, date, list)`, so the *list* has to be identical on
+   is `promptForDay(couple id, date, list)`, so the _list_ has to be identical on
    both handsets. Gating her questions on `isHer(myProfileId)` — the obvious way
    to write it — would have given the two of them different questions on the same
    morning, with no error anywhere and no answer ever unlocking the other. It is
-   gated on the *couple* (`isHerCouple(member_a, member_b)`) for that reason.
+   gated on the _couple_ (`isHerCouple(member_a, member_b)`) for that reason.
 2. **An unseeded prompt cannot be answered at all.** `prompt_days.prompt_id` is
    `references prompts on delete restrict`, and the private pack is deliberately
    never seeded — `scripts/seed-prompts.mjs` writes a null `couple_id`, which
@@ -158,7 +207,7 @@ noting on its own: none of it came from a test.
 **1. Home's countdown was a fixture.** `useDesignModel` still served
 `SAMPLE_COUNTDOWN`, so the tile showed an invented trip and an invented number
 of days next to a countdown the couple had actually entered. It read as a bug
-because it *was* one, and it had survived five phases because a placeholder that
+because it _was_ one, and it had survived five phases because a placeholder that
 looks like data never announces itself. The design model has been cut back to
 identity and arithmetic — every fixture is gone from it, and the ones that would
 be visible cannot come back. The tile now reads Dexie, shows the date under the
@@ -166,7 +215,7 @@ title, and opens Dates.
 
 `soonestCountdown` lives in `db/repository.ts` because Home and the widget
 snapshot both need "the next one" and the rule has a judgement in it: a
-countdown stays current for a day *after* its date. Two copies of that would
+countdown stays current for a day _after_ its date. Two copies of that would
 drift, and the widget would count down to something the app had moved past.
 
 **2. The shared list could not be typed into.** `Button` carries `w-full` in its
@@ -197,7 +246,7 @@ Ours is the cheapest possible demonstration that this app means what it says.
   picked, and that is a **policy**, not a curtain: see
   `supabase/migrations/00000000000016_game.sql`. `i_have_picked` is
   security-definer for the same reason `i_have_answered` had to be — asking
-  about `game_picks` from inside a policy *on* `game_picks` recurses (42P17).
+  about `game_picks` from inside a policy _on_ `game_picks` recurses (42P17).
 - **Talk about** — topic cards that store nothing at all. They are subjects to
   read out on a call, not questions to answer; recording an answer would turn a
   conversation into homework. One button hands a topic to the daily loop.
@@ -220,8 +269,8 @@ its content, leaving an empty top half that reads as a rendering fault.
 ### Phase 7 is closed: the widgets are on a home screen
 
 The reason it had never happened is worth keeping. The widgets were registered,
-installed and working — and were still reported as *"I am not getting any
-options to add widgets"*, because the only route to them was: long-press an
+installed and working — and were still reported as _"I am not getting any
+options to add widgets"_, because the only route to them was: long-press an
 empty part of the home screen, find Widgets, scroll to TwoEnds, press and hold,
 drag. Nobody does that for an app they installed ten minutes ago.
 
@@ -248,7 +297,7 @@ pick; and a 2×2 widget bottom-aligned itself into looking broken.
 
 ### Phase 10 — export and delete
 
-- `packages/core/src/zip.ts` writes the archive by hand. Deflate is *not* in it:
+- `packages/core/src/zip.ts` writes the archive by hand. Deflate is _not_ in it:
   core may not touch a platform API, so the caller passes in what
   `CompressionStream('deflate-raw')` produced and entries fall back to stored.
   Verified by opening the output with Windows' `Expand-Archive`, which is the
@@ -270,7 +319,7 @@ What was built:
 
 - `supabase/migrations/00000000000013_location.sql` — `presence.sharing` and
   `presence.wants_precise`, a `before insert or update` trigger that coarsens or
-  erases, an `after update` trigger that re-coarsens the *partner's* stored row
+  erases, an `after update` trigger that re-coarsens the _partner's_ stored row
   the instant they withdraw consent, and a read policy that stops matching when
   the subject is not sharing.
 - `packages/core/src/distance.ts` — haversine, grid coarsening, and the
@@ -430,12 +479,12 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   Set `SKIP_JDK_VERSION_CHECK=1` and it runs perfectly on 23. There is no need
   for a second JDK — the whole "install JDK 21" plan was unnecessary.
 - **`capacitor.build.gradle` pins Java to 21 and is regenerated by every `cap
-  sync`.** It is applied at the *bottom* of `app/build.gradle`, so any
+sync`.** It is applied at the _bottom_ of `app/build.gradle`, so any
   `sourceCompatibility` set above it loses. Kotlin's `jvmTarget` must therefore
   be 21 too, or the build fails with "Inconsistent JVM-target compatibility".
   This does not affect which phones the APK runs on — D8 rewrites to minSdk.
 - **`versionCode (x) as Integer` is a Groovy trap.** It parses as
-  `versionCode(x)` followed by a cast of the *return value*, and fails with
+  `versionCode(x)` followed by a cast of the _return value_, and fails with
   "Value is null" pointing at a line that looks fine. Use `versionCode = ...`.
 - **The reified `actionStartActivity<T>()` is in `androidx.glance.action`**, not
   `androidx.glance.appwidget.action` — that package has only the `Intent`
@@ -487,7 +536,7 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   clears it inside `confirm_unpair`. Anything else keyed per-person rather than
   per-couple needs the same separate treatment.
 - **The service worker caches the app inside the Capacitor WebView.** A freshly
-  installed APK can run the *previous* web bundle for one launch, which looks
+  installed APK can run the _previous_ web bundle for one launch, which looks
   exactly like an edit that did not take. `am force-stop` and relaunch once
   before concluding anything is broken.
 - **`adb exec-out screencap -p > file.png` corrupts the PNG from PowerShell** —
@@ -513,12 +562,13 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   file that failed rather than spending another forty sign-ins to learn nothing.
   Calling vitest directly does not work — the env vars come from that script.
 
-  A green *suite* assembled from separate green *files* is a legitimate result
+  A green _suite_ assembled from separate green _files_ is a legitimate result
   here. What is not legitimate is reading a rate-limit failure as a pass.
+
 - **A sign-in link's destination lived in a dashboard field, not in this repo.**
   Neither `signInWithOtp` nor `updateUser` passed `emailRedirectTo`, so every
   link in every inbox went wherever Supabase's **Site URL** pointed. When that is
-  wrong the symptom is a GitHub Pages *"There isn't a GitHub Pages site here"* —
+  wrong the symptom is a GitHub Pages _"There isn't a GitHub Pages site here"_ —
   the bare `krishn1301.github.io` with no `/twoends/` — and there is no commit,
   test or error message anywhere to grep for. It reads as "the email is broken".
   Both calls now pass `signInReturnUrl()` (`lib/supabase.ts`), built from
@@ -529,9 +579,9 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   a config that looks right. Verified: allow-listed origins come back exactly,
   `https://example.com/evil` falls back.
   **On iOS the URL bar shows only the host**, so a screenshot of the failure
-  cannot tell you whether the path was there. The 404 *body* can: GitHub's
+  cannot tell you whether the path was there. The 404 _body_ can: GitHub's
   "isn't a GitHub Pages site here" means no repo at that path at all, whereas a
-  missing path *under* `/twoends/` serves the deployed `404.html`, which is a
+  missing path _under_ `/twoends/` serves the deployed `404.html`, which is a
   copy of `index.html` and therefore renders the app.
 - **`shouldCreateUser: true` on the sign-in screen made typos into new accounts.**
   The screen's own first line is "signing back in to an account you already
@@ -540,14 +590,14 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   real one by a leading `1`, a friend never got past it, and one couple redid the
   entire onboarding four minutes later. A new account is indistinguishable from a
   successful sign-in until you notice your partner is gone. It is `false` now, and
-  "Signups not allowed for otp" is humanised into a sentence that says *check the
-  address letter by letter*. Nobody needs it — first open is anonymous and
+  "Signups not allowed for otp" is humanised into a sentence that says _check the
+  address letter by letter_. Nobody needs it — first open is anonymous and
   `SaveAccount` attaches the address later.
 - **`pnpm wipe:dev` is gone; it is `pnpm sweep:dev` now.** The old one deleted
   every user and every storage object, guarded only by `SUPABASE_ENV=development`
   — which is permanently set because `pnpm test:rls` refuses to run without it.
   That was correct when the project held fixtures and lethal once it held three
-  real couples, and *nothing about the script changed; only the data did*. The
+  real couples, and _nothing about the script changed; only the data did_. The
   rule is inverted now: `sweep:dev` deletes only what it can prove testing made
   (`@twoends.test` users, and anonymous accounts with no profile and no couple),
   prints everyone it spares and why, dry-runs unless given `--commit`, and aborts
@@ -556,9 +606,9 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   destroy should not be checkable only by running it. `wipe:dev` still exists and
   refuses, so the remembered command explains itself rather than vanishing.
 - **`profiles.id references auth.users on delete cascade` and `couples.member_a
-  references profiles on delete cascade`**, so deleting one anonymous auth user
+references profiles on delete cascade`**, so deleting one anonymous auth user
   can take a whole couple row and everything keyed to its `couple_id` with it —
-  including a *paired* partner who has an email and did nothing wrong. `member_b`
+  including a _paired_ partner who has an email and did nothing wrong. `member_b`
   is `on delete set null` and merely empties the slot. Any account sweep has to
   print the couples it is about to destroy before it runs, and an "anonymous means
   disposable" rule is wrong: one anonymous account here is the `member_a` of a
@@ -612,14 +662,14 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   first time — `game_picks.picked_on`. It reveals nothing new: a repeat can only
   show a pick whose reveal was spent weeks ago.
 - **The two card games were eating one deck.** `game_picks` was unique on
-  `(couple, card, profile)` with no notion of *which game*, so a card played in
+  `(couple, card, profile)` with no notion of _which game_, so a card played in
   This or that was spent for Know me? and the reverse. `mode` is in the key now,
   which means the board has to be **two maps** — folding both games into one
   entry per card let a guess silently overwrite a pick.
 - **Splitting the reveal by game broke the game it protected, for ten minutes.**
   A written card's answer was a `match` row and its guesser only ever writes a
   `guess` row, so a per-mode reveal meant the guesser could never see the
-  answer. The modelling was wrong: answering a card you wrote *is* your move in
+  answer. The modelling was wrong: answering a card you wrote _is_ your move in
   the guessing game. `i_have_played` replaces `i_have_picked` and asks whether
   you finished **your own part**, which differs by person — a guess for the
   guesser, an answer for the author. That also let the half-written-row
@@ -636,7 +686,7 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   Play names it once, at the bottom, and says plainly when it is on. A switch
   whose effect you cannot see is one people turn on twice and stop trusting.
 - **Quiet mode exists now, and it needed a table rather than a date.**
-  `couples.quiet_until` can say when a hush *ends* and not which days were
+  `couples.quiet_until` can say when a hush _ends_ and not which days were
   inside it — so the streak holds while quiet mode is on and breaks the morning
   it lifts, which is the penalty the promise rules out, arriving late and looking
   like a bug in the streak. `quiet_periods` keeps `from_date`/`to_date` forever,
@@ -646,12 +696,12 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
 - **Turning quiet mode off did not turn it off, and the tests stepped around
   it.** A hush is closed by writing `to_date = today` — deliberately, so the
   streak still excuses the day you came back. `is_quiet` then answered "is it
-  on?" with `to_date >= p_on`, which for a hush ended today is *true*: the write
+  on?" with `to_date >= p_on`, which for a hush ended today is _true_: the write
   landed, the reload came back, and the switch still said On. The second press
   could not help either, because `endQuiet` filters on `to_date is null` and from
   then on matched no rows at all. Stuck until midnight, with the server still
   refusing to send. **One predicate was being asked two different questions** —
-  *is the switch on* and *is this day forgiven* — and only the second one wanted
+  _is the switch on_ and _is this day forgiven_ — and only the second one wanted
   the closing day. Running means `to_date is null`; forgiveness stays in
   `quietDays`. Migration 24.
   Both suites missed it by closing a period on one date and asking about
@@ -663,9 +713,30 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   write and a successful one looked identical from the screen: the button simply
   went on saying what it had said before. Any handler that flips a switch and
   discards its result can only ever fail this way.
+- **`theme.css` sets `button, a, [role='button'] { min-height: 44px }` as plain
+  CSS, and it lands after the utilities.** So on a `<button>`, `min-h-full`
+  loses at equal specificity and a full-screen takeover renders in a 44px strip
+  at the top of the page. It is not a Tailwind bug and it does not show up in a
+  typecheck or a test — only in a browser. Anything full-bleed built on a button
+  needs `fixed inset-0`, which the pairing reveal now uses.
+- **A row of seven fixed-width circles fits a 360px handset and not a 320px
+  one.** The streak tile is `44vw`, so a diameter chosen against one phone
+  overflows the other — and the failure mode is the same broken calendar row
+  that made the four-column grid wrong in the first place. `grid-cols-7` with
+  `aspect-square w-full` shares the width instead. `aspect-square` is only a
+  hint when the content is taller than the box, and one 8px letter never is.
+- **A number in a comment is a claim nothing checks.** `theme.css` states its
+  contrast ratios in prose, which is how the flat elevation was found — by
+  measuring rather than looking. `apps/web/test/theme.test.ts` parses the
+  stylesheet and asserts them, and it pins the six _shipped_ token values as
+  well, because the promise made with a look switch is that the original is
+  still exactly the original. It needs Node types, so it lives in
+  `apps/web/test/` under its own `tsconfig.test.json` — the app itself has no
+  Node types and must not.
+
 - **`is_quiet()` is a function, not a derived column.** `adult_packs_enabled` is
   a column kept by a trigger, and that is right for a flag that changes when
-  somebody presses something. This one changes because *a date passes*, and
+  somebody presses something. This one changes because _a date passes_, and
   nothing fires a trigger at midnight — a derived column would be correct until
   the first morning nobody opened the app, which is the only morning it matters.
 - **Both edge functions guarded on a column nothing could write.** `notify` and
@@ -675,7 +746,7 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   per couple, and the gate discards twenty-three hours in twenty-four.
 - **The app now wishes them without being opened.** `supabase/functions/occasions`
   runs hourly via `pg_cron` + `pg_net`, acts on a couple only when it is 09:00
-  *where they live*, and pushes the anniversary, either birthday and the day
+  _where they live_, and pushes the anniversary, either birthday and the day
   milestones. **It imports `occasionFor` from `packages/core` rather than
   restating it** — the CLI follows the relative import and uploads the whole
   package, which works only because core has no platform imports. That rule was
@@ -694,7 +765,7 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   only has to say “run” should not hold a key that reads every row.
 - **The CI signature check tested for a signature Android stopped writing.** It
   grepped `META-INF` for a `.RSA`/`.EC`/`.DSA` file and called their absence “no
-  signature block” — those are *v1* JAR signatures, and AGP stops emitting them
+  signature block” — those are _v1_ JAR signatures, and AGP stops emitting them
   once minSdk is 24 or higher, because v2 signs the whole archive and lives in
   the APK Signing Block rather than in a zip entry. Ask `apksigner verify`. The
   fault sat there unseen because the step before it — missing repository secrets
@@ -720,7 +791,7 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   `expires_at` and are swept after thirty days; a comment left behind would
   survive a deletion the app reported as done.
 - **The occasions are so sparse that you cannot read them in place.** The next
-  one for the couple this was built for is *five months away* — day 100 passed in
+  one for the couple this was built for is _five months away_ — day 100 passed in
   July — and the one thing you must not do to check the words is move the date
   they are checked against, which tests the edit. `pnpm occasions` imports
   `occasions.ts` and `dedication.ts` themselves and walks the calendar forwards,
@@ -734,7 +805,7 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   dedication on the pre-pairing screen was placed under the button group, which
   carries `mt-auto` — so the group was pushed to the bottom and the line after it
   went past the edge of a view that does not scroll. It rendered, it was in the
-  DOM, and nobody could ever see it. Put it *inside* the pinned block.
+  DOM, and nobody could ever see it. Put it _inside_ the pinned block.
 - **A fresh APK install mints an anonymous account before anybody does anything.**
   Five of the eleven accounts in the dev project were that — no profile, no
   couple, one per install. Harmless, but it means “delete the abandoned anonymous
@@ -775,8 +846,8 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   is how the Latin-1 filter above ended up starting at 0x20. That turned out to
   be the correct range anyway, but the lint error is what forced the question.
 - **`localStorage` failure has no single right default.** `emailOffered()` treats
-  it as *already asked*, because the cost of being wrong is nagging on every
-  launch. `seenToday()` treats it as *not yet seen*, because missing your first
+  it as _already asked_, because the cost of being wrong is nagging on every
+  launch. `seenToday()` treats it as _not yet seen_, because missing your first
   anniversary is worse than being shown it twice. Two files, opposite defaults,
   both deliberate — there is a test asserting the second one so nobody
   “fixes” it into matching the first.
@@ -814,7 +885,7 @@ Both are installed on the S9+ and are the fastest way to check a pattern:
   sample value has to exist on a real screen, it needs to say so on the screen.
 - **Chrome for Android honours `user-scalable=no`; iOS Safari has ignored it
   since iOS 10.** So the meta tag fixes the Android WebView and leaves iPhone
-  accessibility zoom alone, which is the outcome you want anyway. It does *not*
+  accessibility zoom alone, which is the outcome you want anyway. It does _not_
   stop double-tap zoom on Android — that needs `touch-action: manipulation`,
   which also removes the 300ms click delay. `DrawSurface` sets `touch-action:
 none` for itself and must keep doing so.
@@ -832,7 +903,7 @@ none` for itself and must keep doing so.
   black tile with an empty top half, which reads as a rendering fault. Only a
   launcher shows you this.
 - **Seeding a canvas by hand needs the exact `Drawing` shape** — `{ version: 1,
-  strokes: [{ color, width, points: [{x, y, p}] }] }`. `isDrawing` correctly
+strokes: [{ color, width, points: [{x, y, p}] }] }`. `isDrawing` correctly
   rejects anything else, and the widget then draws its empty state, which looks
   like a broken widget rather than a bad fixture.
 - **The service role has no `auth.uid()`,** so any `security definer` function
