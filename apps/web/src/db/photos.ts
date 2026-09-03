@@ -100,11 +100,90 @@ export async function signedUrls(paths: string[]): Promise<Map<string, string>> 
 }
 
 /**
- * Opts a photo out of the 30-day sweep. Either partner may keep anything — the
- * one who took it does not own the memory of it.
+ * Opts a photo out of the sixty-day life. Either partner may keep anything —
+ * the one who took it does not own the memory of it.
  */
 export async function keepSnap(id: string, kept: boolean): Promise<void> {
   await supabase.from('photos').update({ kept }).eq('id', id);
+}
+
+/**
+ * Every snap taken on this date in an earlier year.
+ *
+ * One query, and only when there is a year to look back on: a couple four
+ * months in has nothing behind them, and asking anyway would be a round trip on
+ * every Home render to be told so. The caller decides that — see `Home`.
+ *
+ * Whole local days rather than a clever `to_char` on the server: PostgREST
+ * cannot express "same month and day, any year" without a function, and a
+ * couple who have been together three years is three cheap range scans on an
+ * indexed column. Ordered newest first, so the most recent anniversary of the
+ * day leads.
+ */
+export async function snapsOnThisDayBefore(
+  coupleId: string,
+  today: Date,
+  yearsBack: number,
+): Promise<Snap[]> {
+  if (yearsBack < 1) return [];
+
+  const windows: string[] = [];
+  for (let back = 1; back <= yearsBack; back++) {
+    const from = new Date(today);
+    from.setFullYear(today.getFullYear() - back);
+    from.setHours(0, 0, 0, 0);
+
+    const to = new Date(from);
+    to.setDate(from.getDate() + 1);
+
+    windows.push(`and(created_at.gte.${from.toISOString()},created_at.lt.${to.toISOString()})`);
+  }
+
+  const { data, error } = await supabase
+    .from('photos')
+    .select('id, storage_path, caption, author_id, created_at, expires_at, kept')
+    .eq('couple_id', coupleId)
+    .or(windows.join(','))
+    .order('created_at', { ascending: false });
+
+  // A silent empty result reads exactly like a true empty result, and this
+  // query is the only one in the app built out of `or` strings.
+  if (error) console.warn('[snaps] this day, earlier years:', error.message);
+
+  return (data as Snap[] | null) ?? [];
+}
+
+/**
+ * How much room the two of you are taking up, in bytes.
+ *
+ * Shown in Us rather than left to the dashboard: if storage ever becomes a
+ * problem the owner should find out from the app. It lists rather than sums a
+ * column, because there is no size column — the size lives on the object, and a
+ * number derived from the rows would drift the first time an upload half-failed
+ * and left a row without a file.
+ *
+ * Only this couple's own folder. The buckets are private and the policies are
+ * scoped to the first path segment, so a listing of anything else comes back
+ * empty anyway.
+ */
+export async function storageUsed(coupleId: string): Promise<number | null> {
+  let total = 0;
+
+  for (const bucket of ['photos', 'covers', 'avatars'] as const) {
+    // 100 is the default page size and a couple can pass it in four months.
+    const { data, error } = await supabase.storage.from(bucket).list(coupleId, { limit: 1000 });
+    if (error) {
+      console.warn(`[storage] ${bucket}:`, error.message);
+      return null;
+    }
+
+    for (const object of data ?? []) {
+      const size: unknown = (object.metadata as { size?: unknown } | null)?.size;
+      if (typeof size === 'number') total += size;
+    }
+  }
+
+  return total;
 }
 
 export async function deleteSnap(snap: Snap): Promise<void> {

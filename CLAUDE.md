@@ -20,7 +20,7 @@ plan was written before Phase 0 and this is updated after every phase.
 | Name            | **TwoEnds**. Package id `com.twoends.app` — free to change until a Play listing exists.                                                                                                                                                                 |
 | Audience        | **Small circle of friends.** Real pairs, no strangers. No moderation, no abuse reporting, no store review at 1.0.                                                                                                                                       |
 | Backend         | **Supabase free tier.**                                                                                                                                                                                                                                 |
-| Photo retention | **30 days**, auto-deleted unless either partner taps "keep".                                                                                                                                                                                            |
+| Photo retention | **60 days**, and nothing sweeps them yet. Either partner may tap "keep" to opt one out for good.                                                                                                                                                        |
 | Location        | **Opt-in per person, off by default, foreground-only, city-level** unless both opt into precise. The widget shows distance, never position. All five rules are enforced by triggers and a read policy in migration 13, not by the client.               |
 | 18+ packs       | **Built, gated.** Both confirm 18+, both opt in, off by default, never surfaced in widgets or notifications. Store age-rating decision deferred.                                                                                                        |
 | Streaks         | **Two missed days a month are forgiven.** Quiet mode pauses streaks with no penalty.                                                                                                                                                                    |
@@ -745,6 +745,15 @@ references profiles on delete cascade`**, so deleting one anonymous auth user
   `html { overflow-x: hidden }` as the guard for the next one. This was _not_
   the tab-bar bug — the readout proved the page was never wider than the screen
   — but it is a real overflow and it is fixed.
+- **Nothing has ever swept a photo.** Migration 1's comment says "swept by a
+  scheduled Edge Function" and no such function was ever written — the only
+  `pg_cron` job in the project belongs to `occasions`. So `expires_at` is a
+  promise the UI counts down to and nothing enforces, no photograph has been
+  lost, and there is no backlog of gaps for a recap to fall into. Migration 25
+  raised the life to **60 days** and deliberately did _not_ build the sweeper:
+  a couple sending one snap a day makes about 110MB a year against a 1GB tier,
+  so it is years from mattering, and **Us → Storage** now says the number so it
+  is noticed from inside the app rather than from a dashboard.
 - **`theme.css` sets `button, a, [role='button'] { min-height: 44px }` as plain
   CSS, and it lands after the utilities.** So on a `<button>`, `min-h-full`
   loses at equal specificity and a full-screen takeover renders in a 44px strip

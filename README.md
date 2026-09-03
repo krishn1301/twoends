@@ -31,7 +31,7 @@ version of this without widgets is a chat app with extra steps.
 ## What is in it
 
 A daily question with a both-must-answer reveal · a shared canvas · daily photos
-that expire in 30 days unless either partner keeps them · an anniversary counter
+that expire in 60 days unless either partner keeps them · an anniversary counter
 · countdowns · a streak that forgives two missed days a month · a journal ·
 distance apart · a shared list · time capsules · three games · and **six
 home-screen widgets** on Android.

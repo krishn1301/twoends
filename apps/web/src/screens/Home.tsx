@@ -20,6 +20,7 @@ import { OccasionCard } from '../components/OccasionCard.tsx';
 import { Sheet } from '../components/Sheet.tsx';
 import { Flame, Heart, Lock } from '../components/icons.tsx';
 import type { TabId } from '../components/TabBar.tsx';
+import { signedUrls, snapsOnThisDayBefore, type Snap } from '../db/photos.ts';
 import { WEEK_LABELS, pad, useDesignModel } from '../design/model.ts';
 import { soonestCountdown } from '../db/repository.ts';
 import { db } from '../db/schema.ts';
@@ -132,6 +133,51 @@ export function Home({
 
   const latestSnap = snaps[0];
   const latestSnapUrl = latestSnap ? urls.get(latestSnap.storage_path) : undefined;
+
+  /*
+    A year ago today, if there was one.
+
+    The payoff for photos lasting: nothing here is possible while a snap is
+    swept after a month. It is the one query in the app that is skipped rather
+    than run and discarded — a couple who started this spring has no earlier
+    year to look in, and asking anyway would be a round trip on every open to be
+    told nothing, forever, until their first anniversary.
+
+    Signed separately from the rest. `useShared` signs the recent snaps and
+    these are not among them; a URL from an hour ago is no use to a photograph
+    nobody has loaded yet.
+  */
+  // `nowMs` rather than `Date.now()`: React may render twice and get two
+  // answers, which is what `react-hooks/purity` is for. It already exists a few
+  // lines up for the countdown.
+  const yearsTogether = couple?.started_on
+    ? Math.floor((nowMs - Date.parse(couple.started_on)) / 31_557_600_000)
+    : 0;
+
+  const [thenSnap, setThenSnap] = useState<{ snap: Snap; url: string } | null>(null);
+
+  useEffect(() => {
+    const coupleId = couple?.id;
+    // No clearing here, and not for tidiness: a `setState` run synchronously
+    // inside an effect is a cascading render, and the card is gated on
+    // `yearsTogether` where it is drawn anyway.
+    if (!coupleId || yearsTogether < 1) return;
+
+    let alive = true;
+    void (async () => {
+      const found = await snapsOnThisDayBefore(coupleId, new Date(), yearsTogether);
+      const first = found[0];
+      if (!first || !alive) return;
+
+      const signed = await signedUrls([first.storage_path]);
+      const url = signed.get(first.storage_path);
+      if (alive && url) setThenSnap({ snap: first, url });
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [couple?.id, yearsTogether]);
   const hasDrawing = (canvas?.drawing.strokes.length ?? 0) > 0;
   const theirsLatest = canvas?.lastAuthorId != null && canvas.lastAuthorId !== m.myId;
 
@@ -409,6 +455,31 @@ export function Home({
                   badge={<Pill>you</Pill>}
                   onClick={() => onOpen?.('snap')}
                 />
+
+                {/*
+                  Only when there is one. A card that says "nothing from this
+                  day last year" every day for a year is worse than no card.
+                */}
+                {yearsTogether >= 1 && thenSnap && (
+                  <Tile
+                    eyebrow={yearAgoLabel(thenSnap.snap.created_at, nowMs)}
+                    headline={thenSnap.snap.caption ?? 'This day, before'}
+                    onClick={() => onOpen?.('snap')}
+                  >
+                    <img
+                      src={thenSnap.url}
+                      alt={thenSnap.snap.caption ?? 'A photo from this day in an earlier year'}
+                      className="h-full w-full object-cover"
+                    />
+                    <span
+                      className="absolute inset-x-0 bottom-0 h-3/5"
+                      style={{
+                        background: 'linear-gradient(to top, rgba(0,0,0,0.82), transparent)',
+                      }}
+                      aria-hidden="true"
+                    />
+                  </Tile>
+                )}
               </Rail>
             </Section>
           </div>
@@ -1039,4 +1110,10 @@ function whenLabel(targetAt: string): string {
     month: 'short',
     year: sameYear ? undefined : 'numeric',
   });
+}
+
+/** "a year ago" for the first one, then the count. */
+function yearAgoLabel(when: string, now: number): string {
+  const years = Math.max(1, Math.round((now - Date.parse(when)) / 31_557_600_000));
+  return years === 1 ? 'a year ago' : `${years} years ago`;
 }

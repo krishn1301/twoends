@@ -24,7 +24,7 @@ costs almost nothing and can also be replayed and undone.
 
 1. **Client-side resize + WebP before upload.** A 3 MB phone photo becomes
    ~200 KB. Never upload an original — this is a project rule, not a preference.
-2. **30-day TTL with keep-on-demand.** Photos auto-delete after 30 days unless
+2. **60-day TTL with keep-on-demand.** Photos are due to go after 60 days unless
    either partner taps "keep". Swept by a scheduled Edge Function.
 3. **Widget images cached on-device.** A widget that re-fetches on every refresh
    burns egress, which is the metric that bites first.

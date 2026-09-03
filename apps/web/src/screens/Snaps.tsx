@@ -254,7 +254,7 @@ export function Snaps() {
                         title={
                           snap.kept
                             ? 'Kept — this one stays'
-                            : 'Photos go after 30 days unless kept'
+                            : 'Photos go after 60 days unless kept'
                         }
                         className="grid h-11 w-11 shrink-0 place-items-center rounded-full"
                         style={{ color: snap.kept ? '#e4566e' : '#948A82' }}
@@ -311,7 +311,7 @@ function daysLeft(iso: string): number {
   return Math.max(0, Math.ceil((Date.parse(iso) - Date.now()) / 86_400_000));
 }
 
-/** Filled means kept: this one survives the 30-day sweep. */
+/** Filled means kept: this one has no expiry at all. */
 function Heart({ filled }: { filled: boolean }) {
   return (
     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">

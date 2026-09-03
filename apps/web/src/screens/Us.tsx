@@ -13,6 +13,7 @@ import {
 } from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 
+import { storageUsed } from '../db/photos.ts';
 import { endQuiet, startQuiet } from '../db/quiet.ts';
 import { Monogram } from '../components/Monogram.tsx';
 import { Sheet } from '../components/Sheet.tsx';
@@ -59,6 +60,7 @@ export function Us() {
   const [colophon, setColophon] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [update, setUpdate] = useState<UpdateResult | null>(null);
+  const [used, setUsed] = useState<number | null | 'unknown'>(null);
   const [checking, setChecking] = useState(false);
 
   const quietNow = useShared((s) => s.quietNow);
@@ -201,6 +203,26 @@ export function Us() {
     await supabase.from('profiles').update({ accent_key: key }).eq('id', profile.id);
     await refresh();
   }
+
+  /*
+    What the two of you are taking up.
+
+    Loaded once when Us opens rather than on a press: it is three cheap listings
+    and it is the kind of number that is only useful if it is simply there. A
+    failure shows as a dash — there is nothing a person can do about it and an
+    error message about bucket listings on a settings screen would be noise.
+  */
+  useEffect(() => {
+    if (!couple?.id) return;
+
+    let alive = true;
+    void storageUsed(couple.id).then((bytes) => {
+      if (alive) setUsed(bytes ?? 'unknown');
+    });
+    return () => {
+      alive = false;
+    };
+  }, [couple?.id]);
 
   async function runExport() {
     if (!couple) return;
@@ -764,6 +786,29 @@ export function Us() {
         )}
 
         {/*
+          Storage, plainly.
+
+          A couple sending one snap a day makes about 110MB a year against a
+          free tier that holds a gigabyte, so this is years from mattering — and
+          that is exactly why it belongs on the screen rather than in a
+          dashboard nobody opens. If it ever does matter, the owner finds out
+          from the app.
+        */}
+        <Group title="Storage">
+          <Row label="Photos and drawings">
+            <span className="text-ash text-sm">
+              {used === null ? '…' : used === 'unknown' ? '—' : readableSize(used)}
+            </span>
+          </Row>
+          <div className="px-4 py-3.5">
+            <p className="text-ash text-sm leading-relaxed">
+              A snap stays for sixty days unless one of you keeps it. Keeping is a tap on the photo
+              itself, and either of you can do it.
+            </p>
+          </div>
+        </Group>
+
+        {/*
           Whether there is a newer APK than this one.
 
           Only in the native app: the PWA replaces itself through its service
@@ -981,4 +1026,16 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       {children}
     </div>
   );
+}
+
+/**
+ * Bytes, at the precision a person cares about.
+ *
+ * One decimal place on megabytes and none on kilobytes: "1.4 MB" is a size and
+ * "1,468,006 bytes" is a receipt.
+ */
+function readableSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
