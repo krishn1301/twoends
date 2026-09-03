@@ -66,13 +66,37 @@ export async function uploadSnap(
   return { error: null };
 }
 
-export async function recentSnaps(coupleId: string, limit = 12): Promise<Snap[]> {
-  const { data } = await supabase
+/**
+ * A page of snaps, newest first.
+ *
+ * The limit was 12 and nothing ever passed a different one, so the Snaps screen
+ * showed the last twelve photographs and no more — which at one a day is a
+ * fortnight, and reads exactly like the older ones having been deleted. They
+ * had not been; nothing in this project deletes a photo. The app simply never
+ * asked for them.
+ *
+ * `before` is a cursor rather than an offset. A photo arriving while somebody
+ * is paging back would shift every offset by one and duplicate a row across the
+ * boundary; a timestamp cannot do that.
+ */
+export const SNAP_PAGE = 30;
+
+export async function recentSnaps(
+  coupleId: string,
+  limit = SNAP_PAGE,
+  before?: string,
+): Promise<Snap[]> {
+  let query = supabase
     .from('photos')
     .select('id, storage_path, caption, author_id, created_at, expires_at, kept')
     .eq('couple_id', coupleId)
     .order('created_at', { ascending: false })
     .limit(limit);
+
+  if (before) query = query.lt('created_at', before);
+
+  const { data, error } = await query;
+  if (error) console.warn('[snaps] page:', error.message);
 
   return (data as Snap[] | null) ?? [];
 }

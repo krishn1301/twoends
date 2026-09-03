@@ -20,7 +20,14 @@ import {
   type SealedCapsule,
 } from '../db/capsules.ts';
 import { recentEntries, type JournalEntry } from '../db/journal.ts';
-import { loadComments, recentSnaps, signedUrls, type Snap, type SnapComment } from '../db/photos.ts';
+import {
+  SNAP_PAGE,
+  loadComments,
+  recentSnaps,
+  signedUrls,
+  type Snap,
+  type SnapComment,
+} from '../db/photos.ts';
 import { syncWidgets } from '../lib/widgets.ts';
 import { useLocation } from './location.ts';
 import { useSession, type Couple } from './session.ts';
@@ -53,7 +60,13 @@ interface SharedState {
   week: DayMark[];
   loaded: boolean;
 
+  /** True while there may be older snaps than the ones loaded. */
+  moreSnaps: boolean;
+  loadingMore: boolean;
+
   load: (couple: Couple) => Promise<void>;
+  /** Appends the next page of older snaps, with their signed links. */
+  olderSnaps: (coupleId: string) => Promise<void>;
   /** Optimistic keep toggle; the write follows. */
   markKept: (id: string, kept: boolean) => void;
   /** Optimistic removal, so a deleted snap leaves the list at once. */
@@ -74,6 +87,8 @@ export const useShared = create<SharedState>((set) => ({
   streak: { current: 0, longest: 0 },
   week: ['future', 'future', 'future', 'future', 'future', 'future', 'future'],
   loaded: false,
+  moreSnaps: false,
+  loadingMore: false,
 
   load: async (couple) => {
     const [snaps, canvas, days, entries, sealed, opened, comments, quiet] = await Promise.all([
@@ -105,6 +120,8 @@ export const useShared = create<SharedState>((set) => ({
 
     set({
       snaps,
+      // A full page back means there is probably another; a short one is the end.
+      moreSnaps: snaps.length === SNAP_PAGE,
       urls,
       comments,
       quiet,
@@ -155,6 +172,31 @@ export const useShared = create<SharedState>((set) => ({
         theirName: partner?.display_name,
         nowMs: Date.now(),
       }),
+    });
+  },
+
+  olderSnaps: async (coupleId) => {
+    const { snaps, urls, loadingMore, moreSnaps } = useShared.getState();
+    if (loadingMore || !moreSnaps) return;
+
+    const oldest = snaps[snaps.length - 1];
+    if (!oldest) return;
+
+    set({ loadingMore: true });
+    const older = await recentSnaps(coupleId, SNAP_PAGE, oldest.created_at);
+
+    /*
+      Sign only the new ones. The links already in the map are good for an hour
+      and re-signing them would spend a round trip to replace them with
+      themselves.
+    */
+    const fresh = await signedUrls(older.map((s) => s.storage_path));
+
+    set({
+      snaps: [...snaps, ...older],
+      urls: new Map([...urls, ...fresh]),
+      moreSnaps: older.length === SNAP_PAGE,
+      loadingMore: false,
     });
   },
 

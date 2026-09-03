@@ -745,6 +745,14 @@ references profiles on delete cascade`**, so deleting one anonymous auth user
   `html { overflow-x: hidden }` as the guard for the next one. This was _not_
   the tab-bar bug — the readout proved the page was never wider than the screen
   — but it is a real overflow and it is fixed.
+- **A default `limit` is indistinguishable from data loss.** `recentSnaps` took
+  `limit = 12` and nothing ever passed anything else, so the Snaps screen showed
+  the last twelve photographs and stopped. At one a day that is a fortnight, and
+  it was reported as "the rest all disappear" — reasonably, because from inside
+  the app that is exactly what it looks like. Nothing had been deleted; the app
+  never asked. Thirty a page now, with a cursor on `created_at` rather than an
+  offset, because a snap arriving mid-paging shifts every offset by one and
+  duplicates a row across the boundary.
 - **Nothing has ever swept a photo.** Migration 1's comment says "swept by a
   scheduled Edge Function" and no such function was ever written — the only
   `pg_cron` job in the project belongs to `occasions`. So `expires_at` is a

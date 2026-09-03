@@ -43,6 +43,9 @@ export function Snaps() {
   const load = useShared((s) => s.load);
   const markKept = useShared((s) => s.markKept);
   const dropLocally = useShared((s) => s.dropSnap);
+  const moreSnaps = useShared((s) => s.moreSnaps);
+  const loadingMore = useShared((s) => s.loadingMore);
+  const olderSnaps = useShared((s) => s.olderSnaps);
 
   const [pending, setPending] = useState<{
     blob: Blob;
@@ -291,6 +294,24 @@ export function Snaps() {
                   </figure>
                 );
               })}
+
+              {/*
+                There is no end to this list, and there never was — the loader
+                asked for twelve rows and stopped, which at one snap a day looks
+                exactly like everything older than a fortnight having been
+                deleted. Nothing in this project deletes a photo. Thirty at a
+                time now, and a way to keep going.
+              */}
+              {moreSnaps && couple?.id && (
+                <button
+                  type="button"
+                  disabled={loadingMore}
+                  onClick={() => void olderSnaps(couple.id)}
+                  className="bg-surface text-ash h-12 w-full rounded-full text-[0.95rem] font-medium disabled:opacity-40"
+                >
+                  {loadingMore ? 'Looking…' : 'Older ones'}
+                </button>
+              )}
             </div>
           )}
         </>
