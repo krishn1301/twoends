@@ -149,6 +149,15 @@ beforeAll(async () => {
     ['list_items', { couple_id: coupleA, title: 'Watch the sequel' }],
     ['quiet_periods', { couple_id: coupleA, from_date: '2026-08-01', to_date: '2026-08-03' }],
     [
+      'voice_notes',
+      {
+        couple_id: coupleA,
+        author_id: alice.id,
+        storage_path: `${coupleA}/a.webm`,
+        duration_ms: 12_000,
+      },
+    ],
+    [
       'recaps',
       {
         couple_id: coupleA,
@@ -317,6 +326,13 @@ describe('a stranger writes nothing', () => {
       });
     }
     if (table === 'quiet_periods') Object.assign(row, { from_date: '2026-08-01' });
+    if (table === 'voice_notes') {
+      Object.assign(row, {
+        author_id: mallory.id,
+        storage_path: `${coupleA}/x.webm`,
+        duration_ms: 5_000,
+      });
+    }
     if (table === 'recaps') {
       Object.assign(row, { month: '2026-09-01', from_date: '2026-08-17', to_date: '2026-09-16' });
     }

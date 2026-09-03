@@ -900,6 +900,57 @@ export type Database = {
           },
         ]
       }
+      voice_notes: {
+        Row: {
+          author_id: string
+          couple_id: string
+          created_at: string
+          duration_ms: number
+          expires_at: string
+          id: string
+          kept: boolean
+          peaks: Json
+          storage_path: string
+        }
+        Insert: {
+          author_id: string
+          couple_id: string
+          created_at?: string
+          duration_ms: number
+          expires_at?: string
+          id?: string
+          kept?: boolean
+          peaks?: Json
+          storage_path: string
+        }
+        Update: {
+          author_id?: string
+          couple_id?: string
+          created_at?: string
+          duration_ms?: number
+          expires_at?: string
+          id?: string
+          kept?: boolean
+          peaks?: Json
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_notes_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voice_notes_couple_id_fkey"
+            columns: ["couple_id"]
+            isOneToOne: false
+            referencedRelation: "couples"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

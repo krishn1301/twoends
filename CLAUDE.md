@@ -83,6 +83,41 @@ Commands: `pnpm db:push`, `pnpm db:types`, `pnpm test:rls`, `pnpm verify`,
 
 ## Current phase
 
+**Phases 16–18 built from `TWOENDS_FEATURES_SPEC.md`. Phase 15 and everything
+before it shipped and confirmed on a paired device.**
+
+### Phases 16–18 — retention, the monthly recap, voice notes
+
+Built in one sitting from a written spec, in the order it gives.
+
+- **Nothing has ever swept a photo**, which changed what phase one was. The
+  schema comment says "swept by a scheduled Edge Function" and no such function
+  was ever written. So the 30→60 day change (migration 25) is not a rescue, and
+  the sweeper stays deliberately unbuilt: one snap a day is ~110MB a year
+  against a 1GB tier. **Us → Storage** prints the number so it is noticed from
+  inside the app.
+- **A recap is a live view over a date range**, not a document. `recaps`
+  (migration 26) stores the window and nothing else, and generating one marks
+  every photo it used `kept` — which is the whole retention story finished.
+- **The fold-forward rule deadlocks if you only ask about the earliest
+  uncovered month.** A quiet first month is never worth a page on its own, so
+  nothing is written, so the period never closes, so nothing is ever written —
+  no recap, ever. `pendingWindows` offers every uncovered anniversary, all
+  reaching back to the same day, and the caller takes the first that is fat
+  enough. Caught by reasoning about the real couple's April before it shipped.
+- **The recap's "insight" is allowed to say nothing.** Word overlap with a stop
+  list, and under three days or a spread below 0.15 it makes no claim at all —
+  the longest thing somebody actually wrote stands instead.
+- **Save as image is hand-drawn on a canvas, not `html2canvas`.** That library
+  reimplements CSS, and this app is `color-mix(in oklab, …)`, backdrop filters
+  and layered gradients — the parts most worth keeping are the parts it gets
+  wrong. No dependency was added for any of this.
+- **Voice notes get their own table and bucket** (migration 27) rather than a
+  `kind` column on `photos`. Reusing photos would have given retention and
+  keeping for free and left a table called `photos` holding audio.
+- **The 30-second cap is the feature, not a storage decision.** A 30s Opus clip
+  is ~40KB. The cap is what makes them get sent.
+
 **Phase 15 built. Phases 0–14 shipped and confirmed on a paired device.**
 
 ### Phase 15 — two looks, one switch

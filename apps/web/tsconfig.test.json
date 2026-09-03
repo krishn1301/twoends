@@ -1,6 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    // The app's own modules are browser code, so a project that compiles any of
+    // them needs the browser's types even though the tests run in Node.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "outDir": "./dist-test",
     "rootDir": ".",
     // These tests read the app's own source and stylesheet off disk, so they
@@ -12,5 +15,5 @@
   // The theme test reads files off disk; the update test imports one. Both
   // belong to the app, which is why this project compiles them itself rather
   // than referencing one that has no Node types.
-  "include": ["test/**/*.ts", "src/lib/update.ts"]
+  "include": ["test/**/*.ts", "src/lib/update.ts", "src/lib/recorder.ts"]
 }

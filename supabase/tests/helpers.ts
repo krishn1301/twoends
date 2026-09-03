@@ -105,6 +105,7 @@ export const COUPLE_TABLES = [
   'couple_cards',
   'quiet_periods',
   'recaps',
+  'voice_notes',
 ] as const;
 
 export type CoupleTable = (typeof COUPLE_TABLES)[number];
