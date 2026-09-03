@@ -33,31 +33,6 @@ export function TabBar({
   return (
     <>
       {/*
-        The bar was reported as moving between screens. Measured off three
-        screenshots of the real device, it does not: its top edge lands within
-        four CSS pixels on every screen and it is centred to the pixel in all of
-        them. What moves is what is behind it.
-
-        On a short screen it sits over plain black. On Home it sits over the
-        anniversary card, which passes underneath at 82% opacity — legible
-        enough to notice and not enough to read, so the bar reads as a window
-        onto moving content rather than as a fixed layer, and a card sliced in
-        half by it reads as the bar having shifted.
-
-        The fix is treatment, not position. Content dissolves into the page
-        before it reaches the bar, and the bar itself is nearly opaque.
-      */}
-      {v2 && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-40 h-28"
-          style={{
-            background: 'linear-gradient(to top, var(--color-void) 45%, transparent)',
-          }}
-        />
-      )}
-
-      {/*
         Anchored at `bottom: 0` with the safe area as *padding*, not as the
         value of `bottom`.
 
@@ -80,11 +55,32 @@ export function TabBar({
       <nav
         aria-label="Main"
         className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex justify-center px-5"
-        style={{ paddingBottom: 'max(0.85rem, env(safe-area-inset-bottom))' }}
+        style={{
+          /*
+            Inside the home-indicator inset rather than clear of it, which is
+            where the reference app puts its capsule — about 13pt off the edge
+            on an iPhone against our 34. Nothing overlaps the indicator itself;
+            there is simply no reason for a floating pill to leave the whole
+            band empty underneath it.
+          */
+          paddingBottom: v2
+            ? 'max(0.75rem, calc(env(safe-area-inset-bottom) - 1rem))'
+            : 'max(0.85rem, env(safe-area-inset-bottom))',
+        }}
       >
+        {/*
+          Content passes behind it and stays readable, which is the whole of
+          what a floating bar is for. It was briefly the opposite — 94% opaque,
+          with a black gradient rising a hundred pixels behind it to stop
+          anything being sliced in half. On an app whose background is already
+          black that does not read as a soft edge, it reads as dead space at the
+          bottom of the screen. The gradient is gone and the bar is see-through.
+        */}
         <div
-          className="pointer-events-auto flex gap-1 rounded-full border border-white/10 p-1.5 backdrop-blur-xl"
-          style={{ background: v2 ? 'rgba(20,17,15,0.94)' : 'rgba(28,24,21,0.82)' }}
+          className={`pointer-events-auto flex gap-1 rounded-full border p-1.5 ${
+            v2 ? 'border-white/12 backdrop-blur-2xl' : 'border-white/10 backdrop-blur-xl'
+          }`}
+          style={{ background: v2 ? 'rgba(20,17,15,0.62)' : 'rgba(28,24,21,0.82)' }}
         >
           {TABS.map(({ id, label, Icon }) => {
             const active = id === current;

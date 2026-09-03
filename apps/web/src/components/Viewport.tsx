@@ -50,14 +50,29 @@ export function Viewport() {
     literal string until something lays it out.
   */
   const probe = document.getElementById('safe-area-probe');
-  const inset = probe ? Math.round(Number.parseFloat(getComputedStyle(probe).paddingBottom)) : null;
+  const edge = (side: 'paddingTop' | 'paddingBottom'): string =>
+    probe ? `${Math.round(Number.parseFloat(getComputedStyle(probe)[side]))}px` : 'n/a';
 
+  /*
+    `layout` against `screen` is the question this was extended to answer. The
+    app reports 390 x 797 on an 844pt iPhone 13 — 47pt of the screen it is not
+    being given, which is most of why it reads as small. `viewport-fit=cover`
+    and `apple-mobile-web-app-status-bar-style=black-translucent` have both been
+    in `index.html` since August, so the obvious cause is already ruled out.
+
+    A `safe top` of 0 alongside a short `layout` means iOS is reserving the
+    status bar and the web-app metadata is not being honoured, which points at
+    the install rather than at the code. A `safe top` of 47 means cover mode is
+    on and the missing band is going somewhere else.
+  */
   const rows: [string, string][] = [
     ['layout', `${window.innerWidth} x ${window.innerHeight}`],
+    ['screen', `${window.screen.width} x ${window.screen.height}`],
     ['visual', vv ? `${Math.round(vv.width)} x ${Math.round(vv.height)}` : 'n/a'],
     ['scale', vv ? vv.scale.toFixed(3) : 'n/a'],
     ['overflow', `${doc.scrollWidth - doc.clientWidth}px sideways`],
-    ['safe area', inset === null ? 'n/a' : `${inset}px at the bottom`],
+    ['safe top', edge('paddingTop')],
+    ['safe bottom', edge('paddingBottom')],
     ['dpr', String(window.devicePixelRatio)],
   ];
 
@@ -73,13 +88,17 @@ export function Viewport() {
       </dl>
       <p className="text-ash mt-3 text-[0.72rem] leading-relaxed">
         A scale that is not 1.000, or an overflow above 0, means the page is wider than the screen
-        and everything pinned to an edge will move.
+        and everything pinned to an edge will move. A layout shorter than the screen means the app
+        is not being given all of it.
       </p>
       <span
         id="safe-area-probe"
         aria-hidden="true"
         className="pointer-events-none absolute h-0 w-0 opacity-0"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        style={{
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
       />
     </div>
   );
