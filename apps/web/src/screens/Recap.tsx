@@ -55,7 +55,11 @@ export function Recap({ recap, onClose }: { recap: RecapRow; onClose: () => void
       if (!alive) return;
       setContents(found);
 
-      const signed = await signedUrls(found.photos.map((photo) => photo.storage_path));
+      // The diptychs live in the same bucket, so they sign in the same batch.
+      const signed = await signedUrls([
+        ...found.photos.map((photo) => photo.storage_path),
+        ...found.moments.flatMap((day) => day.shots.map((shot) => shot.storage_path)),
+      ]);
       if (alive) setUrls(signed);
     })();
 
@@ -118,9 +122,7 @@ export function Recap({ recap, onClose }: { recap: RecapRow; onClose: () => void
             <h1 className="font-display truncate text-2xl font-semibold tracking-tight">
               {recapTitle(recap.month)}
             </h1>
-            <p className="text-ash text-sm">
-              {monthSpan(recap.from_date, recap.to_date)}
-            </p>
+            <p className="text-ash text-sm">{monthSpan(recap.from_date, recap.to_date)}</p>
           </div>
         </header>
 
@@ -199,6 +201,39 @@ export function Recap({ recap, onClose }: { recap: RecapRow; onClose: () => void
               </section>
             )}
 
+            {contents.moments.length > 0 && (
+              <section className="mb-8">
+                <h2 className="text-ash mb-3 text-xs tracking-[0.18em] uppercase">
+                  Same thing, same time
+                </h2>
+                <div className="flex flex-col gap-4">
+                  {contents.moments.map((day) => (
+                    <div key={day.date} className="bg-surface lift rounded-[28px] p-4">
+                      <p className="font-display text-[1.05rem] leading-snug font-semibold">
+                        {day.prompt}
+                      </p>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        {day.shots.map((shot) => (
+                          <div
+                            key={shot.id}
+                            className="aspect-square overflow-hidden rounded-2xl"
+                            style={{ boxShadow: `inset 0 0 0 2px ${accentOf(shot.author_id)}` }}
+                          >
+                            <img
+                              src={urls.get(shot.storage_path)}
+                              alt={nameOf(shot.author_id)}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-ash mt-2 text-xs">{dayOf(`${day.date}T12:00:00Z`)}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {contents.closest && (
               <Exchange
                 title={contents.furthest ? 'Closest' : 'The one worth keeping'}
@@ -245,7 +280,10 @@ export function Recap({ recap, onClose }: { recap: RecapRow; onClose: () => void
                 <h2 className="text-ash mb-3 text-xs tracking-[0.18em] uppercase">Arrived</h2>
                 <div className="flex flex-col gap-3">
                   {contents.arrived.map((row) => (
-                    <div key={row.id} className="bg-surface flex items-center gap-4 rounded-3xl px-5 py-4">
+                    <div
+                      key={row.id}
+                      className="bg-surface flex items-center gap-4 rounded-3xl px-5 py-4"
+                    >
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium">{row.title}</span>
                         <span className="text-ash text-sm">{dayOf(row.target_at)}</span>

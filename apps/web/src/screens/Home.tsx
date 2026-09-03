@@ -9,12 +9,14 @@ import {
   daysUntil,
   fillsTheScreen,
   heldQuotes,
+  localDateIn,
   nextQuote,
   occasionCopy,
 } from '@twoends/core';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 import { DailyCard } from '../components/DailyCard.tsx';
+import { MomentCard } from '../components/MomentCard.tsx';
 import { Monogram } from '../components/Monogram.tsx';
 import { OccasionCard } from '../components/OccasionCard.tsx';
 import { Sheet } from '../components/Sheet.tsx';
@@ -119,6 +121,17 @@ export function Home({
     only way to notice was to know what you had typed.
   */
   const nowMs = useNow(60_000).getTime();
+
+  /*
+    The couple's own clock, not this device's.
+
+    Both halves of the moment have to agree about which day it is and how far
+    into it they are, and two people in two cities do not. `day_timezone` is the
+    same field the streak and the daily question are keyed on.
+  */
+  const zone = couple?.day_timezone ?? 'UTC';
+  const coupleToday = localDateIn(zone, new Date(nowMs));
+  const minutesNow = minutesPastMidnightIn(zone, new Date(nowMs));
   const countdown = useLiveQuery(
     async () =>
       soonestCountdown(
@@ -382,6 +395,20 @@ export function Home({
         {/* The one thing the screen is asking for — real data, not a fixture. */}
         <div className="rise mb-9 px-5" style={{ animationDelay: '60ms' }}>
           <DailyCard onAsk={() => onOpen?.('ask')} />
+        </div>
+
+        {/*
+          The twenty minutes, when they are open.
+
+          Under the daily question rather than above it: the question is the
+          thing the app is for and this is the thing it does *to* you. It
+          renders nothing at all outside the window and nothing on a day that
+          was missed with nothing taken — a card spending the other
+          twenty-three hours saying "you missed it" would make a gentle thing
+          into a scoreboard.
+        */}
+        <div className="rise mb-9 px-5" style={{ animationDelay: '90ms' }}>
+          <MomentCard minutes={minutesNow} localDate={coupleToday} mine={mine} theirs={theirs} />
         </div>
 
         <div className="flex flex-col gap-9">
@@ -1116,4 +1143,29 @@ function whenLabel(targetAt: string): string {
 function yearAgoLabel(when: string, now: number): string {
   const years = Math.max(1, Math.round((now - Date.parse(when)) / 31_557_600_000));
   return years === 1 ? 'a year ago' : `${years} years ago`;
+}
+
+/**
+ * Minutes past midnight where the couple lives.
+ *
+ * `Intl` rather than an offset table, and read out of a formatted string
+ * because that is the only way to ask a zone what its wall clock says. An
+ * unknown zone answers with UTC rather than throwing: the moment opening an
+ * hour out is a small wrong, and Home failing to render is a large one.
+ */
+function minutesPastMidnightIn(zone: string, at: Date): number {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: zone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(at);
+
+    const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? '0');
+    const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? '0');
+    return hour * 60 + minute;
+  } catch {
+    return at.getUTCHours() * 60 + at.getUTCMinutes();
+  }
 }

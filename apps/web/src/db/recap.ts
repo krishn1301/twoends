@@ -6,6 +6,7 @@ import {
   type RecapWindow,
 } from '@twoends/core';
 
+import { completedMoments, type MomentShot } from './moments.ts';
 import { supabase } from '../lib/supabase.ts';
 import type { Couple } from '../state/session.ts';
 
@@ -58,6 +59,8 @@ export interface RecapContents {
   capsules: { id: string; body: string; author_id: string; deliver_at: string }[];
   /** Countdowns whose date fell inside it. */
   arrived: { id: string; title: string; target_at: string }[];
+  /** Days where both of them answered the same twenty minutes, newest first. */
+  moments: { date: string; prompt: string; shots: MomentShot[] }[];
   /** How many days together on the last day of the window. */
   daysTogether: number;
   /** How many of the window's days had an answer from both. */
@@ -97,7 +100,7 @@ export async function recapContents(
   const from = startOf(window.from);
   const to = endOf(window.to);
 
-  const [photos, drawings, days, capsules, countdowns] = await Promise.all([
+  const [photos, drawings, days, capsules, countdowns, moments] = await Promise.all([
     supabase
       .from('photos')
       .select('id, storage_path, caption, author_id, created_at')
@@ -137,6 +140,13 @@ export async function recapContents(
       .gte('target_at', from)
       .lte('target_at', to)
       .order('target_at', { ascending: true }),
+
+    /*
+      Only the finished pairs. A diptych with one side missing is a picture of
+      somebody being stood up, and the recap is not the place to point that out
+      — `completedMoments` drops the half days for exactly that reason.
+    */
+    completedMoments(coupleId, window.from, window.to),
   ]);
 
   for (const [what, result] of [
@@ -163,6 +173,9 @@ export async function recapContents(
   const drawingRows = ((drawings.data as RecapDrawing[] | null) ?? []).filter(hasStrokes);
   const capsuleRows = (capsules.data as RecapContents['capsules'] | null) ?? [];
   const arrivedRows = (countdowns.data as RecapContents['arrived'] | null) ?? [];
+  const momentRows = [...moments.entries()]
+    .sort(([a], [b]) => (a < b ? 1 : -1))
+    .map(([date, shots]) => ({ date, prompt: shots[0]?.prompt ?? '', shots }));
 
   return {
     window,
@@ -172,6 +185,7 @@ export async function recapContents(
     furthest,
     capsules: capsuleRows,
     arrived: arrivedRows,
+    moments: momentRows,
     daysTogether,
     daysAnswered: exchanges.length,
     items:
@@ -179,7 +193,8 @@ export async function recapContents(
       drawingRows.length +
       exchanges.length +
       capsuleRows.length +
-      arrivedRows.length,
+      arrivedRows.length +
+      momentRows.length,
   };
 }
 

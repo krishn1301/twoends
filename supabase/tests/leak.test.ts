@@ -148,6 +148,33 @@ beforeAll(async () => {
     ],
     ['list_items', { couple_id: coupleA, title: 'Watch the sequel' }],
     ['quiet_periods', { couple_id: coupleA, from_date: '2026-08-01', to_date: '2026-08-03' }],
+    /*
+      Both of them, and that is the point rather than thoroughness. A moment is
+      hidden from the other member until they have taken their own — the same
+      reveal the daily question has — so seeding only Alice's would make the
+      positive control below fail for the right reason at the wrong time, and
+      look exactly like a broken read policy. The reveal has its own suite.
+    */
+    [
+      'moment_shots',
+      {
+        couple_id: coupleA,
+        author_id: alice.id,
+        local_date: '2026-08-20',
+        prompt: 'The nearest window.',
+        storage_path: `${coupleA}/m-alice.webp`,
+      },
+    ],
+    [
+      'moment_shots',
+      {
+        couple_id: coupleA,
+        author_id: bob.id,
+        local_date: '2026-08-20',
+        prompt: 'The nearest window.',
+        storage_path: `${coupleA}/m-bob.webp`,
+      },
+    ],
     [
       'voice_notes',
       {
@@ -326,6 +353,14 @@ describe('a stranger writes nothing', () => {
       });
     }
     if (table === 'quiet_periods') Object.assign(row, { from_date: '2026-08-01' });
+    if (table === 'moment_shots') {
+      Object.assign(row, {
+        author_id: mallory.id,
+        local_date: '2026-08-21',
+        prompt: 'Your shoes.',
+        storage_path: `${coupleA}/x.webp`,
+      });
+    }
     if (table === 'voice_notes') {
       Object.assign(row, {
         author_id: mallory.id,

@@ -117,6 +117,23 @@ Built in one sitting from a written spec, in the order it gives.
   keeping for free and left a table called `photos` holding audio.
 - **The 30-second cap is the feature, not a storage decision.** A 30s Opus clip
   is ~40KB. The cap is what makes them get sent.
+- **The shared moment has no schedule table.** `momentForDay` derives the
+  prompt _and_ the hour from the couple id and the date, the way `promptForDay`
+  derives the question, so both phones agree with nothing passing between them.
+  Two draws from one hash, not two hashes — otherwise every couple with the
+  same prompt also opens at the same minute. The hours are 10–21 and there is a
+  test walking a whole year to prove nobody is asked to photograph their shoes
+  at three in the morning.
+- **The reveal is a policy, and its positive control needs both sides seeded.**
+  `moment_shots` hides the partner's row until you have one of your own —
+  `i_have_shot` is `security definer` for the same 42P17 reason `i_have_answered`
+  was. Seeding only one side made the leak suite's "a member can read this
+  table" control fail, which looks exactly like a broken read policy and is the
+  feature working. Same trap the sealed capsules had.
+- **The moment's push cannot be late.** The window is twenty minutes, so a
+  notification an hour after it opens is about something already gone. It is
+  gated on the moment's own hour inside `occasions` rather than given a second
+  cron, so two pushes never arrive on one morning.
 
 **Phase 15 built. Phases 0–14 shipped and confirmed on a paired device.**
 

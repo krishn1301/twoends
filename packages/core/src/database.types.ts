@@ -482,6 +482,57 @@ export type Database = {
           },
         ]
       }
+      moment_shots: {
+        Row: {
+          author_id: string
+          couple_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          kept: boolean
+          local_date: string
+          prompt: string
+          storage_path: string
+        }
+        Insert: {
+          author_id: string
+          couple_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          kept?: boolean
+          local_date: string
+          prompt: string
+          storage_path: string
+        }
+        Update: {
+          author_id?: string
+          couple_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          kept?: boolean
+          local_date?: string
+          prompt?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moment_shots_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moment_shots_couple_id_fkey"
+            columns: ["couple_id"]
+            isOneToOne: false
+            referencedRelation: "couples"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       photos: {
         Row: {
           author_id: string
@@ -980,6 +1031,10 @@ export type Database = {
       i_have_answered: { Args: { p_prompt_day_id: string }; Returns: boolean }
       i_have_played: {
         Args: { p_card_id: string; p_couple_id: string; p_mode: string }
+        Returns: boolean
+      }
+      i_have_shot: {
+        Args: { p_couple_id: string; p_local_date: string }
         Returns: boolean
       }
       is_member_of: { Args: { c: string }; Returns: boolean }

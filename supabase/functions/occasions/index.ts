@@ -23,6 +23,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 import {
   localDateIn,
+  momentForDay,
   pendingWindows,
   occasionCopy,
   occasionFor,
@@ -107,10 +108,23 @@ Deno.serve(async (req) => {
     if (!couple.member_b) continue;
 
     const zone = couple.day_timezone ?? 'UTC';
-    if (hourIn(zone, now) !== HOUR) continue;
+    const localHour = hourIn(zone, now);
+    const localDate = localDateIn(zone, now);
+
+    /*
+      Two things can want this hour, and they are not the same hour.
+
+      The occasion card goes at nine. The shared moment goes at an hour derived
+      from the couple id and the date — deliberately not nine, deliberately not
+      the same for two couples — and it is only twenty minutes long, so a push
+      an hour late is a push about something that has already closed. Gating on
+      either lets one function serve both without a second cron.
+    */
+    const moment = momentForDay(couple.id, localDate);
+    const momentHour = moment?.hour ?? -1;
+    if (localHour !== HOUR && localHour !== momentHour) continue;
 
     considered++;
-    const localDate = localDateIn(zone, now);
 
     /*
       Quiet mode silences everything, including this. Asked of `is_quiet`, which
@@ -129,6 +143,19 @@ Deno.serve(async (req) => {
       p_on: localDate,
     });
     if (quiet === true) continue;
+
+    /*
+      The twenty minutes opening.
+
+      Sent to both, once, and only in the hour it opens — this is the one
+      notification in the app that is useless late, because the thing it is
+      about is gone twenty minutes after it starts. Logged per person per day
+      like everything else, so a scheduler firing twice cannot double it.
+    */
+    if (localHour === momentHour && moment) {
+      await pushMoment(admin, couple, moment.prompt, localDate, dryRun, would);
+      if (localHour !== HOUR) continue;
+    }
 
     /*
       The month, if today closed one.
@@ -343,6 +370,62 @@ async function countIn(
     .lte(column, to);
 
   return count ?? 0;
+}
+
+/**
+ * Tells both of them the twenty minutes have started.
+ *
+ * The prompt itself is the notification. A title saying "a moment is open" and
+ * a body saying what it is would be two sentences for one idea, and the prompt
+ * is the more useful half — somebody reading it on a lock screen can take the
+ * photograph without opening anything.
+ */
+async function pushMoment(
+  admin: ReturnType<typeof createClient>,
+  couple: { id: string; member_a: string; member_b: string | null },
+  prompt: string,
+  localDate: string,
+  dryRun: boolean,
+  would: { to: string; title: string }[],
+): Promise<void> {
+  const kind = `moment:${localDate}`;
+
+  for (const profileId of [couple.member_a, couple.member_b]) {
+    if (!profileId) continue;
+
+    const { count } = await admin
+      .from('push_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('profile_id', profileId)
+      .eq('kind', kind);
+
+    if ((count ?? 0) > 0) continue;
+
+    const { data: tokens } = await admin
+      .from('push_tokens')
+      .select('id, token')
+      .eq('profile_id', profileId)
+      .eq('platform', 'web');
+
+    if (!tokens?.length) continue;
+
+    const message = { title: 'Twenty minutes', body: prompt };
+
+    if (dryRun) {
+      would.push({ to: profileId, title: message.title });
+      continue;
+    }
+
+    let landed = 0;
+    for (const row of tokens) {
+      const subscription = JSON.parse(row.token) as PushSubscriptionJSON;
+      const ok = await push(subscription, message);
+      if (ok) landed++;
+      else await admin.from('push_tokens').delete().eq('id', row.id);
+    }
+
+    if (landed > 0) await admin.from('push_log').insert({ profile_id: profileId, kind });
+  }
 }
 
 /** The hour of the day where they live, 0–23. */
