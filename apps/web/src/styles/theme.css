@@ -393,6 +393,50 @@ body {
   touch-action: manipulation;
 }
 
+/*
+  Nothing may be wider than the screen.
+
+  This is the whole of the "the tab bar keeps moving" bug on an iPhone, and it
+  took three attempts to find because the bar was never the thing that was
+  wrong. `<input type="date">` on iOS has an intrinsic minimum width from the
+  date text it renders and **ignores `width: 100%`** when that intrinsic width
+  is larger — so the "When" field on Dates hung a few pixels off the right edge
+  of the screen. A page wider than the viewport makes iOS shrink-to-fit: it
+  scales the whole document down to make it fit, and every `position: fixed`
+  element is laid out against a viewport that is now a different size.
+
+  Measured off four screenshots of the device: the tab bar pill is 884 device
+  pixels wide in three of them and 840 in the fourth. 840/884 is 0.95. That is
+  not the bar moving, it is the entire page at 95%.
+
+  Two guards, because one of them is about this input and the other is about
+  every element that has not been written yet:
+
+  - the input is told it may be narrower than its content, and to drop the
+    intrinsic sizing that comes with the native control
+  - the document refuses to scroll sideways at all, so a future overflow
+    is clipped instead of rescaling the app
+
+  Android was never affected: its WebView honours `user-scalable=no` in the
+  viewport meta, and iOS Safari has ignored that since iOS 10 — which is
+  already written down in the project notes for a different reason.
+*/
+html {
+  overflow-x: hidden;
+}
+
+input,
+textarea,
+select {
+  max-width: 100%;
+  min-width: 0;
+}
+
+input[type='date'] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 /* Quality floor from the build plan, applied globally rather than per component. */
 button,
 a,
