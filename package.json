@@ -28,6 +28,7 @@
     "deploy": "node scripts/deploy.mjs",
     "db:seed": "node scripts/seed-prompts.mjs",
     "sweep:dev": "node scripts/sweep-dev.mjs",
+    "signin:code": "node scripts/signin-code.mjs",
     "wipe:dev": "node scripts/wipe-dev.mjs"
   },
   "devDependencies": {

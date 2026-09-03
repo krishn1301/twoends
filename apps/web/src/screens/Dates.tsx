@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { daysUntil, getAccent } from '@twoends/core';
+import { daysUntil, getAccent, localDateIn, recapTitle } from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 import { Empty, GhostCountdown, GhostMemory } from '../components/Empty.tsx';
 import { Button, Field, TextInput } from '../components/Field.tsx';
+import { catchUpRecaps, type Recap as RecapRow } from '../db/recap.ts';
 import { Capsules } from './Capsules.tsx';
 import { SharedList } from './SharedList.tsx';
 import { addEntry, deleteEntry, type JournalEntry } from '../db/journal.ts';
@@ -17,6 +18,7 @@ import { useShared } from '../state/shared.ts';
 import { useSession } from '../state/session.ts';
 import { useNow } from '../state/useNow.ts';
 import { useOutbox } from '../state/useOutbox.ts';
+import { Recap } from './Recap.tsx';
 
 /**
  * Dates — the couple's calendar, in both directions.
@@ -51,6 +53,29 @@ export function Dates() {
   const chrome = useChrome(mine);
   const now = useNow(60_000).getTime();
 
+  /*
+    Every month that has closed, and any that were due while nobody was looking.
+
+    Generated here rather than only by the scheduled function, so a couple whose
+    cron missed an hour still gets their month — the function exists to send the
+    notification, not to be the only way a recap can come into being. Racing
+    with it is safe: the unique index makes the loser a no-op.
+  */
+  const [recaps, setRecaps] = useState<RecapRow[]>([]);
+  const [openRecap, setOpenRecap] = useState<RecapRow | null>(null);
+
+  useEffect(() => {
+    if (!couple?.started_on) return;
+
+    let alive = true;
+    void catchUpRecaps(couple, localDateIn(couple.day_timezone ?? 'UTC')).then((found) => {
+      if (alive) setRecaps(found);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [couple]);
+
   const countdowns = useLiveQuery(
     () =>
       db.countdowns
@@ -65,6 +90,8 @@ export function Dates() {
   }, [couple, load]);
 
   useEffect(loadEntries, [loadEntries]);
+
+  if (openRecap) return <Recap recap={openRecap} onClose={() => setOpenRecap(null)} />;
 
   return (
     <div className="bg-void text-chalk min-h-full px-5 pt-6 pb-32">
@@ -113,6 +140,28 @@ export function Dates() {
 
         {view === 'ahead' && (
           <Ahead coupleId={couple?.id} tint={chrome} now={now} rows={countdowns ?? []} />
+        )}
+
+        {view === 'behind' && recaps.length > 0 && (
+          <section className="mb-7">
+            <h2 className="text-ash mb-3 text-xs tracking-[0.18em] uppercase">Months</h2>
+            <div className="flex flex-col gap-3">
+              {recaps.map((row) => (
+                <button
+                  key={row.id}
+                  type="button"
+                  onClick={() => setOpenRecap(row)}
+                  className="bg-surface lift flex items-center gap-4 rounded-3xl px-5 py-4 text-left"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{recapTitle(row.month)}</span>
+                    <span className="text-ash text-sm">the whole month</span>
+                  </span>
+                  <span className="text-ash text-sm">Open</span>
+                </button>
+              ))}
+            </div>
+          </section>
         )}
 
         {view === 'behind' && (

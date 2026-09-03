@@ -104,6 +104,7 @@ export const COUPLE_TABLES = [
   'snap_comments',
   'couple_cards',
   'quiet_periods',
+  'recaps',
 ] as const;
 
 export type CoupleTable = (typeof COUPLE_TABLES)[number];

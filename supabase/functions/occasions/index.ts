@@ -23,10 +23,12 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 import {
   localDateIn,
+  pendingWindows,
   occasionCopy,
   occasionFor,
   occasionHeadline,
   fillsTheScreen,
+  worthShowing,
 } from '../../../packages/core/src/index.ts';
 import { push, type PushSubscriptionJSON } from '../_shared/webpush.ts';
 
@@ -128,6 +130,20 @@ Deno.serve(async (req) => {
     });
     if (quiet === true) continue;
 
+    /*
+      The month, if today closed one.
+
+      Folded into this function rather than given a cron of its own, and that is
+      the whole reason it is here: the monthly anniversary already sends a push,
+      and a recap with its own schedule would make two arrive on the same
+      morning. The spec asks for one. So the recap is made first and the
+      notification that was going out anyway says what is in it.
+
+      The app does this too, when somebody opens Dates. Neither is the owner of
+      it; the unique index is, and the loser of the race is a no-op.
+    */
+    const madeRecap = await ensureRecap(admin, couple, localDate, dryRun);
+
     const { data: people } = await admin
       .from('profiles')
       .select('id, display_name, birthday')
@@ -188,7 +204,13 @@ Deno.serve(async (req) => {
 
       const message = {
         title: occasionHeadline(occasion, them.display_name),
-        body: copy.line,
+        /*
+          The month replaces the line rather than adding to it. Two sentences
+          about two different things in one notification is how a push stops
+          being read at all, and the recap is the more useful of the two on a
+          morning that has one.
+        */
+        body: madeRecap && occasion.kind === 'monthly' ? RECAP_LINE : copy.line,
       };
 
       if (dryRun) {
@@ -213,6 +235,115 @@ Deno.serve(async (req) => {
 
   return json(dryRun ? { dryRun: true, considered, would } : { considered, sent });
 });
+
+/**
+ * What the monthly push says when there is a month waiting.
+ *
+ * Restrained on purpose, like everything else the app writes: it says what
+ * exists and where, and leaves the feeling to the two of them.
+ */
+const RECAP_LINE = 'The month is ready to look at, in Dates.';
+
+/**
+ * Makes the recap for a window that closed today, if there is one worth making.
+ *
+ * A near-copy of what `db/recap.ts` does in the app, and deliberately not
+ * shared with it: that file speaks to PostgREST through the browser client and
+ * this one holds a service key, so the only thing they could usefully share is
+ * the arithmetic — and they do, through `nextRecapWindow` and `worthShowing`
+ * in `packages/core`. The rule about when a month turns has exactly one home.
+ *
+ * Returns true only when a row was actually written, so a morning that made
+ * nothing sends the ordinary monthly line.
+ */
+async function ensureRecap(
+  admin: ReturnType<typeof createClient>,
+  couple: { id: string; started_on: string | null },
+  localDate: string,
+  dryRun: boolean,
+): Promise<boolean> {
+  if (!couple.started_on) return false;
+
+  const { data: last } = await admin
+    .from('recaps')
+    .select('to_date')
+    .eq('couple_id', couple.id)
+    .order('to_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  /*
+    The window that *ends today*, which is not always the earliest pending one:
+    if the months before this were too thin to close, today's window reaches
+    back past them. Asking only about the head would mean a couple with a quiet
+    first month never got a notification at all.
+  */
+  const window = pendingWindows(couple.started_on, localDate, last?.to_date ?? null).find(
+    (candidate) => candidate.to === localDate,
+  );
+
+  // Only on the day it closes. One that came due while nobody opened the app is
+  // the app's to make when somebody next does — this function is a
+  // notification, and one arriving four days late is worse than none.
+  if (!window) return false;
+
+  const from = `${window.from}T00:00:00.000Z`;
+  const to = `${window.to}T23:59:59.999Z`;
+
+  const counts = await Promise.all([
+    countIn(admin, 'photos', couple.id, 'created_at', from, to),
+    countIn(admin, 'canvases', couple.id, 'created_at', from, to),
+    countIn(admin, 'capsules', couple.id, 'deliver_at', from, to),
+    countIn(admin, 'countdowns', couple.id, 'target_at', from, to),
+    countIn(admin, 'prompt_days', couple.id, 'local_date', window.from, window.to),
+  ]);
+
+  // A month too thin is not skipped: nothing is written, the period never
+  // closes, and the next window covers both.
+  if (!worthShowing(counts.reduce((total, n) => total + n, 0))) return false;
+  if (dryRun) return true;
+
+  const { error } = await admin.from('recaps').insert({
+    couple_id: couple.id,
+    month: window.month,
+    from_date: window.from,
+    to_date: window.to,
+  });
+
+  // 23505 means the app got there first, which is a success from here.
+  if (error && error.code !== '23505') return false;
+
+  /*
+    Claim the photographs. After the row, never before: the other order keeps a
+    month of pictures forever on a recap that failed to exist.
+  */
+  await admin
+    .from('photos')
+    .update({ kept: true })
+    .eq('couple_id', couple.id)
+    .gte('created_at', from)
+    .lte('created_at', to);
+
+  return true;
+}
+
+async function countIn(
+  admin: ReturnType<typeof createClient>,
+  table: string,
+  coupleId: string,
+  column: string,
+  from: string,
+  to: string,
+): Promise<number> {
+  const { count } = await admin
+    .from(table)
+    .select('id', { count: 'exact', head: true })
+    .eq('couple_id', coupleId)
+    .gte(column, from)
+    .lte(column, to);
+
+  return count ?? 0;
+}
 
 /** The hour of the day where they live, 0–23. */
 function hourIn(zone: string, at: Date): number {

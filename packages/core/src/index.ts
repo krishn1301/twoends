@@ -24,6 +24,7 @@ export * from './streakMath.ts';
 export * from './prompts.ts';
 export * from './cards.ts';
 export * from './occasions.ts';
+export * from './recap.ts';
 export * from './dedication.ts';
 export * from './consent.ts';
 export * from './guessing.ts';

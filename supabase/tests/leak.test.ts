@@ -149,6 +149,15 @@ beforeAll(async () => {
     ['list_items', { couple_id: coupleA, title: 'Watch the sequel' }],
     ['quiet_periods', { couple_id: coupleA, from_date: '2026-08-01', to_date: '2026-08-03' }],
     [
+      'recaps',
+      {
+        couple_id: coupleA,
+        month: '2026-08-01',
+        from_date: '2026-07-17',
+        to_date: '2026-08-16',
+      },
+    ],
+    [
       'snap_comments',
       { couple_id: coupleA, photo_id: photoId, author_id: alice.id, body: 'Your hair looks good.' },
     ],
@@ -308,6 +317,9 @@ describe('a stranger writes nothing', () => {
       });
     }
     if (table === 'quiet_periods') Object.assign(row, { from_date: '2026-08-01' });
+    if (table === 'recaps') {
+      Object.assign(row, { month: '2026-09-01', from_date: '2026-08-17', to_date: '2026-09-16' });
+    }
 
     const { error } = await mallory.db.from(table).insert(row);
     expect(error, `${table} accepted a write from a stranger`).not.toBeNull();
