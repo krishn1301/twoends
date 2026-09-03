@@ -54,7 +54,7 @@ export function TabBar({
       */}
       <nav
         aria-label="Main"
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex justify-center px-5"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-5"
         style={{
           /*
             Inside the home-indicator inset rather than clear of it, which is
