@@ -111,15 +111,42 @@ export function TabBar({
       {v2 && (
         <div
           aria-hidden="true"
-          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 h-7"
-          style={{ background: 'linear-gradient(to top, var(--color-void), transparent)' }}
+          className="pointer-events-none fixed inset-x-0 z-40 h-7"
+          style={{
+            // Same correction as the bar, or the fade stays behind when it moves.
+            bottom: 'clamp(-64px, calc(100% - 100dvh), 0px)',
+            background: 'linear-gradient(to top, var(--color-void), transparent)',
+          }}
         />
       )}
 
       <nav
         aria-label="Main"
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-5"
+        className="pointer-events-none fixed inset-x-0 z-50 flex justify-center px-5"
         style={{
+          /*
+            The bar sits on the bottom of the *screen*, which is not the same
+            box as `bottom: 0`.
+
+            A percentage on a fixed element resolves against the layout
+            viewport, and on iOS that is 47 CSS px shorter than the phone when
+            the page does not scroll and full height when it does. Measured on
+            the device: Dates -> Coming up puts the bar 64 px above the bottom
+            edge, Dates -> Capsules 14, and the only difference between those
+            two screens is how much is on them. A pixel of forced overflow was
+            tried first and iOS did not take it.
+
+            `dvh` is the unit that does not care. There are no dynamic toolbars
+            in an installed web app, so it stays the full screen either way, and
+            the difference between it and the layout viewport is the error.
+            Subtracting it is pure CSS — no listener, nothing to fire during a
+            rubber-band, which is what made the JavaScript version jitter.
+
+            Clamped, because an expression this clever should not be able to
+            throw the bar off the screen if a browser disagrees: it may move
+            down by up to 64px and it may never move up.
+          */
+          bottom: 'clamp(-64px, calc(100% - 100dvh), 0px)',
           /*
             Inside the home-indicator inset rather than clear of it, which is
             where the reference app puts its capsule — about 13pt off the edge

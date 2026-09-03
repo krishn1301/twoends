@@ -374,24 +374,6 @@ body,
 }
 
 /*
-  Every page is one pixel taller than the screen, deliberately.
-
-  iOS gives a document that *can* scroll a different viewport height from one
-  that cannot, and `position: fixed; bottom: 0` is measured against that. It is
-  the whole of "the bar is fixed until I add a countdown, and then it moves up":
-  one row is the difference between Dates fitting and Dates scrolling, and the
-  bar is anchored to a box that changed size underneath it.
-
-  A pixel of overflow means every screen is on the scrolling side of that line,
-  always, so there is nothing left to switch between. It is a well-worn iOS
-  workaround and it is one line; the alternative was a fixed shell, which held
-  the bar still and cost the bottom 47px of the phone.
-*/
-body {
-  min-height: calc(100% + 1px);
-}
-
-/*
   `viewport-fit=cover` lets the page paint under the notch and the home
   indicator, which is what keeps the black reaching every edge on an installed
   iPhone PWA. These insets are what stop content hiding under them.
@@ -468,6 +450,36 @@ select {
 input[type='date'] {
   -webkit-appearance: none;
   appearance: none;
+}
+
+/*
+  Text does not select.
+
+  This is an app, and on a phone every long press on a word was raising the
+  selection handles and the Copy / Look Up / Translate bar — over a tab label,
+  over a settings row, over the daily question. It was already fixed once for
+  the anniversary counter, where a hold is a real gesture and the handles were
+  landing on top of the thing being revealed; it is the same problem everywhere
+  else and it wants the one rule rather than eight.
+
+  `-webkit-touch-callout` is the second half on iOS: without it a long press
+  still raises the callout menu even when the selection itself is refused.
+
+  Fields are the exception, and the whole exception. You are typing there, and
+  a caret you cannot place is worse than any callout.
+*/
+body {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable] {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* Quality floor from the build plan, applied globally rather than per component. */
