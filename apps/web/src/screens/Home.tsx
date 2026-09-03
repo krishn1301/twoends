@@ -312,9 +312,14 @@ export function Home({
                   className="bg-surface-2 relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm"
                   title={distance.note}
                 >
-                  <span className="counter" style={{ color: m.chrome }}>
-                    {distance.label}
-                  </span>
+                  {/*
+                    Neutral, not an accent. How far apart the two of you are is
+                    not something either of you authored and not a control —
+                    it is a reading, and a reading in somebody's colour implies
+                    it belongs to them. The two faces on either side of it are
+                    already carrying the colour.
+                  */}
+                  <span className="counter text-chalk">{distance.label}</span>
                   {distance.kind === 'apart' && <span className="text-ash">km</span>}
                 </span>
               )
@@ -618,7 +623,9 @@ export function Home({
 
                       <p
                         className="counter text-[1.6rem] leading-none font-medium"
-                        style={{ color: distance.km === null ? 'var(--color-ash)' : m.chrome }}
+                        style={{
+                          color: distance.km === null ? 'var(--color-ash)' : 'var(--color-chalk)',
+                        }}
                       >
                         {distance.label}
                       </p>
@@ -652,7 +659,9 @@ export function Home({
                     </div>
                     <p
                       className="counter absolute right-4 bottom-14 text-[1.6rem] leading-none font-medium"
-                      style={{ color: distance.km === null ? '#948A82' : mine }}
+                      style={{
+                        color: distance.km === null ? '#948A82' : 'var(--color-chalk)',
+                      }}
                     >
                       {distance.label}
                     </p>
