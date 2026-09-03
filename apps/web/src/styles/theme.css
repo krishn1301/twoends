@@ -374,6 +374,24 @@ body,
 }
 
 /*
+  Every page is one pixel taller than the screen, deliberately.
+
+  iOS gives a document that *can* scroll a different viewport height from one
+  that cannot, and `position: fixed; bottom: 0` is measured against that. It is
+  the whole of "the bar is fixed until I add a countdown, and then it moves up":
+  one row is the difference between Dates fitting and Dates scrolling, and the
+  bar is anchored to a box that changed size underneath it.
+
+  A pixel of overflow means every screen is on the scrolling side of that line,
+  always, so there is nothing left to switch between. It is a well-worn iOS
+  workaround and it is one line; the alternative was a fixed shell, which held
+  the bar still and cost the bottom 47px of the phone.
+*/
+body {
+  min-height: calc(100% + 1px);
+}
+
+/*
   `viewport-fit=cover` lets the page paint under the notch and the home
   indicator, which is what keeps the black reaching every edge on an installed
   iPhone PWA. These insets are what stop content hiding under them.

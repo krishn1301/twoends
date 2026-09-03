@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 import { useIsV2 } from '../design/version.ts';
 import { ChatIcon, HomeIcon, PairIcon, PlayIcon } from './icons.tsx';
@@ -13,6 +13,15 @@ import { ChatIcon, HomeIcon, PairIcon, PlayIcon } from './icons.tsx';
  * state of its own that persists between visits, and it is the answer to the
  * evening when neither of you has anything to report. The label only appears on
  * the active tab, so four still fits comfortably on a 360dp phone.
+ *
+ * **Nothing here positions itself in JavaScript.** There was a `visualViewport`
+ * correction for a while, subtracting the difference between the visual and
+ * layout viewports so the bar would sit on the bottom of what you could
+ * actually see. It is a correct idea and it made things worse: `offsetTop`
+ * moves while you rubber-band a page, so the bar rode up and down with the
+ * finger dragging the screen. The viewport problem is solved one floor down,
+ * in `theme.css`, by making every page scrollable so there is no second
+ * viewport size to be caught between.
  */
 const TABS = [
   { id: 'home', label: 'Home', Icon: HomeIcon },
@@ -23,16 +32,6 @@ const TABS = [
 
 export type TabId = (typeof TABS)[number]['id'];
 
-/**
- * How far the bar is allowed to be nudged, in CSS pixels.
- *
- * The corrections this is for are safe-area sized — the largest seen on the
- * device is 47. A soft keyboard shrinks the visible area by two or three
- * hundred, and a bar that rode up on top of the keyboard would be a new bug
- * rather than a fix, so anything past this is somebody typing and is ignored.
- */
-const MOST = 64;
-
 export function TabBar({
   current = 'home',
   onSelect,
@@ -41,49 +40,62 @@ export function TabBar({
   onSelect?: (id: TabId) => void;
 }) {
   const v2 = useIsV2();
-  const nav = useRef<HTMLElement>(null);
+
+  const strip = useRef<HTMLDivElement>(null);
+  const tabs = useRef(new Map<TabId, HTMLButtonElement>());
+  const dragging = useRef(false);
+  const [pill, setPill] = useState<{ x: number; w: number } | null>(null);
 
   /*
-    Put the bar on the bottom of what you can actually see.
+    Where the lit pill sits, measured rather than guessed.
 
-    `position: fixed; bottom: 0` is measured against the *layout* viewport, and
-    on iOS that is not the same box as the screen. It is the reason this has now
-    been wrong twice in opposite directions: anchored to it, the bar sits 45 CSS
-    px above the bottom on one screen and 81 on another; pinned to a shell sized
-    to it, the bar held still and the last 47 px of the phone went dead.
-
-    `visualViewport` is the box the user is looking at, and it reports its own
-    offset from the layout viewport. The difference between the two is exactly
-    the error, so it is subtracted rather than guessed at. Nothing here assumes
-    a number, a device, or which of the two boxes is bigger — it reads both and
-    closes the gap, on every resize and every visual scroll.
-
-    Android and the APK have no gap and get a translate of zero.
+    The active tab is the only one that shows its label, so the buttons are not
+    the same width and no amount of arithmetic gets this right — it has to come
+    off the element. `useLayoutEffect` because a measurement taken after paint
+    shows the pill in the old place for a frame.
   */
-  useEffect(() => {
-    const vv = window.visualViewport;
-    const el = nav.current;
-    if (!vv || !el) return;
+  const measure = useCallback(() => {
+    const box = strip.current;
+    const active = tabs.current.get(current);
+    if (!box || !active) return;
 
-    const apply = () => {
-      // Rounded: the visual height is fractional, so an untouched viewport
-      // otherwise leaves a fifth of a pixel of transform on the element.
-      const gap = Math.round(window.innerHeight - (vv.offsetTop + vv.height));
-      const shift = Math.abs(gap) > MOST ? 0 : -gap;
-      el.style.transform = shift === 0 ? '' : `translateY(${shift}px)`;
-    };
+    const a = active.getBoundingClientRect();
+    const b = box.getBoundingClientRect();
+    setPill({ x: a.left - b.left, w: a.width });
+  }, [current]);
 
-    apply();
-    vv.addEventListener('resize', apply);
-    vv.addEventListener('scroll', apply);
-    window.addEventListener('orientationchange', apply);
-
+  useLayoutEffect(() => {
+    measure();
+    // The label appears as the tab becomes active, so the width settles a beat
+    // after the class does. Fonts landing late move it too.
+    const again = requestAnimationFrame(measure);
+    window.addEventListener('resize', measure);
     return () => {
-      vv.removeEventListener('resize', apply);
-      vv.removeEventListener('scroll', apply);
-      window.removeEventListener('orientationchange', apply);
+      cancelAnimationFrame(again);
+      window.removeEventListener('resize', measure);
     };
-  }, []);
+  }, [measure]);
+
+  /*
+    Drag along the bar and the tab under your thumb opens, the way it does in
+    the app this was measured against. A tap is the same gesture with no
+    travel, so there is one code path and no click handler to disagree with it.
+
+    Pointer capture keeps the moves coming after the finger leaves the button it
+    started on — without it the first slide off the edge ends the gesture.
+  */
+  const pickAt = useCallback(
+    (clientX: number) => {
+      for (const [id, el] of tabs.current) {
+        const r = el.getBoundingClientRect();
+        if (clientX >= r.left && clientX <= r.right && id !== current) {
+          onSelect?.(id);
+          return;
+        }
+      }
+    },
+    [current, onSelect],
+  );
 
   return (
     <>
@@ -105,7 +117,6 @@ export function TabBar({
       )}
 
       <nav
-        ref={nav}
         aria-label="Main"
         className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-5"
         style={{
@@ -121,31 +132,76 @@ export function TabBar({
             : 'max(0.85rem, env(safe-area-inset-bottom))',
         }}
       >
-        {/*
-          Content passes behind it and stays readable, which is the whole of
-          what a floating bar is for. It was briefly the opposite — 94% opaque,
-          with a black gradient rising a hundred pixels behind it to stop
-          anything being sliced in half. On an app whose background is already
-          black that does not read as a soft edge, it reads as dead space at the
-          bottom of the screen. The bar is see-through and the fade is short.
-        */}
         <div
-          className={`pointer-events-auto flex gap-1 rounded-full border p-1.5 ${
+          ref={strip}
+          onPointerDown={(e) => {
+            dragging.current = true;
+            /*
+              Capture keeps the moves coming once the finger leaves the button
+              it started on. It is also allowed to fail — a pointer id that is
+              no longer live throws — and a throw here would take the selection
+              with it, so the gesture is tracked in a ref and the capture is
+              only an improvement on top of that.
+            */
+            try {
+              e.currentTarget.setPointerCapture(e.pointerId);
+            } catch {
+              // No capture. A drag that leaves the bar simply stops early.
+            }
+            pickAt(e.clientX);
+          }}
+          onPointerMove={(e) => {
+            if (dragging.current) pickAt(e.clientX);
+          }}
+          onPointerUp={() => (dragging.current = false)}
+          onPointerCancel={() => (dragging.current = false)}
+          onLostPointerCapture={() => (dragging.current = false)}
+          className={`pointer-events-auto relative flex touch-none gap-1 rounded-full border p-1.5 ${
             v2 ? 'border-white/12 backdrop-blur-2xl' : 'border-white/10 backdrop-blur-xl'
           }`}
           style={{ background: v2 ? 'rgba(20,17,15,0.62)' : 'rgba(28,24,21,0.82)' }}
         >
+          {/*
+            One lit pill that slides, rather than four that switch on and off.
+            It is the only thing in the bar that moves, and it is what makes a
+            drag across the bar read as carrying something rather than as four
+            separate taps landing in a row.
+          */}
+          {pill && (
+            <span
+              aria-hidden="true"
+              className="absolute top-1.5 bottom-1.5 left-0 rounded-full bg-white/12 transition-[transform,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+              style={{ transform: `translateX(${pill.x}px)`, width: pill.w }}
+            />
+          )}
+
           {TABS.map(({ id, label, Icon }) => {
             const active = id === current;
             return (
               <button
                 key={id}
                 type="button"
-                onClick={() => onSelect?.(id)}
+                ref={(el) => {
+                  if (el) tabs.current.set(id, el);
+                  else tabs.current.delete(id);
+                }}
                 aria-current={active ? 'page' : undefined}
                 aria-label={label}
-                className={`flex items-center gap-2 rounded-full transition-colors ${
-                  active ? 'text-chalk bg-white/12 px-5' : 'text-ash px-4'
+                /*
+                  The gesture above already selects, on pointerdown and on every
+                  move. Leaving an onClick here as well would fire a second
+                  selection on release — harmless today, and exactly the kind of
+                  thing that stops being harmless when one of these gets a
+                  confirmation. Keyboards still need it, hence the key handler.
+                */
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelect?.(id);
+                  }
+                }}
+                className={`relative z-10 flex items-center gap-2 rounded-full ${
+                  active ? 'text-chalk px-5' : 'text-ash px-4'
                 }`}
               >
                 <Icon />
