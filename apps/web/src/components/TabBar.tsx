@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+
 import { useIsV2 } from '../design/version.ts';
 import { ChatIcon, HomeIcon, PairIcon, PlayIcon } from './icons.tsx';
 
@@ -21,6 +23,16 @@ const TABS = [
 
 export type TabId = (typeof TABS)[number]['id'];
 
+/**
+ * How far the bar is allowed to be nudged, in CSS pixels.
+ *
+ * The corrections this is for are safe-area sized — the largest seen on the
+ * device is 47. A soft keyboard shrinks the visible area by two or three
+ * hundred, and a bar that rode up on top of the keyboard would be a new bug
+ * rather than a fix, so anything past this is somebody typing and is ignored.
+ */
+const MOST = 64;
+
 export function TabBar({
   current = 'home',
   onSelect,
@@ -29,30 +41,71 @@ export function TabBar({
   onSelect?: (id: TabId) => void;
 }) {
   const v2 = useIsV2();
+  const nav = useRef<HTMLElement>(null);
+
+  /*
+    Put the bar on the bottom of what you can actually see.
+
+    `position: fixed; bottom: 0` is measured against the *layout* viewport, and
+    on iOS that is not the same box as the screen. It is the reason this has now
+    been wrong twice in opposite directions: anchored to it, the bar sits 45 CSS
+    px above the bottom on one screen and 81 on another; pinned to a shell sized
+    to it, the bar held still and the last 47 px of the phone went dead.
+
+    `visualViewport` is the box the user is looking at, and it reports its own
+    offset from the layout viewport. The difference between the two is exactly
+    the error, so it is subtracted rather than guessed at. Nothing here assumes
+    a number, a device, or which of the two boxes is bigger — it reads both and
+    closes the gap, on every resize and every visual scroll.
+
+    Android and the APK have no gap and get a translate of zero.
+  */
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const el = nav.current;
+    if (!vv || !el) return;
+
+    const apply = () => {
+      // Rounded: the visual height is fractional, so an untouched viewport
+      // otherwise leaves a fifth of a pixel of transform on the element.
+      const gap = Math.round(window.innerHeight - (vv.offsetTop + vv.height));
+      const shift = Math.abs(gap) > MOST ? 0 : -gap;
+      el.style.transform = shift === 0 ? '' : `translateY(${shift}px)`;
+    };
+
+    apply();
+    vv.addEventListener('resize', apply);
+    vv.addEventListener('scroll', apply);
+    window.addEventListener('orientationchange', apply);
+
+    return () => {
+      vv.removeEventListener('resize', apply);
+      vv.removeEventListener('scroll', apply);
+      window.removeEventListener('orientationchange', apply);
+    };
+  }, []);
 
   return (
     <>
       {/*
-        Anchored at `bottom: 0` with the safe area as *padding*, not as the
-        value of `bottom`.
+        A short fade under the bar, at the size that was asked for.
 
-        The bar was reported sitting about sixty CSS pixels higher on Dates than
-        on Home, on an iPhone 13 installed as a PWA, and not at all on the
-        Android APK. Measured off screenshots of the device: Home puts it 37px
-        above the bottom edge, Dates 97px. Nothing in this component differs
-        between the two screens, so the only thing that can differ is what
-        `bottom: max(0.85rem, env(safe-area-inset-bottom))` resolves against —
-        and on iOS that is the layout viewport, which the two pages give
-        different heights because one of them scrolls and the other does not.
-
-        `bottom: 0` has no length to resolve. The inset moves into
-        `padding-bottom`, which is laid out inside the element and cannot be
-        measured against the wrong box.
-
-        Not reproducible here — there is no iPhone on this machine — so this
-        is a targeted fix that needs confirming on the device that showed it.
+        There was a hundred-and-twelve pixel one here once and it read as a
+        bezel — on an app whose background is already black, that much of it
+        does not look like a soft edge, it looks like the screen ending early.
+        Twenty-eight is enough to stop a headline being sliced in half at the
+        very bottom and short enough that nobody reads it as furniture.
       */}
+      {v2 && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 h-7"
+          style={{ background: 'linear-gradient(to top, var(--color-void), transparent)' }}
+        />
+      )}
+
       <nav
+        ref={nav}
         aria-label="Main"
         className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-5"
         style={{
@@ -74,7 +127,7 @@ export function TabBar({
           with a black gradient rising a hundred pixels behind it to stop
           anything being sliced in half. On an app whose background is already
           black that does not read as a soft edge, it reads as dead space at the
-          bottom of the screen. The gradient is gone and the bar is see-through.
+          bottom of the screen. The bar is see-through and the fade is short.
         */}
         <div
           className={`pointer-events-auto flex gap-1 rounded-full border p-1.5 ${
