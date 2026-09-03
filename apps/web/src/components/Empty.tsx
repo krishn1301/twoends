@@ -148,7 +148,7 @@ export function GhostSnap({ mine, theirs }: { mine: string; theirs: string }) {
       <div
         className="grid h-44 w-full place-items-center"
         style={{
-          background: `linear-gradient(150deg, color-mix(in oklab, ${theirs} 22%, var(--color-surface)), color-mix(in oklab, ${mine} 22%, var(--color-surface)))`,
+          background: `linear-gradient(150deg, color-mix(in oklab, ${theirs} 22%, var(--color-tint-base)), color-mix(in oklab, ${mine} 22%, var(--color-tint-base)))`,
         }}
       >
         <Frame />

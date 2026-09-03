@@ -154,10 +154,10 @@ export function Tile({
       {onAccent && (eyebrow ?? headline ?? footnote) && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[45%]"
           style={{
             background:
-              'linear-gradient(to top, rgb(0 0 0 / 0.62) 0%, rgb(0 0 0 / 0.5) 45%, rgb(0 0 0 / 0) 100%)',
+              'linear-gradient(to top, rgb(0 0 0 / 0.45) 0%, rgb(0 0 0 / 0.24) 55%, rgb(0 0 0 / 0) 100%)',
           }}
         />
       )}
@@ -167,7 +167,10 @@ export function Tile({
           {eyebrow && (
             <p
               className="mb-1 text-[0.78rem] leading-none"
-              style={{ color: labelColour(onDark, onAccent, 'eyebrow') }}
+              style={{
+                color: labelColour(onDark, onAccent, 'eyebrow'),
+                textShadow: onAccent ? ACCENT_LABEL_SHADOW : undefined,
+              }}
             >
               {eyebrow}
             </p>
@@ -175,7 +178,10 @@ export function Tile({
           {headline && (
             <p
               className="font-display line-clamp-2 text-[1.1rem] leading-[1.16] font-semibold tracking-[-0.01em]"
-              style={{ color: labelColour(onDark, onAccent, 'headline') }}
+              style={{
+                color: labelColour(onDark, onAccent, 'headline'),
+                textShadow: onAccent ? ACCENT_LABEL_SHADOW : undefined,
+              }}
             >
               {headline}
             </p>
@@ -183,7 +189,10 @@ export function Tile({
           {footnote && (
             <p
               className="mt-1 truncate text-[0.68rem] leading-none"
-              style={{ color: labelColour(onDark, onAccent, 'footnote') }}
+              style={{
+                color: labelColour(onDark, onAccent, 'footnote'),
+                textShadow: onAccent ? ACCENT_LABEL_SHADOW : undefined,
+              }}
             >
               {footnote}
             </p>
@@ -193,6 +202,9 @@ export function Tile({
     </Element>
   );
 }
+
+/** Keeps a small label legible where the scrim has faded out to nothing. */
+const ACCENT_LABEL_SHADOW = '0 1px 2px rgb(0 0 0 / 0.55), 0 0 8px rgb(0 0 0 / 0.35)';
 
 /**
  * The three label colours, in one place so the scrim and the alphas it was
@@ -215,11 +227,10 @@ function labelColour(
         : 'rgba(0,0,0,0.42)';
   }
   if (onAccent) {
-    return part === 'headline'
-      ? '#FFFFFF'
-      : part === 'eyebrow'
-        ? 'rgba(255,255,255,0.86)'
-        : 'rgba(255,255,255,0.74)';
+    // Solid, all three. The scrim under them is deliberately light — a card
+    // whose ground is a gradient across two people is the point of the card,
+    // and darkening half of it to win a label was the wrong trade.
+    return part === 'headline' ? '#FFFFFF' : 'rgba(255,255,255,0.94)';
   }
   return part === 'headline'
     ? '#FFFFFF'

@@ -363,7 +363,7 @@ export function Home({
                   </Tile>
                 ) : (
                   <Tile
-                    ground={`color-mix(in oklab, ${mine} 18%, var(--color-surface))`}
+                    ground={`color-mix(in oklab, ${mine} 18%, var(--color-tint-base))`}
                     eyebrow="snap"
                     headline="Send a photo of right now"
                     onClick={() => onOpen?.('snap')}
@@ -398,7 +398,7 @@ export function Home({
                 )}
 
                 <Tile
-                  ground={`color-mix(in oklab, ${mine} 18%, var(--color-surface))`}
+                  ground={`color-mix(in oklab, ${mine} 18%, var(--color-tint-base))`}
                   eyebrow="your turn"
                   headline="Send one back"
                   badge={<Pill>you</Pill>}
@@ -411,32 +411,21 @@ export function Home({
           <div className="rise" style={{ animationDelay: '180ms' }}>
             <Section title="Together" action="All" onAction={() => onGo?.('dates')}>
               <Rail>
-                <Tile wide ground={shared} eyebrow="anniversary" onAccent={v2}>
-                  {/*
-                    **Item 4.** The accents are engineered against black and
-                    there is a test asserting it; nothing ever checked text put
-                    *on top* of one. Measured on this card's rose-to-iris
-                    gradient, the day/hr/min/sec row came out at 2.7:1 and the
-                    eyebrow at 2.3:1 — and a citron-and-amber pair gets the same
-                    labels at about 1.6:1, which is close to invisible.
+                {/*
+                  **Item 4, second pass.** The first one put a 46-52% black
+                  overlay across the whole card so the small labels would clear
+                  4.5:1 on any pair of accents. It worked and it cost the card
+                  everything it had: the two-accent diagonal is the best thing
+                  in the app and it came out brown and flat.
 
-                    A scrim rather than a table of per-accent label colours,
-                    because the ground here is a gradient across two of them and
-                    there is no single colour to measure against. Weighted to
-                    the top so it covers the counter and fades out before
-                    `Tile`'s own bottom scrim starts, rather than doubling with
-                    it and flattening the best card in the app.
-                  */}
-                  {v2 && (
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-0"
-                      style={{
-                        background:
-                          'linear-gradient(to bottom, rgb(0 0 0 / 0.52) 0%, rgb(0 0 0 / 0.46) 46%, rgb(0 0 0 / 0) 78%)',
-                      }}
-                    />
-                  )}
+                  The scrim is bottom-only now, where the eyebrow is, and the
+                  labels in the top half take a shadow instead. A shadow is not
+                  a contrast ratio and does not pretend to be one — but the
+                  choice here was never "scrim or nothing", it was "scrim or the
+                  original", and the original had white at 70% with nothing at
+                  all behind it.
+                */}
+                <Tile wide ground={shared} eyebrow="anniversary" onAccent={v2}>
                   {/*
                     The whole card is the target, not just the numbers.
 
@@ -468,7 +457,8 @@ export function Home({
                             what is counted and not how the card is built.
                           */}
                           <p
-                            className={`mt-2 text-[0.6rem] tracking-[0.2em] uppercase ${v2 ? 'text-white/90' : 'text-white/70'}`}
+                            className={`mt-2 text-[0.6rem] tracking-[0.2em] uppercase ${v2 ? 'text-white' : 'text-white/70'}`}
+                            style={v2 ? { textShadow: LABEL_SHADOW } : undefined}
                           >
                             hours
                           </p>
@@ -479,7 +469,8 @@ export function Home({
                           */}
                           {quote && (
                             <p
-                              className={`mt-2 max-w-[15rem] text-[0.78rem] leading-snug italic ${v2 ? 'text-white/90' : 'text-white/85'}`}
+                              className={`mt-2 max-w-[15rem] text-[0.78rem] leading-snug italic ${v2 ? 'text-white' : 'text-white/85'}`}
+                              style={v2 ? { textShadow: LABEL_SHADOW } : undefined}
                             >
                               {quote}
                             </p>
@@ -497,7 +488,8 @@ export function Home({
                             {pad(m.elapsed.seconds)}
                           </p>
                           <p
-                            className={`mt-2 flex gap-[2.1rem] text-[0.6rem] tracking-[0.2em] uppercase ${v2 ? 'text-white/90' : 'text-white/70'}`}
+                            className={`mt-2 flex gap-[2.1rem] text-[0.6rem] tracking-[0.2em] uppercase ${v2 ? 'text-white' : 'text-white/70'}`}
+                            style={v2 ? { textShadow: LABEL_SHADOW } : undefined}
                           >
                             <span>day</span>
                             <span>hr</span>
@@ -518,7 +510,7 @@ export function Home({
                 */}
                 {countdown ? (
                   <Tile
-                    ground={`color-mix(in oklab, ${theirs} 20%, var(--color-surface))`}
+                    ground={`color-mix(in oklab, ${theirs} 20%, var(--color-tint-base))`}
                     eyebrow="countdown"
                     headline={countdown.title}
                     footnote={whenLabel(countdown.target_at)}
@@ -795,6 +787,13 @@ export function Home({
  * would be a worse thing to install — so the honest state after a tap is
  * "asked", never "added".
  */
+/*
+  What holds a 9.6px label up on a full-strength accent once the scrim over it
+  has gone. Not a contrast ratio — nothing about a shadow is measurable — but
+  the alternative on this card was white at 70% over nothing.
+*/
+const LABEL_SHADOW = '0 1px 2px rgb(0 0 0 / 0.55), 0 0 8px rgb(0 0 0 / 0.35)';
+
 function WidgetsRail({
   mine,
   theirs,
@@ -835,7 +834,7 @@ function WidgetsRail({
   */
   const pair = (size: number, gap: boolean) => (
     <div className="flex items-center" style={{ marginLeft: gap ? 0 : -size * 0.22 }}>
-      <Avatar name={m.myName} accent={mine} size={size} src={mySrc} ring="var(--color-surface)" />
+      <Avatar name={m.myName} accent={mine} size={size} src={mySrc} ring="var(--color-tint-base)" />
       {gap && (
         <span className="mx-1 flex-1 border-t border-dashed border-white/25" aria-hidden="true" />
       )}
@@ -845,7 +844,7 @@ function WidgetsRail({
           accent={theirs}
           size={size}
           src={theirSrc}
-          ring="var(--color-surface)"
+          ring="var(--color-tint-base)"
         />
       </span>
     </div>
@@ -866,7 +865,7 @@ function WidgetsRail({
             accent={theirs}
             size={26}
             src={theirSrc}
-            ring="var(--color-surface)"
+            ring="var(--color-tint-base)"
           />
         </span>
       </>
@@ -882,7 +881,7 @@ function WidgetsRail({
             accent={theirs}
             size={26}
             src={theirSrc}
-            ring="var(--color-surface)"
+            ring="var(--color-tint-base)"
           />
         </span>
       </>
@@ -921,7 +920,13 @@ function WidgetsRail({
           1150
         </p>
         <div className="absolute inset-x-4 top-[3.6rem] flex items-center">
-          <Avatar name={m.myName} accent={mine} size={30} src={mySrc} ring="var(--color-surface)" />
+          <Avatar
+            name={m.myName}
+            accent={mine}
+            size={30}
+            src={mySrc}
+            ring="var(--color-tint-base)"
+          />
           <span className="relative mx-1 flex-1">
             <span className="block border-t border-white/25" aria-hidden="true" />
             <Heart
@@ -935,7 +940,7 @@ function WidgetsRail({
             accent={theirs}
             size={30}
             src={theirSrc}
-            ring="var(--color-surface)"
+            ring="var(--color-tint-base)"
           />
         </div>
       </>
@@ -943,7 +948,13 @@ function WidgetsRail({
     distanceStrip: (
       <div className="absolute inset-x-4 top-7 flex items-center gap-2.5">
         <span className="relative flex items-center">
-          <Avatar name={m.myName} accent={mine} size={22} src={mySrc} ring="var(--color-surface)" />
+          <Avatar
+            name={m.myName}
+            accent={mine}
+            size={22}
+            src={mySrc}
+            ring="var(--color-tint-base)"
+          />
           <span className="relative mx-1 w-5">
             <span className="block border-t border-white/25" aria-hidden="true" />
             <Heart
@@ -957,7 +968,7 @@ function WidgetsRail({
             accent={theirs}
             size={22}
             src={theirSrc}
-            ring="var(--color-surface)"
+            ring="var(--color-tint-base)"
           />
         </span>
         <span className="counter text-[1.05rem] leading-none" style={{ color: theirs }}>

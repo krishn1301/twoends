@@ -441,11 +441,11 @@ function Option({
   */
   const ground =
     chosenByMe && chosenByThem
-      ? `linear-gradient(135deg, color-mix(in oklab, ${myTint} 26%, var(--color-surface)), color-mix(in oklab, ${theirTint} 26%, var(--color-surface)))`
+      ? `linear-gradient(135deg, color-mix(in oklab, ${myTint} 26%, var(--color-tint-base)), color-mix(in oklab, ${theirTint} 26%, var(--color-tint-base)))`
       : chosenByMe
-        ? `color-mix(in oklab, ${myTint} 22%, var(--color-surface))`
+        ? `color-mix(in oklab, ${myTint} 22%, var(--color-tint-base))`
         : chosenByThem
-          ? `color-mix(in oklab, ${theirTint} 22%, var(--color-surface))`
+          ? `color-mix(in oklab, ${theirTint} 22%, var(--color-tint-base))`
           : 'var(--color-surface)';
 
   /*
@@ -489,7 +489,7 @@ function Option({
             accent={theirTint}
             size={30}
             src={them.src}
-            ring="var(--color-surface)"
+            ring="var(--color-tint-base)"
           />
         )}
         {chosenByMe && (
@@ -498,7 +498,7 @@ function Option({
             accent={myTint}
             size={30}
             src={me.src}
-            ring="var(--color-surface)"
+            ring="var(--color-tint-base)"
           />
         )}
       </span>
@@ -642,7 +642,7 @@ function Talk({ tint }: { tint: string }) {
         <div
           key={v2 ? at : undefined}
           className={`relative rounded-[28px] p-6 ${v2 ? 'deal' : ''}`}
-          style={{ background: `color-mix(in oklab, ${tint} 14%, var(--color-surface))` }}
+          style={{ background: `color-mix(in oklab, ${tint} 14%, var(--color-tint-base))` }}
         >
           <p className="text-[0.7rem] tracking-[0.2em] text-white/45 uppercase">talk about</p>
           <p className="font-display mt-3 text-[1.5rem] leading-[1.25] font-semibold tracking-[-0.01em]">
@@ -1238,7 +1238,7 @@ function Compose({ tint, onDone }: { tint: string; onDone: () => void }) {
                     style={{
                       background:
                         answer === side
-                          ? `color-mix(in oklab, ${tint} 24%, var(--color-surface))`
+                          ? `color-mix(in oklab, ${tint} 24%, var(--color-tint-base))`
                           : 'var(--color-surface-2)',
                       boxShadow: answer === side ? `inset 0 0 0 1.5px ${tint}` : undefined,
                     }}
@@ -1264,7 +1264,7 @@ function Compose({ tint, onDone }: { tint: string; onDone: () => void }) {
             className="flex min-h-12 items-center justify-between rounded-2xl px-4 py-3 text-left text-sm"
             style={{
               background: isAdult
-                ? `color-mix(in oklab, ${tint} 24%, var(--color-surface))`
+                ? `color-mix(in oklab, ${tint} 24%, var(--color-tint-base))`
                 : 'var(--color-surface-2)',
             }}
           >

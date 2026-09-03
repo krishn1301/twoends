@@ -326,7 +326,7 @@ function Choice({
       className="flex flex-col items-start rounded-2xl px-4 py-3.5 text-left transition-colors"
       style={{
         background: selected
-          ? `color-mix(in oklab, ${tint} 22%, var(--color-surface))`
+          ? `color-mix(in oklab, ${tint} 22%, var(--color-tint-base))`
           : 'var(--color-surface)',
         boxShadow: selected ? `inset 0 0 0 1.5px ${tint}` : 'none',
       }}

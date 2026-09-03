@@ -117,7 +117,7 @@ export function DailyCard({ onAsk }: { onAsk?: () => void }) {
   return (
     <section
       className="rounded-[28px] p-5"
-      style={{ background: `color-mix(in oklab, ${tint} 18%, var(--color-surface))` }}
+      style={{ background: `color-mix(in oklab, ${tint} 18%, var(--color-tint-base))` }}
     >
       <div className="mb-3 flex items-center gap-2">
         {state === 'your-move' && <Avatar name={theirName} accent={theirs} size={24} />}

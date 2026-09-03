@@ -251,7 +251,7 @@ export function Pair() {
 
             <div
               className="mt-8 rounded-[28px] px-6 py-8 text-center"
-              style={{ background: `color-mix(in oklab, ${chrome} 16%, var(--color-surface))` }}
+              style={{ background: `color-mix(in oklab, ${chrome} 16%, var(--color-tint-base))` }}
             >
               <p className="counter text-[2.4rem] leading-none font-medium tracking-[0.18em]">
                 {busy && !code ? '······' : code}

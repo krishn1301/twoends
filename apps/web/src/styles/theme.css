@@ -100,6 +100,23 @@
   different colours and `placeholder:text-ash/60` can only say one of them.
 */
 :root {
+  /*
+    The ground an accent is tinted into, and the one colour here that is the
+    same in both looks.
+
+    A tint is not an elevation. `color-mix(in oklab, <accent> 20%, ...)` mixes
+    towards whatever it is given, so pointing these at `--color-surface` made
+    every tinted card follow the proposed look's lighter, warmer surface — and
+    a cool accent mixed into a warm brown goes muddy. The countdown card came
+    out a dead greyish purple, which is worse than the flat original it was
+    supposed to improve on.
+
+    A tinted card does not need the elevation token to look raised; it is
+    already a different colour from the page. So it keeps the original base and
+    the accent stays the accent.
+  */
+  --color-tint-base: #15120f;
+
   /* Identical to `placeholder:text-ash/60` over `surface-2`. */
   --color-placeholder: rgb(148 138 130 / 0.6);
 
