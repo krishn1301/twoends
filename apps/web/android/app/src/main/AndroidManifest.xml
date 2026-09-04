@@ -167,4 +167,27 @@
     -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!--
+      The microphone, for voice notes.
+
+      Exactly the same trap as the two lines above, found the same way and
+      before a phone found it: `getUserMedia({ audio: true })` in a Capacitor
+      WebView goes through the WebChromeClient, which can only ask for a runtime
+      permission the manifest declares. Without this the composer would render,
+      the button would depress, and the promise would reject with NotAllowedError
+      — indistinguishable, from inside the app, from somebody having refused.
+      And it would work perfectly in the PWA the whole time.
+
+      Voice notes are the one feature in this app that needs a device to open
+      before it is recording anything. Nothing here listens in the background,
+      and there is no permission that would let it.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!--
+      Asked for by the audio stack when a WebView opens a capture stream. It
+      grants no access to anything and is not a runtime permission; leaving it
+      out makes some devices refuse the stream with no error worth reading.
+    -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 </manifest>
