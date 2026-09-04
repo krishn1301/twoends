@@ -92,7 +92,9 @@ export async function disablePush(profileId: string): Promise<void> {
  * Fire-and-forget on purpose: a push that fails to send must never make the
  * action that triggered it look like it failed. The answer is already written.
  */
-export function notifyPartner(kind: 'answered' | 'snap' | 'drawing' | 'capsule' | 'asked'): void {
+export function notifyPartner(
+  kind: 'answered' | 'snap' | 'drawing' | 'capsule' | 'asked' | 'moment',
+): void {
   void supabase.functions.invoke('notify', { body: { kind } }).catch(() => {
     // Nothing to do and nothing worth saying. The other device will find out
     // when it next opens the app.

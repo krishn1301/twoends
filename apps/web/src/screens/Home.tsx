@@ -21,7 +21,7 @@ import { MomentCard } from '../components/MomentCard.tsx';
 import { Monogram } from '../components/Monogram.tsx';
 import { OccasionCard } from '../components/OccasionCard.tsx';
 import { Sheet } from '../components/Sheet.tsx';
-import { Flame, Heart, Lock } from '../components/icons.tsx';
+import { Bubbles, Flame, Heart, Lock } from '../components/icons.tsx';
 import type { TabId } from '../components/TabBar.tsx';
 import { signedUrls, snapsOnThisDayBefore, type Snap } from '../db/photos.ts';
 import { WEEK_LABELS, pad, useDesignModel } from '../design/model.ts';
@@ -475,9 +475,24 @@ export function Home({
           />
         </div>
 
-        <div className="rise mb-9 px-5" style={{ animationDelay: '90ms' }}>
-          <MomentCard minutes={minutesNow} localDate={coupleToday} mine={mine} theirs={theirs} />
-        </div>
+        {/*
+          Same thing, same time — the live slot.
+
+          There are two of these and each hides itself when the moment does not
+          belong to it: prominent for the hour it is running, and down at the
+          bottom before and after. The card owns that rule, and its own wrapper
+          with it — this used to be a `mb-9` around a component that returns
+          null for most of the day, so the margin was there whether or not
+          anything was.
+        */}
+        <MomentCard
+          place="top"
+          delay="90ms"
+          minutes={minutesNow}
+          localDate={coupleToday}
+          mine={mine}
+          theirs={theirs}
+        />
 
         <div className="flex flex-col gap-9">
           <div className="rise" style={{ animationDelay: '120ms' }}>
@@ -549,12 +564,24 @@ export function Home({
                   looking for one will find the other.
                 */}
                 <Tile
-                  ground={`color-mix(in oklab, ${mine} 18%, var(--color-tint-base))`}
+                  /*
+                    The only gradient tile in the rail, and the only one across
+                    both accents. It and "Send one back" were carrying the
+                    identical single-accent mix and no illustration between
+                    them, so two different things read as one repeated thing.
+                    A voice note is the one card here that is about both of you
+                    talking, and the ground now says so.
+                  */
+                  ground={`linear-gradient(145deg, color-mix(in oklab, ${mine} 22%, var(--color-tint-base)), color-mix(in oklab, ${theirs} 22%, var(--color-tint-base)))`}
                   eyebrow="voice"
                   headline="Say something"
                   footnote="thirty seconds"
                   onClick={() => onOpen?.('voice')}
-                />
+                >
+                  <div className="absolute inset-x-5 top-4 bottom-20">
+                    <Bubbles mine={mine} theirs={theirs} className="h-full w-full" />
+                  </div>
+                </Tile>
 
                 <Tile
                   ground={`color-mix(in oklab, ${mine} 18%, var(--color-tint-base))`}
@@ -932,6 +959,16 @@ export function Home({
               </div>
             </div>
           )}
+
+          {/* And the quiet slot: not yet, or over. See the top one. */}
+          <MomentCard
+            place="bottom"
+            delay="330ms"
+            minutes={minutesNow}
+            localDate={coupleToday}
+            mine={mine}
+            theirs={theirs}
+          />
         </div>
       </div>
 

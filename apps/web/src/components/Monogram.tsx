@@ -2,6 +2,8 @@ import { useId } from 'react';
 
 import { getAccent } from '@twoends/core';
 
+import { screen } from '../lib/blend.ts';
+
 /**
  * The app's mark, with a letter in each half.
  *
@@ -24,23 +26,6 @@ const R = 22;
 const CX_A = 43;
 const CX_B = 65;
 const CY = 54;
-
-/**
- * `1-(1-a)(1-b)` per channel — the same screen blend `icons.mjs` computes for
- * the overlap, and the reason the crossing is lighter than either side. Done in
- * arithmetic rather than with `mix-blend-mode`, which escapes a rounded clip in
- * Chromium and has already painted a black square around every avatar on the S9+
- * once.
- */
-function screen(a: string, b: string): string {
-  const channels = [0, 1, 2].map((i) => {
-    const x = parseInt(a.slice(1 + i * 2, 3 + i * 2), 16);
-    const y = parseInt(b.slice(1 + i * 2, 3 + i * 2), 16);
-    return Math.round(255 - ((255 - x) * (255 - y)) / 255);
-  });
-
-  return `#${channels.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
-}
 
 /** The first letter of a name, or nothing rather than a wrong guess. */
 const initial = (name: string | null | undefined): string =>

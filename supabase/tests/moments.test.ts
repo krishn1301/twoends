@@ -70,10 +70,24 @@ afterAll(async () => {
   await deleteUsers(users);
 });
 
+const clockFor = async (who: TestUser): Promise<string | null> => {
+  const { data, error } = await who.db.rpc('moment_started_at', {
+    p_couple_id: coupleId,
+    p_local_date: DAY,
+  });
+  if (error) throw new Error(error.message);
+  return (data as string | null) ?? null;
+};
+
 describe('before either of them has taken one', () => {
   it('shows nothing to anybody', async () => {
     expect(await shotsVisibleTo(alice)).toEqual([]);
     expect(await shotsVisibleTo(bob)).toEqual([]);
+  });
+
+  it('has no clock running', async () => {
+    expect(await clockFor(alice)).toBeNull();
+    expect(await clockFor(bob)).toBeNull();
   });
 });
 
@@ -93,6 +107,24 @@ describe('when only one of them has', () => {
     he has taken his own, because seeing hers first would change what he takes.
   */
   it('shows Bob nothing at all', async () => {
+    expect(await shotsVisibleTo(bob)).toEqual([]);
+  });
+
+  /*
+    The one thing Bob is allowed to learn, and the whole reason migration 31
+    exists.
+
+    His hour started when Alice took hers, and the row that says when is
+    invisible to him — a policy filters rows, not columns, so there is no
+    arrangement of them that shows him *when* while hiding *what*. The function
+    hands him one timestamp. He still cannot see her photograph, which is the
+    assertion directly above this one.
+  */
+  it('tells Bob a clock is running without showing him her row', async () => {
+    const started = await clockFor(bob);
+    expect(started, 'Bob cannot see that his hour has started').not.toBeNull();
+    expect(Date.parse(started!)).toBeGreaterThan(Date.now() - 5 * 60_000);
+
     expect(await shotsVisibleTo(bob)).toEqual([]);
   });
 
@@ -147,6 +179,15 @@ describe('once both have', () => {
 });
 
 describe('a stranger', () => {
+  /*
+    `moment_started_at` is `security definer`, so it runs with rights that can
+    see every row in the table. The membership check is inside its body for
+    exactly this reason — there is no policy in the path to do it.
+  */
+  it('cannot read the clock of a couple they are not in', async () => {
+    expect(await clockFor(mallory)).toBeNull();
+  });
+
   it('sees nothing, whatever the two of them have done', async () => {
     const { data, error } = await mallory.db
       .from('moment_shots')

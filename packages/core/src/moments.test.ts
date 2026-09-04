@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MOMENT_HOURS,
   MOMENT_PROMPTS,
-  MOMENT_WINDOW,
+  MOMENT_RUN_MS,
   momentForDay,
   momentLeft,
   momentOpensAt,
@@ -88,34 +88,72 @@ describe('momentForDay', () => {
   });
 });
 
-describe('the window', () => {
+describe('the hour', () => {
   const moment = { index: 0, prompt: 'The nearest window.', hour: 16 };
 
-  it('has not opened before its hour', () => {
-    expect(momentState(moment, 15 * 60 + 59)).toBe('before');
-  });
+  // A fixed wall clock, so nothing here depends on when the suite runs.
+  const at = (hhmm: string): number => Date.parse(`2026-09-04T${hhmm}:00Z`);
 
-  it('is urgent for exactly twenty minutes', () => {
-    expect(momentState(moment, 16 * 60)).toBe('open');
-    expect(momentState(moment, 16 * 60 + MOMENT_WINDOW - 1)).toBe('open');
-    expect(momentState(moment, 16 * 60 + MOMENT_WINDOW)).toBe('late');
+  it('has not opened before its hour', () => {
+    expect(momentState(moment, 15 * 60 + 59, null, at('15:59'))).toBe('before');
   });
 
   /*
-    And then it stays. The twenty minutes used to be the deadline for both of
-    them, and the first day it ran for real it produced nothing: one took the
-    photograph inside the window, the other opened the app an hour later to a
-    card that had already deleted itself. Midnight is the deadline now, and
-    this is the test that stops anybody restoring the old rule by feel.
+    Nobody has moved, so nothing is counting. This is the state that used to be
+    a deadline, and the day it ran for real it produced nothing: one of them
+    photographed the thing inside twenty minutes, the other opened the app later
+    and the card had already deleted itself. What ends a moment is somebody
+    starting it, not the clock reaching a number.
   */
-  it('is still takeable for the rest of the day', () => {
-    expect(momentState(moment, 23 * 60 + 59)).toBe('late');
+  it('waits, with no clock, until one of them takes one', () => {
+    expect(momentState(moment, 16 * 60, null, at('16:00'))).toBe('waiting');
+    expect(momentState(moment, 23 * 60 + 59, null, at('23:59'))).toBe('waiting');
   });
 
-  it('counts down and stops at zero', () => {
-    expect(momentLeft(moment, 16 * 60)).toBe(MOMENT_WINDOW);
-    expect(momentLeft(moment, 16 * 60 + 5)).toBe(15);
-    expect(momentLeft(moment, 20 * 60)).toBe(0);
+  it('runs for an hour from the first photograph, wherever in the day it lands', () => {
+    const first = at('16:05');
+    expect(momentState(moment, 16 * 60 + 5, first, first)).toBe('running');
+    expect(momentState(moment, 17 * 60 + 4, first, at('17:04'))).toBe('running');
+  });
+
+  // The boundary itself, pinned: at exactly one hour it is over, not still open.
+  it('closes on the hour mark rather than a minute after it', () => {
+    const first = at('16:05');
+    expect(momentState(moment, 17 * 60 + 4, first, first + MOMENT_RUN_MS - 1)).toBe('running');
+    expect(momentState(moment, 17 * 60 + 5, first, first + MOMENT_RUN_MS)).toBe('closed');
+  });
+
+  /*
+    An hour begun at half past eleven at night runs past midnight, and the local
+    date has rolled by then — so tomorrow's moment is a different moment and
+    this one is simply gone. Nothing here has to special-case that; it is the
+    caller passing tomorrow's date.
+  */
+  it('stays closed once it has closed', () => {
+    const first = at('16:05');
+    expect(momentState(moment, 23 * 60, first, at('23:00'))).toBe('closed');
+  });
+
+  it('counts whole minutes down and stops at zero', () => {
+    const first = at('16:05');
+    expect(momentLeft(first, first)).toBe(60);
+    expect(momentLeft(first, first + 5 * 60_000)).toBe(55);
+    expect(momentLeft(first, first + MOMENT_RUN_MS)).toBe(0);
+    expect(momentLeft(first, first + MOMENT_RUN_MS + 60_000)).toBe(0);
+  });
+
+  /*
+    Rounded up, deliberately. With thirty seconds left a floor says "0 minutes"
+    while the button still works, which reads as a broken counter — and the one
+    number nobody may see is a zero that is not a deadline.
+  */
+  it('never says zero while there is still time', () => {
+    const first = at('16:05');
+    expect(momentLeft(first, first + MOMENT_RUN_MS - 1_000)).toBe(1);
+  });
+
+  it('has no clock at all before anybody starts one', () => {
+    expect(momentLeft(null, at('16:30'))).toBe(0);
   });
 
   it('says when it opens the way somebody would', () => {

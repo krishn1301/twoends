@@ -2,10 +2,19 @@
  * Same thing, same time.
  *
  * Once a day a prompt opens for both of them at once — *the nearest window, your
- * left hand, whatever you are drinking* — and there are twenty minutes to
- * answer it. Miss it and it is gone. That is the whole design: a photograph
- * taken because a timer said so is a truer picture of an ordinary Tuesday than
- * one taken because it was worth photographing.
+ * left hand, whatever you are drinking* — and once one of them answers it, the
+ * other has an hour. That is the whole design: a photograph taken because a
+ * timer said so is a truer picture of an ordinary Tuesday than one taken
+ * because it was worth photographing.
+ *
+ * **The clock starts on the first photograph, not on the hour.** It was twenty
+ * minutes from the top of the hour, for both of them, and the first day it ran
+ * for real it produced nothing: one took the picture inside the window, the
+ * other opened the app later and the card had already deleted itself. A
+ * deadline both people have to be looking at their phones to meet is a deadline
+ * neither of them meets. The hour is the invitation — still derived, still the
+ * same on both phones, still chosen by neither — and the sixty minutes belong
+ * to whoever went second.
  *
  * **Nothing schedules this.** The hour is derived from the couple's id and the
  * date, exactly the way `promptForDay` derives the question, so both phones
@@ -18,8 +27,15 @@
  * performance instead of a Tuesday.
  */
 
-/** Minutes to answer, from the top of the hour it opens. */
-export const MOMENT_WINDOW = 20;
+/**
+ * How long the second person has, from the moment the first one takes theirs.
+ *
+ * An hour rather than twenty minutes because the clock now starts on somebody's
+ * action rather than on the wall, and the person it applies to has to be given
+ * time to notice it started — they get a notification, and a notification you
+ * see on the way out of a meeting is worth nothing against twenty minutes.
+ */
+export const MOMENT_RUN_MS = 60 * 60 * 1000;
 
 /**
  * The hours it may open in, in the couple's own day.
@@ -118,39 +134,49 @@ export function momentForDay(coupleId: string, localDate: string): Moment | null
   return { index, prompt: MOMENT_PROMPTS[index]!, hour };
 }
 
-export type MomentState = 'before' | 'open' | 'late';
+export type MomentState =
+  /** The hour has not come round yet. */
+  | 'before'
+  /** Open, and neither of them has taken one. There is no clock running. */
+  | 'waiting'
+  /** Somebody has, and the other one's hour is counting down. */
+  | 'running'
+  /** The hour ran out. Nothing more can be taken today. */
+  | 'closed';
 
 /**
- * Where today's moment is, given the time where they live.
+ * Where today's moment is.
  *
  * `minutes` is minutes past midnight in the couple's timezone — the caller
  * works that out, because this file has no business knowing about `Intl`.
+ * `startedAt` is when the *first* of the two photographs was taken, in epoch
+ * milliseconds, or null when neither of them has moved.
  *
- * **There is no `missed` any more, and that is a correction rather than a
- * softening.** Twenty minutes was the deadline for both of them, and the first
- * time it ran for real it produced nothing: one of them photographed the thing
- * inside the window, the other opened the app an hour later to a card that had
- * already removed itself, and the pair was lost with no way for either to know
- * why. A rule that reliably destroys the thing it exists to make is not strict,
- * it is broken.
- *
- * So the derived hour is the *invitation* — that is the part that makes it the
- * same thing at the same time, and it is still the same hour on both phones,
- * chosen by neither — and the twenty minutes is how long the countdown is
- * urgent for. The deadline is midnight. `late` is a real state rather than an
- * alias for `open` because the card says something different in it: a counter
- * with three minutes on it and one with six hours are not the same invitation.
+ * A day where neither ever takes one stays `waiting` until the local date
+ * rolls. That is deliberate and it is not the old bug wearing a new name:
+ * there is no clock, so there is nothing to have missed, and the card is still
+ * offering rather than scolding. What ends a moment is somebody starting it.
  */
-export function momentState(moment: Moment, minutes: number): MomentState {
-  const opens = moment.hour * 60;
-  if (minutes < opens) return 'before';
-  if (minutes < opens + MOMENT_WINDOW) return 'open';
-  return 'late';
+export function momentState(
+  moment: Moment,
+  minutes: number,
+  startedAt: number | null,
+  now: number,
+): MomentState {
+  if (minutes < moment.hour * 60) return 'before';
+  if (startedAt === null) return 'waiting';
+  return now < startedAt + MOMENT_RUN_MS ? 'running' : 'closed';
 }
 
-/** How long is left, in whole minutes. Zero once it has closed. */
-export function momentLeft(moment: Moment, minutes: number): number {
-  return Math.max(0, moment.hour * 60 + MOMENT_WINDOW - minutes);
+/**
+ * Whole minutes left of the hour. Zero once it has run out.
+ *
+ * Rounded up, so a countdown never says "0 minutes left" while it is still
+ * possible to take one — a zero that is not a deadline is worse than no number.
+ */
+export function momentLeft(startedAt: number | null, now: number): number {
+  if (startedAt === null) return 0;
+  return Math.max(0, Math.ceil((startedAt + MOMENT_RUN_MS - now) / 60_000));
 }
 
 /** "opens at 4pm", for the hours before it does. */

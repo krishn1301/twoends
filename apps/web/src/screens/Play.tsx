@@ -13,6 +13,7 @@ import {
   knownLabel,
   matchLabel,
   topicPacksFor,
+  fromDeck,
   type GuessCard,
   type Side,
 } from '@twoends/core';
@@ -725,9 +726,22 @@ function Guess({
   const myId = profile?.id;
   const theirName = partner?.display_name ?? 'them';
 
-  /** The five, frozen. Null before the first deal and between rounds. */
-  const [round, setRound] = useState<GuessCard[] | null>(null);
-  const [at, setAt] = useState(0);
+  /*
+    The five, by id, and how far through them you are — both in the store.
+
+    They were component state, so leaving for This or that unmounted this and
+    threw the round away: you answered five, saw the score, looked at something
+    else, and came back to "Deal five" as though it had never happened. The
+    score *is* the round, and the whole value of a scoreboard is being able to
+    look away from it.
+
+    Ids rather than the cards, and rebuilt below from the deck — a stored copy
+    of a card is a card that can disagree with the deck it came from.
+  */
+  const dealt = useGame((s) => s.dealt);
+  const at = useGame((s) => s.at);
+  const dealFive = useGame((s) => s.deal);
+  const stepTo = useGame((s) => s.stepTo);
   /** Your own answer, held between the two taps a deck card asks for. */
   const [pending, setPending] = useState<Side | null>(null);
   const [composing, setComposing] = useState(false);
@@ -777,19 +791,47 @@ function Guess({
   const mine = written.filter((c) => c.kind === 'guess' && ours18(c, couple?.adult_packs_enabled));
   const left = cardsLeft({ deck: cards, written: mine, done, myId: myId ?? '' });
 
+  /*
+    The five, rebuilt from their ids.
+
+    If a written card was deleted between rounds its id no longer resolves, and
+    rather than dealing four this drops the whole thing and offers a fresh five
+    — a scoreboard out of a round that is missing a card would be wrong about
+    the only number it exists to show.
+  */
+  const round = useMemo(() => {
+    if (!dealt) return null;
+
+    const byId = new Map<string, GuessCard>();
+    for (const card of cards) byId.set(card.id, fromDeck(card));
+    for (const card of mine) byId.set(card.id, card);
+
+    const found = dealt.map((id) => byId.get(id));
+    return found.every((card): card is GuessCard => card !== undefined) ? found : null;
+  }, [dealt, cards, mine]);
+
   function deal() {
-    setRound(
-      guessRound({
-        deck: cards,
-        written: mine,
-        seed: coupleId ?? '',
-        done,
-        myId: myId ?? '',
-        size: ROUND,
-      }),
+    if (!coupleId) return;
+
+    const five = guessRound({
+      deck: cards,
+      written: mine,
+      seed: coupleId,
+      done,
+      myId: myId ?? '',
+      size: ROUND,
+    });
+
+    dealFive(
+      coupleId,
+      five.map((card) => card.id),
     );
-    setAt(0);
     setPending(null);
+  }
+
+  function goTo(next: number) {
+    setPending(null);
+    if (coupleId) stepTo(coupleId, next);
   }
 
   // ── the opening, and the end of a round ────────────────────────────────────
@@ -996,10 +1038,7 @@ function Guess({
       <div className="mt-6 flex gap-2.5">
         <button
           type="button"
-          onClick={() => {
-            setPending(null);
-            setAt(Math.max(0, at - 1));
-          }}
+          onClick={() => goTo(Math.max(0, at - 1))}
           disabled={at === 0}
           className="bg-surface text-ash h-12 flex-1 rounded-full text-[0.95rem] font-medium disabled:opacity-35"
         >
@@ -1007,10 +1046,9 @@ function Guess({
         </button>
         <button
           type="button"
-          onClick={() => {
-            setPending(null);
-            setAt(at + 1);
-          }}
+          // Through the store, so the last "Finish" is what puts the
+          // scoreboard somewhere that survives leaving the screen.
+          onClick={() => goTo(at + 1)}
           disabled={!answered}
           className="bg-surface-2 text-chalk h-12 flex-1 rounded-full text-[0.95rem] font-medium disabled:opacity-35"
         >

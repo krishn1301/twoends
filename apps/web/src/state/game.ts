@@ -15,6 +15,7 @@ import {
   type Knowing,
   type WrittenCard,
 } from '../db/game.ts';
+import { readRound, writeRound } from '../lib/lastRound.ts';
 
 /**
  * The game board, in a store rather than in component state.
@@ -42,6 +43,19 @@ interface GameState {
   written: WrittenCard[];
   /** Set when a pick could not be sent. Cleared by the next successful one. */
   error: string | null;
+
+  /**
+   * The five cards of the current "Do you know me?" round, by id, and how far
+   * through them you are. `at === dealt.length` is the scoreboard.
+   *
+   * Here rather than in the screen for the reason the file header gives about
+   * everything else in this store, and for one more: a round ends on a score,
+   * and that score was being destroyed by switching to This or that. Component
+   * state does not survive an unmount, and the whole value of a scoreboard is
+   * that you can look away from it and look back.
+   */
+  dealt: string[] | null;
+  at: number;
 
   load: (coupleId: string, myId: string) => Promise<void>;
   pick: (input: {
@@ -72,6 +86,10 @@ interface GameState {
     kind: 'match' | 'guess';
     isAdult: boolean;
   }) => Promise<{ error: string | null }>;
+  /** Replaces the current five. `at` goes back to zero. */
+  deal: (coupleId: string, ids: string[]) => void;
+  /** Moves through the five, or past the last one to the scoreboard. */
+  stepTo: (coupleId: string, at: number) => void;
   /** Throws away only your own picks. Theirs are not yours to delete. */
   reset: (coupleId: string, myId: string) => Promise<void>;
   clear: () => void;
@@ -85,6 +103,8 @@ export const useGame = create<GameState>((set, get) => ({
   knowing: { mine: NO_KNOWING, theirs: NO_KNOWING },
   written: [],
   error: null,
+  dealt: null,
+  at: 0,
 
   load: async (coupleId, myId) => {
     const [boards, tally, knowing, written] = await Promise.all([
@@ -93,7 +113,32 @@ export const useGame = create<GameState>((set, get) => ({
       loadKnowing(coupleId, myId),
       loadWrittenCards(coupleId),
     ]);
-    set({ boards, tally, knowing, written });
+
+    /*
+      The round comes back with the board, once, and only when nothing is
+      already dealt — a reload that landed mid-round would otherwise throw away
+      a card somebody had just answered.
+    */
+    const kept = get().dealt === null ? readRound(coupleId) : null;
+
+    set(
+      kept
+        ? { boards, tally, knowing, written, dealt: kept.ids, at: kept.at }
+        : { boards, tally, knowing, written },
+    );
+  },
+
+  deal: (coupleId, ids) => {
+    writeRound(coupleId, { ids, at: 0 });
+    set({ dealt: ids, at: 0 });
+  },
+
+  stepTo: (coupleId, at) => {
+    const ids = get().dealt;
+    if (!ids) return;
+
+    writeRound(coupleId, { ids, at });
+    set({ at });
   },
 
   pick: async ({ coupleId, myId, cardId, choice, today }) => {
@@ -170,5 +215,7 @@ export const useGame = create<GameState>((set, get) => ({
       knowing: { mine: NO_KNOWING, theirs: NO_KNOWING },
       written: [],
       error: null,
+      dealt: null,
+      at: 0,
     }),
 }));

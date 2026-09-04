@@ -41,6 +41,39 @@ export async function shotsForDay(coupleId: string, localDate: string): Promise<
   return (data as MomentShot[] | null) ?? [];
 }
 
+/**
+ * When today's clock started, or null if neither of them has moved.
+ *
+ * A function rather than a column on the row, because the row is the thing
+ * being hidden. `moment_shots` shows you the partner's row only once you have
+ * one of your own, and row-level security filters rows, not fields — there is
+ * no policy that reveals *when* she took hers while still hiding *what*. See
+ * migration 31.
+ *
+ * It returns `min(created_at)` across both rows, so the answer is "a clock is
+ * running, and it started then" and never "she went first".
+ */
+export async function momentStartedAt(
+  coupleId: string,
+  localDate: string,
+): Promise<number | null> {
+  const { data, error } = await supabase.rpc('moment_started_at', {
+    p_couple_id: coupleId,
+    p_local_date: localDate,
+  });
+
+  // Printed rather than swallowed: a null here is indistinguishable from "no
+  // clock", which would silently leave the card offering a moment that closed
+  // an hour ago. This project has lost an hour twice to a PostgREST error
+  // nobody read.
+  if (error) {
+    console.warn('[moment] clock:', error.message);
+    return null;
+  }
+
+  return typeof data === 'string' ? Date.parse(data) : null;
+}
+
 export async function takeShot(
   coupleId: string,
   authorId: string,

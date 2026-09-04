@@ -17,7 +17,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { push, type PushSubscriptionJSON } from '../_shared/webpush.ts';
 
 /** What just happened. The only thing the caller gets to choose. */
-type Kind = 'answered' | 'snap' | 'drawing' | 'capsule' | 'asked';
+type Kind = 'answered' | 'snap' | 'drawing' | 'capsule' | 'asked' | 'moment';
 
 const COPY: Record<Kind, (name: string) => { title: string; body: string }> = {
   answered: (name) => ({
@@ -28,6 +28,16 @@ const COPY: Record<Kind, (name: string) => { title: string; body: string }> = {
   drawing: (name) => ({ title: `${name} drew something`, body: 'On your canvas.' }),
   capsule: (name) => ({ title: `${name} sealed a letter`, body: 'It opens on its day.' }),
   asked: (name) => ({ title: `${name} asked you something`, body: 'Their own question, today.' }),
+  /*
+    Only the *first* of the day's two photographs sends this, and the client is
+    what knows which one that is. An hour that starts silently is an hour the
+    other person cannot see — and the second photograph would push the one who
+    already went, about a moment they had finished, out of a cap of two a day.
+  */
+  moment: (name) => ({
+    title: `${name} took today's`,
+    body: 'You have an hour to take yours.',
+  }),
 };
 
 /**

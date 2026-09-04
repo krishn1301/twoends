@@ -1081,6 +1081,10 @@ export type Database = {
         Returns: boolean
       }
       is_together: { Args: { p_couple_id: string }; Returns: boolean }
+      moment_started_at: {
+        Args: { p_couple_id: string; p_local_date: string }
+        Returns: string
+      }
       partner_has_answered: {
         Args: { p_prompt_day_id: string }
         Returns: boolean

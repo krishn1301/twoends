@@ -1,3 +1,7 @@
+import { useId } from 'react';
+
+import { screen } from '../lib/blend.ts';
+
 /**
  * SVG icons, not emoji.
  *
@@ -178,6 +182,76 @@ export function Heart({
           <stop offset="1" stopColor={to} />
         </linearGradient>
       </defs>
+    </svg>
+  );
+}
+
+/*
+  Two overlapping speech bubbles, one in each accent.
+
+  The tile it sits on is the only one in the Today rail that is about both of
+  them talking, and it had no illustration at all — it and "Send one back" were
+  carrying the identical background and three lines of text each, which is why
+  it read as bland rather than as anything.
+
+  Deliberately not a microphone. A microphone is a picture of the equipment; two
+  bubbles crossing is a picture of the thing. It is also the app's own mark said
+  in a different shape — the launcher icon is two overlapping discs, and the
+  lighter part where they cross is the only bit that needs both people to exist.
+*/
+
+/** The left bubble, stated once so the fill and the clip cannot disagree. */
+const MINE_BODY = { x: 8, y: 10, width: 64, height: 48, rx: 17 };
+const MINE_TAIL = 'M28 56 L14 77 L46 56 Z';
+
+const THEIRS_BODY = { x: 48, y: 34, width: 64, height: 48, rx: 17 };
+const THEIRS_TAIL = 'M92 80 L106 97 L74 80 Z';
+
+export function Bubbles({
+  mine,
+  theirs,
+  className = '',
+}: {
+  mine: string;
+  theirs: string;
+  className?: string;
+}) {
+  /*
+    A clip-path id is global to the document, not to the component. `useId`
+    rather than something built from the two colours, because a couple who both
+    chose the same accent would otherwise share one id with every other
+    instance — the monogram learned this the same way.
+  */
+  const id = useId();
+
+  return (
+    <svg viewBox="0 0 120 100" className={className} fill="none" aria-hidden="true">
+      <defs>
+        <clipPath id={id}>
+          <rect {...MINE_BODY} />
+          <path d={MINE_TAIL} />
+        </clipPath>
+      </defs>
+
+      <g fill={mine} opacity="0.85">
+        <rect {...MINE_BODY} />
+        <path d={MINE_TAIL} />
+      </g>
+
+      <g fill={theirs} opacity="0.85">
+        <rect {...THEIRS_BODY} />
+        <path d={THEIRS_TAIL} />
+      </g>
+
+      {/*
+        The crossing, in the screen blend of the two — lighter than either side,
+        which is the whole idea. Arithmetic rather than `mix-blend-mode`, which
+        escapes a rounded clip in Chromium and once painted a black square
+        around every avatar on the S9+.
+      */}
+      <g clipPath={`url(#${id})`} fill={screen(mine, theirs)} opacity="0.92">
+        <rect {...THEIRS_BODY} />
+      </g>
     </svg>
   );
 }
