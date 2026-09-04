@@ -169,6 +169,25 @@ Built in one sitting from a written spec, in the order it gives.
   boundaries can be corrected afterwards — somebody who taps "we're together"
   the morning after they landed — without rewriting a photo row. A key would
   freeze the first guess.
+- **"Both here" needs words, not only a line.** The dotted connector going
+  solid was the whole indicator and it is not one: a change you have to have
+  seen the before-state to notice cannot be noticed. There is a sentence under
+  the faces now, in the other person's colour, and it disappears when they do.
+- **A card that asks a question with no occasion reads as the app knowing
+  nothing about them.** Arrival used to sit on Home every day asking "are you in
+  the same place?" — for two people apart most of the year that is noise, and it
+  was reported as simply not understandable. Home only asks when a countdown
+  _they set_ has run out; the rest of the time it lives in **Us → Together**,
+  where somebody goes looking. The copy now says what changes, that one of them
+  starting it changes it for both, and that the optional box only names the
+  memory afterwards.
+- **Voice notes have their own sheet.** They started as a strip under the
+  photographs in Snaps, which is where nobody would find them and nobody would
+  think to look — a voice note is the other half of "something from right now",
+  not a snap with the picture missing. The line above the button rotates from
+  `VOICE_LINES`, the way the held counter quotes do: a microphone with nothing
+  said about it is a feature, one with a reason beside it is an invitation, and
+  a fixed reason stops being read after a week.
 - **Live strokes are broadcast, never stored.** They arrive only while both are
   on the channel, and are cleared on save — otherwise the refresh brings the
   same strokes back through the canvas row and the pen appears to have got

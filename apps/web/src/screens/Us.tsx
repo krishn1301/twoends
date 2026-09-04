@@ -13,6 +13,7 @@ import {
 } from '@twoends/core';
 import { Avatar } from '@twoends/ui';
 
+import { Arrival } from '../components/Arrival.tsx';
 import { storageUsed } from '../db/photos.ts';
 import { endQuiet, startQuiet } from '../db/quiet.ts';
 import { Monogram } from '../components/Monogram.tsx';
@@ -782,6 +783,22 @@ export function Us() {
                 </p>
               </div>
             )}
+          </Group>
+        )}
+
+        {/*
+          Starting a visit, where somebody would go looking for it.
+
+          Home only offers this when a countdown they set has run out, because a
+          card asking every morning whether two people three hundred miles apart
+          are in the same room is noise. This is the door for the times there
+          was no countdown — an unplanned week, or one that was never entered.
+        */}
+        {couple?.member_b && (
+          <Group title="Together">
+            <div className="px-4 py-3.5">
+              <Arrival mine={mine} theirs={theirs} offerAlways onChanged={() => undefined} />
+            </div>
           </Group>
         )}
 

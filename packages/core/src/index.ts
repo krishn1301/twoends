@@ -27,6 +27,7 @@ export * from './occasions.ts';
 export * from './recap.ts';
 export * from './moments.ts';
 export * from './visits.ts';
+export * from './voice.ts';
 export * from './dedication.ts';
 export * from './consent.ts';
 export * from './guessing.ts';

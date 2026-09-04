@@ -18,6 +18,7 @@ import { SignIn } from './screens/SignIn.tsx';
 import { Us } from './screens/Us.tsx';
 import { Monogram } from './components/Monogram.tsx';
 import { useIsV2 } from './design/version.ts';
+import { VoiceNotes } from './screens/VoiceNotes.tsx';
 import { emailOffered } from './state/emailOffer.ts';
 import { useSession } from './state/session.ts';
 
@@ -35,7 +36,7 @@ export function App() {
   const bootstrap = useSession((s) => s.bootstrap);
 
   const [tab, setTab] = useState<TabId>('home');
-  const [sheet, setSheet] = useState<'draw' | 'snap' | 'ask' | null>(null);
+  const [sheet, setSheet] = useState<'draw' | 'snap' | 'ask' | 'voice' | null>(null);
   const [offerDismissed, setOfferDismissed] = useState(() => emailOffered());
 
   const v2 = useIsV2();
@@ -134,7 +135,13 @@ export function App() {
           {sheet && (
             <Sheet
               title={
-                sheet === 'draw' ? 'Your canvas' : sheet === 'ask' ? 'Ask them something' : 'Snaps'
+                sheet === 'draw'
+                  ? 'Your canvas'
+                  : sheet === 'ask'
+                    ? 'Ask them something'
+                    : sheet === 'voice'
+                      ? 'Say something'
+                      : 'Snaps'
               }
               onClose={() => setSheet(null)}
             >
@@ -146,6 +153,13 @@ export function App() {
               {sheet === 'draw' && <Draw />}
               {sheet === 'snap' && <Snaps />}
               {sheet === 'ask' && <Ask onAsked={() => setSheet(null)} />}
+              {/*
+                Its own sheet, not a strip under the photographs. A voice note
+                is the other half of the same idea rather than a snap with the
+                picture missing, and buried under a screen called Snaps nobody
+                would find it.
+              */}
+              {sheet === 'voice' && <VoiceNotes />}
             </Sheet>
           )}
           <TabBar current={tab} onSelect={setTab} />

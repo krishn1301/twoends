@@ -71,7 +71,7 @@ export function Home({
   onOpen,
   onGo,
 }: {
-  onOpen?: (what: 'draw' | 'snap' | 'ask') => void;
+  onOpen?: (what: 'draw' | 'snap' | 'ask' | 'voice') => void;
   /**
    * Leaves Home for another tab. Every "All ›" and every card that stands for
    * something with a screen of its own goes through this — a card that shows a
@@ -418,6 +418,20 @@ export function Home({
             }
           />
 
+          {/*
+            Said in words, not only in a line going solid.
+
+            The line was the whole indicator and it was too quiet to be one: a
+            change you have to have seen the before-state to notice is not a
+            signal. This says it, in the other person's colour, and disappears
+            the moment they close the app.
+          */}
+          {bothHere && (
+            <p className="mt-3 text-center text-[0.85rem]" style={{ color: theirs }}>
+              {m.theirName} is here too, right now.
+            </p>
+          )}
+
           {minuteLine && (
             <p className="mt-3 text-center text-[0.8rem] leading-relaxed" style={{ color: mine }}>
               {minuteLine}
@@ -528,6 +542,19 @@ export function Home({
                     </div>
                   </Tile>
                 )}
+
+                {/*
+                  Voice, beside the photograph rather than inside it. They are
+                  the two halves of "something from right now", and a person
+                  looking for one will find the other.
+                */}
+                <Tile
+                  ground={`color-mix(in oklab, ${mine} 18%, var(--color-tint-base))`}
+                  eyebrow="voice"
+                  headline="Say something"
+                  footnote="thirty seconds"
+                  onClick={() => onOpen?.('voice')}
+                />
 
                 <Tile
                   ground={`color-mix(in oklab, ${mine} 18%, var(--color-tint-base))`}

@@ -13,15 +13,7 @@ import {
   type SnapComment,
 } from '../db/photos.ts';
 import { Empty, GhostSnap } from '../components/Empty.tsx';
-import { VoiceComposer, VoicePlayer } from '../components/Voice.tsx';
 import { notifyPartner } from '../db/push.ts';
-import {
-  keepVoiceNote,
-  recentVoiceNotes,
-  sendVoiceNote,
-  voiceUrls,
-  type VoiceNote,
-} from '../db/voice.ts';
 import { formatBytes, shrinkForUpload } from '../lib/image.ts';
 import { useSession } from '../state/session.ts';
 import { useShared } from '../state/shared.ts';
@@ -70,42 +62,6 @@ export function Snaps() {
   }, [couple, load]);
 
   useEffect(refresh, [refresh]);
-
-  // ── voice notes ────────────────────────────────────────────────────────────
-
-  const [sendingVoice, setSendingVoice] = useState(false);
-  const [voice, setVoice] = useState<VoiceNote[]>([]);
-  const [voiceLinks, setVoiceLinks] = useState<Map<string, string>>(new Map());
-  const [voiceRound, setVoiceRound] = useState(0);
-
-  /*
-    Loaded here rather than in `useShared`, which every screen subscribes to.
-    Nothing outside this sheet plays a voice note, and putting them in the
-    shared store would sign a batch of links on every Home render for nobody.
-  */
-  useEffect(() => {
-    const coupleId = couple?.id;
-    if (!coupleId) return;
-
-    let alive = true;
-    void (async () => {
-      const notes = await recentVoiceNotes(coupleId);
-      if (!alive) return;
-      setVoice(notes);
-
-      const links = await voiceUrls(notes.map((note) => note.storage_path));
-      if (alive) setVoiceLinks(links);
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [couple?.id, voiceRound]);
-
-  async function toggleKeepVoice(note: VoiceNote) {
-    setVoice((rows) => rows.map((row) => (row.id === note.id ? { ...row, kept: !row.kept } : row)));
-    await keepVoiceNote(note.id, !note.kept);
-  }
 
   async function choose(event: React.ChangeEvent<HTMLInputElement>) {
     const chosen = event.target.files?.[0];
@@ -236,85 +192,7 @@ export function Snaps() {
             {busy ? 'Preparing…' : 'Send a photo'}
           </button>
 
-          {/*
-            Under the photo button rather than beside it: the two are the same
-            gesture — something from right now — and a row of two equal buttons
-            would make choosing between them a decision rather than a reach.
-
-            Renders nothing where the browser cannot record. A control that
-            explains why it will not work is worse than no control, on a screen
-            that already has one that does.
-          */}
-          <VoiceComposer
-            colour={mine}
-            busy={sendingVoice}
-            onSend={async (blob, durationMs, peaks) => {
-              if (!couple || !profile) return;
-
-              setSendingVoice(true);
-              const sent = await sendVoiceNote(couple.id, profile.id, blob, durationMs, peaks);
-              setSendingVoice(false);
-
-              if (sent.error) setError(sent.error);
-              else {
-                notifyPartner('snap');
-                setVoiceRound((round) => round + 1);
-              }
-            }}
-          />
-
-          {error && (
-            <p className="text-sm" style={{ color: '#e4566e' }}>
-              {error}
-            </p>
-          )}
-
-          {/*
-            Voice notes above the photographs rather than mixed in by time.
-
-            Interleaving was the first instinct and it is wrong: a waveform and
-            a photograph want completely different heights, and a feed that
-            alternates between them reads as broken rather than as varied. They
-            are both "what one of you made today"; they are not the same object.
-          */}
-          {voice.length > 0 && (
-            <section className="flex flex-col gap-3">
-              {voice.map((note) => (
-                <div key={note.id} className="bg-surface lift rounded-[28px] px-4 py-3">
-                  <VoicePlayer
-                    url={voiceLinks.get(note.storage_path)}
-                    durationMs={note.duration_ms}
-                    peaks={Array.isArray(note.peaks) ? note.peaks : []}
-                    colour={note.author_id === profile?.id ? mine : theirs}
-                  />
-                  <div className="mt-2 flex items-center gap-2 px-1">
-                    <span className="text-ash flex-1 text-xs">
-                      {note.author_id === profile?.id ? 'You' : (partner?.display_name ?? 'them')} ·{' '}
-                      {ago(note.created_at)}
-                      {!note.kept && ` · goes in ${daysLeft(note.expires_at)}d`}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => void toggleKeepVoice(note)}
-                      aria-pressed={note.kept}
-                      aria-label={note.kept ? 'Kept forever' : 'Keep this one'}
-                      title={
-                        note.kept
-                          ? 'Kept — this one stays'
-                          : 'Voice notes go after 60 days unless kept'
-                      }
-                      className="grid h-9 w-9 place-items-center"
-                      style={{ color: note.kept ? '#e4566e' : 'var(--color-ash)' }}
-                    >
-                      <Heart filled={note.kept} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </section>
-          )}
-
-          {snaps.length === 0 && voice.length === 0 ? (
+          {snaps.length === 0 ? (
             <Empty ghost={<GhostSnap mine={mine} theirs={theirs} />}>
               <p className="text-ash py-8 text-center text-[0.95rem] leading-relaxed">
                 Nothing here yet. A photo of what you are looking at right now is the whole idea.

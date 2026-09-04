@@ -24,11 +24,23 @@ export function Arrival({
   theirs,
   /** A countdown that has just reached zero, if there is one, to offer as a reason. */
   arrived,
+  offerAlways = false,
   onChanged,
 }: {
   mine: string;
   theirs: string;
   arrived?: { title: string } | null;
+  /**
+   * Show the invitation even when nothing has happened to prompt it.
+   *
+   * False on Home, and that is most of the fix for "I did not understand it".
+   * These two are apart for most of the year; a card on the first screen asking
+   * every morning whether they are in the same room is noise, and a question
+   * with no occasion reads as the app not knowing anything about them. Home
+   * only asks when a countdown *they set* has run out, which is a reason.
+   * Everywhere else it lives in Us, where somebody goes looking.
+   */
+  offerAlways?: boolean;
   onChanged: () => void;
 }) {
   const couple = useSession((s) => s.couple);
@@ -147,20 +159,35 @@ export function Arrival({
   if (asking) {
     return (
       <section className="bg-surface lift rounded-[28px] p-5">
-        <p className="font-display text-[1.15rem] leading-snug font-semibold">
-          You are in the same place?
-        </p>
+        <p className="font-display text-[1.15rem] leading-snug font-semibold">Start a visit</p>
         <p className="text-ash mt-1.5 text-sm leading-relaxed">
-          The distance goes away, the questions stop being about being apart, and the app stops
-          nudging. It ends when either of you says so.
+          For the days you are actually in the same place. Only one of you has to start it and the
+          app changes for both:
         </p>
-        <input
-          value={place}
-          onChange={(event) => setPlace(event.target.value)}
-          maxLength={40}
-          placeholder="Where, if you like"
-          className="bg-surface-2 text-chalk mt-4 w-full rounded-2xl px-4 py-3.5 outline-none placeholder:text-[var(--color-placeholder)] focus:ring-2 focus:ring-white/25"
-        />
+        <ul className="text-ash mt-3 flex flex-col gap-1.5 text-sm leading-relaxed">
+          <li>· the distance stops being shown, and a counter says how long you have had</li>
+          <li>· the questions stop being about missing each other</li>
+          <li>· notifications go quiet — nothing nudges you to send a photo across the room</li>
+          <li>· when it ends it becomes one memory, with every photo from those days in it</li>
+        </ul>
+        <p className="text-ash mt-3 text-sm leading-relaxed">
+          It ends when either of you says it has. Nothing is deleted either way.
+        </p>
+
+        <label className="mt-4 flex flex-col gap-2">
+          <span className="text-sm font-medium">Where are you? Optional.</span>
+          <span className="text-ash text-[0.85rem] leading-relaxed">
+            Only so the memory has a name afterwards — &ldquo;six days in Pune&rdquo; rather than
+            &ldquo;six days&rdquo;.
+          </span>
+          <input
+            value={place}
+            onChange={(event) => setPlace(event.target.value)}
+            maxLength={40}
+            placeholder="Pune"
+            className="bg-surface-2 text-chalk w-full rounded-2xl px-4 py-3.5 outline-none placeholder:text-[var(--color-placeholder)] focus:ring-2 focus:ring-white/25"
+          />
+        </label>
         <div className="mt-3 flex flex-col gap-2.5">
           <button
             type="button"
@@ -169,7 +196,7 @@ export function Arrival({
             className="text-void h-12 w-full rounded-full font-semibold disabled:opacity-40"
             style={{ background: mine }}
           >
-            {busy ? 'Starting…' : 'We are together'}
+            {busy ? 'Starting…' : 'We are together now'}
           </button>
           <button type="button" onClick={() => setAsking(false)} className="text-ash h-11 text-sm">
             Not yet
@@ -182,9 +209,14 @@ export function Arrival({
   /*
     Offered rather than assumed, even when a countdown they set themselves has
     just run out. A trip can be delayed and a flight can be missed, and an app
-    that had already rearranged itself would be wrong in the least forgiving
-    way available to it.
+    that had already rearranged itself would be wrong in the least forgiving way
+    available to it.
+
+    And only offered when there is a reason, unless somebody came looking. See
+    `offerAlways`.
   */
+  if (!arrived && !offerAlways) return null;
+
   return (
     <button
       type="button"
@@ -192,10 +224,12 @@ export function Arrival({
       className="bg-surface lift w-full rounded-[28px] p-5 text-left"
     >
       <p className="font-display text-[1.05rem] leading-snug font-semibold">
-        {arrived ? `${arrived.title} — are you together?` : 'Are you in the same place?'}
+        {arrived ? `${arrived.title} is today. Are you together?` : 'Are you together?'}
       </p>
       <p className="text-ash mt-1.5 text-sm leading-relaxed">
-        Tell the app and it stops counting the distance.
+        {arrived
+          ? 'If this is the day you are actually in the same place, say so and the app changes for both of you until it ends.'
+          : 'For the days you are in the same place. The distance goes, the app goes quiet, and it all becomes one memory afterwards.'}
       </p>
     </button>
   );
