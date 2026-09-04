@@ -152,6 +152,17 @@ describe('the hour', () => {
     expect(momentLeft(first, first + MOMENT_RUN_MS - 1_000)).toBe(1);
   });
 
+  /*
+    Seen on real devices: the row's timestamp is the server's clock and `now` is
+    the phone's, so a phone a second behind reads 3,600,400ms remaining and
+    rounds it to 61 — on a card that has just promised an hour.
+  */
+  it('never claims more than the hour it promised', () => {
+    const first = at('16:05');
+    expect(momentLeft(first, first - 5_000)).toBe(60);
+    expect(momentLeft(first, first - 90_000)).toBe(60);
+  });
+
   it('has no clock at all before anybody starts one', () => {
     expect(momentLeft(null, at('16:30'))).toBe(0);
   });

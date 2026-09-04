@@ -173,10 +173,18 @@ export function momentState(
  *
  * Rounded up, so a countdown never says "0 minutes left" while it is still
  * possible to take one — a zero that is not a deadline is worse than no number.
+ *
+ * And clamped at sixty, which is not defensive programming but a real case seen
+ * on a real pair of devices: `started_at` is the *server's* clock and `now` is
+ * the phone's, so a phone a second behind computes 3,600,400ms remaining and
+ * rounds it up to **61**, on a card whose own copy promises an hour. Nobody
+ * would report that as a bug and everybody would notice it.
  */
 export function momentLeft(startedAt: number | null, now: number): number {
   if (startedAt === null) return 0;
-  return Math.max(0, Math.ceil((startedAt + MOMENT_RUN_MS - now) / 60_000));
+
+  const remaining = Math.min(MOMENT_RUN_MS, startedAt + MOMENT_RUN_MS - now);
+  return Math.max(0, Math.ceil(remaining / 60_000));
 }
 
 /** "opens at 4pm", for the hours before it does. */
