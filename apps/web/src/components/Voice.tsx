@@ -86,8 +86,20 @@ export function VoiceComposer({
   const [refused, setRefused] = useState<string | null>(null);
   const holding = useRef(false);
 
+  /*
+    The same recorder, in a ref, and this is not a duplicate of the state.
+
+    Letting go of the button fires `pointerup` **and** `lostpointercapture`, and
+    both of them end the recording. `live` is state, so neither call has seen
+    the other's `setLive(null)` yet — both passed the guard, both stopped the
+    same recorder, both awaited the same promise, and both sent. Every single
+    recording arrived twice. A ref is cleared in the same tick it is read, so
+    the second caller finds nothing and stops there.
+  */
+  const running = useRef<LiveRecorder | null>(null);
+
   // The microphone must not stay on because a component went away.
-  useEffect(() => () => live?.cancel(), [live]);
+  useEffect(() => () => running.current?.cancel(), []);
 
   if (!canRecord()) return null;
 
@@ -115,14 +127,20 @@ export function VoiceComposer({
       return;
     }
 
+    running.current = started;
     setLive(started);
   }
 
   async function end() {
     holding.current = false;
-    if (!live) return;
 
-    const recording = await live.stop();
+    // Read and clear in one tick, before the first `await`. Whichever of the
+    // two release events arrives second finds nothing and does nothing.
+    const current = running.current;
+    running.current = null;
+    if (!current) return;
+
+    const recording = await current.stop();
     setLive(null);
     setElapsed(0);
     setPeaks([]);
