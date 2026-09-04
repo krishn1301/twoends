@@ -109,50 +109,24 @@ export function TabBar({
         very bottom and short enough that nobody reads it as furniture.
       */}
       {v2 && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none fixed inset-x-0 z-40 h-7"
-          style={{
-            // Same correction as the bar, or the fade stays behind when it moves.
-            bottom: 'clamp(-64px, calc(100% - 100dvh), 0px)',
-            background: 'linear-gradient(to top, var(--color-void), transparent)',
-          }}
-        />
+        <div aria-hidden="true" className="dock z-40">
+          {/* Inside the dock, so it ends on the same line the bar does. */}
+          <div
+            className="h-7 w-full"
+            style={{ background: 'linear-gradient(to top, var(--color-void), transparent)' }}
+          />
+        </div>
       )}
 
       <nav
         aria-label="Main"
-        className="pointer-events-none fixed inset-x-0 z-50 flex justify-center px-5"
+        className="dock z-50 px-5"
         style={{
           /*
-            The bar sits on the bottom of the *screen*, which is not the same
-            box as `bottom: 0`.
-
-            A percentage on a fixed element resolves against the layout
-            viewport, and on iOS that is 47 CSS px shorter than the phone when
-            the page does not scroll and full height when it does. Measured on
-            the device: Dates -> Coming up puts the bar 64 px above the bottom
-            edge, Dates -> Capsules 14, and the only difference between those
-            two screens is how much is on them. A pixel of forced overflow was
-            tried first and iOS did not take it.
-
-            `dvh` is the unit that does not care. There are no dynamic toolbars
-            in an installed web app, so it stays the full screen either way, and
-            the difference between it and the layout viewport is the error.
-            Subtracting it is pure CSS — no listener, nothing to fire during a
-            rubber-band, which is what made the JavaScript version jitter.
-
-            Clamped, because an expression this clever should not be able to
-            throw the bar off the screen if a browser disagrees: it may move
-            down by up to 64px and it may never move up.
-          */
-          bottom: 'clamp(-64px, calc(100% - 100dvh), 0px)',
-          /*
-            Inside the home-indicator inset rather than clear of it, which is
-            where the reference app puts its capsule — about 13pt off the edge
-            on an iPhone against our 34. Nothing overlaps the indicator itself;
-            there is simply no reason for a floating pill to leave the whole
-            band empty underneath it.
+            No `bottom` anywhere. See `.dock` in `theme.css` — the bar is the
+            bottom edge of a box pinned to the top of the screen and given the
+            screen's own height, because every attempt to measure up from the
+            bottom measured something that moves between one tab and the next.
           */
           paddingBottom: v2
             ? 'max(0.75rem, calc(env(safe-area-inset-bottom) - 1rem))'

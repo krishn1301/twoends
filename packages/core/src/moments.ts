@@ -118,19 +118,34 @@ export function momentForDay(coupleId: string, localDate: string): Moment | null
   return { index, prompt: MOMENT_PROMPTS[index]!, hour };
 }
 
-export type MomentState = 'before' | 'open' | 'missed';
+export type MomentState = 'before' | 'open' | 'late';
 
 /**
  * Where today's moment is, given the time where they live.
  *
  * `minutes` is minutes past midnight in the couple's timezone — the caller
  * works that out, because this file has no business knowing about `Intl`.
+ *
+ * **There is no `missed` any more, and that is a correction rather than a
+ * softening.** Twenty minutes was the deadline for both of them, and the first
+ * time it ran for real it produced nothing: one of them photographed the thing
+ * inside the window, the other opened the app an hour later to a card that had
+ * already removed itself, and the pair was lost with no way for either to know
+ * why. A rule that reliably destroys the thing it exists to make is not strict,
+ * it is broken.
+ *
+ * So the derived hour is the *invitation* — that is the part that makes it the
+ * same thing at the same time, and it is still the same hour on both phones,
+ * chosen by neither — and the twenty minutes is how long the countdown is
+ * urgent for. The deadline is midnight. `late` is a real state rather than an
+ * alias for `open` because the card says something different in it: a counter
+ * with three minutes on it and one with six hours are not the same invitation.
  */
 export function momentState(moment: Moment, minutes: number): MomentState {
   const opens = moment.hour * 60;
   if (minutes < opens) return 'before';
   if (minutes < opens + MOMENT_WINDOW) return 'open';
-  return 'missed';
+  return 'late';
 }
 
 /** How long is left, in whole minutes. Zero once it has closed. */

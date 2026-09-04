@@ -1,4 +1,6 @@
-import { recapTitle } from '@twoends/core';
+import { recapTitle, type Stroke } from '@twoends/core';
+
+import { paintStroke } from './paintStroke.ts';
 
 /**
  * A month, as one tall PNG.
@@ -38,6 +40,8 @@ export interface RecapImageInput {
   daysTogether: number;
   daysAnswered: number;
   photos: { url: string; caption: string | null }[];
+  /** Every canvas from the month, as its strokes. Painted, not fetched. */
+  drawings: Stroke[][];
   closest: { question: string; answers: string[] } | null;
   furthest: { question: string; answers: string[] } | null;
   names: [string, string];
@@ -48,20 +52,67 @@ export interface RecapImageInput {
 /**
  * Loads a photograph in a way a canvas will still let you export.
  *
- * `crossOrigin` before `src`, and both matter: a signed Supabase URL is a
- * different origin, and an image drawn without CORS taints the canvas so
- * `toBlob` throws a security error instead of returning anything. One that
- * fails to load is skipped rather than fatal — a poster missing a photo is
- * better than a button that does nothing.
+ * Fetched as bytes and handed to the image as a `blob:` URL, rather than
+ * pointed straight at the signed URL with `crossOrigin = 'anonymous'`. That is
+ * the fix for a poster that came out with every photograph missing and no
+ * error anywhere: the recap screen has already shown these same URLs in plain
+ * `<img>` tags, so the browser has a *non-CORS* copy of each one in its cache,
+ * and a later request for the same URL in CORS mode is served that copy and
+ * rejected — `onerror`, silently, for every photo on the page. A blob is
+ * same-origin by construction, so it neither taints the canvas nor cares what
+ * the cache is holding.
+ *
+ * One that fails is skipped rather than fatal: a poster missing a photograph
+ * is better than a button that does nothing.
  */
-function load(url: string): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    const image = new Image();
-    image.crossOrigin = 'anonymous';
-    image.onload = () => resolve(image);
-    image.onerror = () => resolve(null);
-    image.src = url;
-  });
+async function load(url: string): Promise<HTMLImageElement | null> {
+  let objectUrl: string | null = null;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    objectUrl = URL.createObjectURL(await response.blob());
+
+    return await new Promise<HTMLImageElement | null>((resolve) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => resolve(null);
+      image.src = objectUrl!;
+    });
+  } catch {
+    return null;
+  } finally {
+    // Revoked after `onload`, which has already decoded it. Holding thirty of
+    // these open would keep thirty photographs in memory for the life of the
+    // page.
+    const made = objectUrl;
+    if (made) setTimeout(() => URL.revokeObjectURL(made), 10_000);
+  }
+}
+
+/**
+ * A drawing, rasterised onto its own square.
+ *
+ * The canvases were fetched for the recap page and then never reached the
+ * poster at all — `drawings` was not even a field on the input. They are half
+ * of what the month was, so they are painted here at the same size as a
+ * photograph, on the app's own black, using the one stroke painter the app and
+ * the widget already share.
+ */
+function paint(strokes: Stroke[], size: number): HTMLCanvasElement | null {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  ctx.fillStyle = '#0B0908';
+  ctx.fillRect(0, 0, size, size);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  for (const stroke of strokes) paintStroke(ctx, stroke, size, size);
+  return canvas;
 }
 
 /** Greedy wrap. Returns the lines; the caller decides where they go. */
@@ -84,13 +135,25 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, width: number): strin
 }
 
 export async function drawRecap(input: RecapImageInput): Promise<Blob | null> {
-  const images = (await Promise.all(input.photos.map((photo) => load(photo.url)))).filter(
+  const photos = (await Promise.all(input.photos.map((photo) => load(photo.url)))).filter(
     (image): image is HTMLImageElement => image !== null,
   );
 
   // Two columns once a single one would run past what anybody will open.
-  const columns = images.length > 6 ? 2 : 1;
+  const columns = photos.length + input.drawings.length > 6 ? 2 : 1;
   const cell = (WIDTH - PAD * 2 - GAP * (columns - 1)) / columns;
+
+  /*
+    The drawings go in the same grid as the photographs rather than in a
+    section of their own. A month is not two collections — it is one month, and
+    a canvas somebody made on the ninth belongs beside the photograph from the
+    tenth. Square, because a canvas has no aspect ratio of its own.
+  */
+  const drawn = input.drawings
+    .map((strokes) => paint(strokes, Math.round(cell)))
+    .filter((canvas): canvas is HTMLCanvasElement => canvas !== null);
+
+  const images: (HTMLImageElement | HTMLCanvasElement)[] = [...photos, ...drawn];
 
   const measure = document.createElement('canvas').getContext('2d');
   if (!measure) return null;

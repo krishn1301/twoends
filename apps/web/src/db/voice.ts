@@ -23,6 +23,7 @@ export interface VoiceNote {
 
 /** What the recorder produced, and what to call the file it goes into. */
 function extensionFor(type: string): string {
+  if (type.includes('wav')) return 'wav';
   if (type.includes('webm')) return 'webm';
   if (type.includes('mp4')) return 'm4a';
   if (type.includes('ogg')) return 'ogg';

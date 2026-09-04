@@ -22,9 +22,12 @@ import { useSession } from '../state/session.ts';
  * photograph taken because a timer said so is a truer picture of an ordinary
  * Tuesday than one taken because it was worth photographing.
  *
- * Shows nothing at all outside the window, and nothing when the day is missed.
- * A card that spends the other twenty-three hours saying "you missed it" would
- * make a gentle thing into a scoreboard.
+ * It appears at its hour and stays until midnight. It used to remove itself
+ * twenty minutes later, which cost the first real pair the feature ever had:
+ * one of them took the photograph inside the window, the other opened the app
+ * an hour after and found nothing there at all — and the first one watched
+ * their own picture disappear off Home with it. Whatever the twenty minutes
+ * were protecting, it was not worth that.
  */
 export function MomentCard({
   minutes,
@@ -93,9 +96,13 @@ export function MomentCard({
   const theirShot = shots.find((shot) => shot.author_id !== profile.id);
   const both = Boolean(mineShot && theirShot);
 
-  // Missed, and nothing was taken: say nothing at all. A day that produced a
-  // pair still shows it — that is the payoff, not a consolation.
-  if (state === 'missed' && !both) return null;
+  /*
+    The one thing that still hides it: the hour has not come round yet is
+    handled below, and a day where *neither* of them did anything and the
+    invitation has gone stale is not worth a card. Anything you took yourself
+    stays on the screen until midnight — a photograph you took at the app's
+    request must never vanish from the app that asked for it.
+  */
 
   // Before it opens, and only if they have not somehow already taken one.
   if (state === 'before') {
@@ -151,7 +158,7 @@ export function MomentCard({
           ? 'Same thing, same time'
           : state === 'open'
             ? `${momentLeft(moment, minutes)} minutes left`
-            : 'Today'}
+            : 'Still open today'}
       </p>
       <p className="font-display mt-1 text-[1.3rem] leading-snug font-semibold">{moment.prompt}</p>
 
@@ -180,7 +187,7 @@ export function MomentCard({
           <div className="mt-3 flex items-center gap-2">
             <Avatar name={partner?.display_name ?? 'them'} accent={theirs} size={20} />
             <Avatar name={profile.display_name ?? 'you'} accent={mine} size={20} />
-            <span className="text-ash text-xs">Both of you, within twenty minutes.</span>
+            <span className="text-ash text-xs">Both of you, on the same day.</span>
           </div>
         </>
       ) : mineShot ? (
@@ -193,9 +200,8 @@ export function MomentCard({
             />
           </div>
           <p className="text-ash mt-3 text-[0.85rem] leading-relaxed">
-            {state === 'open'
-              ? `Yours is in. Nothing shows until ${partner?.display_name ?? 'they'} takes one.`
-              : `Yours is in. ${partner?.display_name ?? 'They'} did not get to it in time.`}
+            {`Yours is in. Nothing shows until ${partner?.display_name ?? 'they'} takes one — they
+            have until midnight.`}
           </p>
         </>
       ) : (
@@ -210,7 +216,7 @@ export function MomentCard({
             {busy ? 'Sending…' : 'Take it'}
           </button>
           <p className="text-ash mt-2 text-[0.85rem] leading-relaxed">
-            Neither of you sees the other&rsquo;s until both are in.
+            Neither of you sees the other&rsquo;s until both are in. It stays here until midnight.
           </p>
         </>
       )}

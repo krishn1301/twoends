@@ -95,14 +95,21 @@ describe('the window', () => {
     expect(momentState(moment, 15 * 60 + 59)).toBe('before');
   });
 
-  it('is open for exactly twenty minutes', () => {
+  it('is urgent for exactly twenty minutes', () => {
     expect(momentState(moment, 16 * 60)).toBe('open');
     expect(momentState(moment, 16 * 60 + MOMENT_WINDOW - 1)).toBe('open');
-    expect(momentState(moment, 16 * 60 + MOMENT_WINDOW)).toBe('missed');
+    expect(momentState(moment, 16 * 60 + MOMENT_WINDOW)).toBe('late');
   });
 
-  it('is gone for the rest of the day once it closes', () => {
-    expect(momentState(moment, 23 * 60 + 59)).toBe('missed');
+  /*
+    And then it stays. The twenty minutes used to be the deadline for both of
+    them, and the first day it ran for real it produced nothing: one took the
+    photograph inside the window, the other opened the app an hour later to a
+    card that had already deleted itself. Midnight is the deadline now, and
+    this is the test that stops anybody restoring the old rule by feel.
+  */
+  it('is still takeable for the rest of the day', () => {
+    expect(momentState(moment, 23 * 60 + 59)).toBe('late');
   });
 
   it('counts down and stops at zero', () => {

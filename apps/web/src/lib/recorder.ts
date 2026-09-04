@@ -8,6 +8,23 @@
  *
  * No transcription and no read receipts, deliberately. Both turn a thing you
  * said into a thing that can be checked.
+ *
+ * **There is no `MediaRecorder` in here any more, and that is the fix for the
+ * bug that made this feature useless.** Safari writes a *fragmented* MP4 —
+ * `ftyp iso5 / moov / moof / mdat`, confirmed by pulling a real recording off
+ * the bucket and walking its boxes — and Safari's own `<audio>` element cannot
+ * play a fragmented MP4 progressively; that needs MediaSource. So an iPhone
+ * produced a 172KB file it could not play back, on the phone that recorded it,
+ * with `MEDIA_ERR_SRC_NOT_SUPPORTED`. Dropping the timeslice made it one
+ * fragment instead of thirty and changed nothing, because one fragment is
+ * still a fragment.
+ *
+ * Two people, two platforms, one file that has to open on both. The only
+ * container every browser can write *and* read without a dependency is the
+ * oldest one: PCM in a WAV, assembled here by hand. It is bigger than Opus and
+ * that is the whole cost — sixteen kilohertz mono is 32KB a second, so the
+ * thirty-second ceiling is also a one-megabyte ceiling, and a note somebody
+ * actually sends is a fifth of that.
  */
 
 /** Hard stop. The column allows a second over, for rounding. */
@@ -15,6 +32,19 @@ export const MAX_MS = 30_000;
 
 /** How many bars the waveform is drawn from. */
 export const PEAKS = 48;
+
+/**
+ * Speech, not music.
+ *
+ * 16kHz keeps every consonant that makes a voice intelligible — it is above
+ * what a phone call gives you — and costs a third of what the microphone's
+ * native 48kHz would. Nothing said in thirty seconds is worth four times the
+ * bytes.
+ */
+export const SAMPLE_RATE = 16_000;
+
+/** The one format every browser in this couple can both write and read. */
+export const AUDIO_TYPE = 'audio/wav';
 
 export interface Recording {
   blob: Blob;
@@ -25,64 +55,21 @@ export interface Recording {
 
 export type RecorderFailure = 'denied' | 'no-microphone' | 'unsupported' | 'failed';
 
-/**
- * What this browser can both record and play, best first.
- *
- * mp4 leads. Where a browser can do both, AAC in mp4 is the one every other
- * browser can also open — and a note recorded on an iPhone has to be playable
- * on an Android phone, which is the entire point of there being two of them.
- */
-const CANDIDATES = [
-  'audio/mp4;codecs=mp4a.40.2',
-  'audio/mp4',
-  'audio/webm;codecs=opus',
-  'audio/webm',
-  'audio/ogg;codecs=opus',
-] as const;
+type AudioContextCtor = typeof AudioContext;
 
-/**
- * Whether this browser can *play back* a container it says it can record.
- *
- * This is the whole of the bug that made voice notes silent. `isTypeSupported`
- * answers "can I record this", and nothing was asking the other question — so a
- * browser that reports WebM as recordable and cannot decode it produced a file
- * that uploaded fine, showed a waveform, and played nothing. The recording was
- * never the broken part.
- *
- * Safari is the one that does this, and it is also the one most of the people
- * this app is for are on. Which is why mp4 is first in the list now: where both
- * work it is the more portable of the two, and a note recorded on an iPhone has
- * to be playable on an Android phone as well.
- */
-function canPlay(type: string): boolean {
-  if (typeof document === 'undefined') return true;
-
-  const probe = document.createElement('audio');
-  // `canPlayType` wants the bare container for a reliable answer; a codecs
-  // parameter it does not recognise makes it say "" even for one it can play.
-  const base = type.split(';')[0]!;
-  return probe.canPlayType(base) !== '';
-}
-
-export function pickFormat(): string | null {
-  if (typeof MediaRecorder === 'undefined') return null;
-
-  for (const type of CANDIDATES) {
-    if (MediaRecorder.isTypeSupported(type) && canPlay(type)) return type;
-  }
-
-  /*
-    Nothing this browser can both record and play. Recording anyway would give
-    somebody a note they can see and not hear, which is worse than not offering
-    it — the composer renders nothing at all when this returns null.
-  */
-  return null;
+function audioContext(): AudioContextCtor | null {
+  if (typeof window === 'undefined') return null;
+  const scope = window as unknown as {
+    AudioContext?: AudioContextCtor;
+    webkitAudioContext?: AudioContextCtor;
+  };
+  return scope.AudioContext ?? scope.webkitAudioContext ?? null;
 }
 
 export const canRecord = (): boolean =>
   typeof navigator !== 'undefined' &&
   navigator.mediaDevices?.getUserMedia !== undefined &&
-  pickFormat() !== null;
+  audioContext() !== null;
 
 export interface LiveRecorder {
   /** Peaks so far, for drawing while it runs. */
@@ -106,8 +93,8 @@ export interface LiveRecorder {
 export async function startRecording(
   onTick: (elapsed: number, peaks: number[]) => void,
 ): Promise<LiveRecorder | RecorderFailure> {
-  const mimeType = pickFormat();
-  if (!mimeType) return 'unsupported';
+  const Ctor = audioContext();
+  if (!Ctor || navigator.mediaDevices?.getUserMedia === undefined) return 'unsupported';
 
   let stream: MediaStream;
   try {
@@ -119,121 +106,222 @@ export async function startRecording(
     return 'failed';
   }
 
-  const chunks: Blob[] = [];
-  let recorder: MediaRecorder;
-  try {
-    recorder = new MediaRecorder(stream, { mimeType });
-  } catch {
+  const release = (): void => {
     for (const track of stream.getTracks()) track.stop();
-    return 'unsupported';
-  }
-
-  recorder.ondataavailable = (event) => {
-    if (event.data.size > 0) chunks.push(event.data);
   };
 
+  let audio: AudioContext;
+  try {
+    audio = new Ctor();
+  } catch {
+    release();
+    return 'failed';
+  }
+
   /*
-    The shape, sampled while it runs.
-
-    Drawn from the live analyser rather than decoded afterwards: decoding a clip
-    to draw its waveform costs more than fetching it, and the shape somebody
-    watched while they were speaking is the honest one to show back to them.
+    iOS hands you a suspended context even inside a gesture. Resuming is a
+    promise nobody can await here without delaying the first syllable, so it is
+    fired and forgotten — the processor produces nothing until it lands, which
+    is a few milliseconds.
   */
-  const audio = new AudioContext();
-  const source = audio.createMediaStreamSource(stream);
-  const analyser = audio.createAnalyser();
-  analyser.fftSize = 512;
-  source.connect(analyser);
+  void audio.resume().catch(() => undefined);
 
-  const buffer = new Uint8Array(analyser.frequencyBinCount);
-  const peaks: number[] = [];
-  const started = performance.now();
-  let frame = 0;
+  const source = audio.createMediaStreamSource(stream);
+
+  /*
+    `createScriptProcessor` is deprecated in favour of an AudioWorklet, and it
+    is still the right call here. A worklet is a second file fetched over the
+    network before the microphone can start, for a node that lives at most
+    thirty seconds and does one `Float32Array` copy per block. Every browser
+    this app runs on supports it, iOS Safari included.
+  */
+  const processor = audio.createScriptProcessor(4096, 1, 1);
+
+  const rate = audio.sampleRate;
+  const maxSamples = Math.ceil((MAX_MS / 1000) * rate);
+
+  const blocks: Float32Array[] = [];
+  let captured = 0;
   let stopped = false;
 
-  const sampleEvery = MAX_MS / PEAKS;
-  let nextSampleAt = 0;
+  const peaks: number[] = [];
+  const samplesPerPeak = maxSamples / PEAKS;
+  let nextPeakAt = 0;
+  let loudest = 0;
 
-  const tick = () => {
+  processor.onaudioprocess = (event) => {
     if (stopped) return;
 
-    const elapsed = performance.now() - started;
-    analyser.getByteTimeDomainData(buffer);
+    const input = event.inputBuffer.getChannelData(0);
+    // The engine reuses that buffer, so it has to be copied rather than kept.
+    blocks.push(new Float32Array(input));
+    captured += input.length;
 
-    // Peak deviation from the centre line, which is what a waveform is.
-    let loudest = 0;
-    for (const value of buffer) loudest = Math.max(loudest, Math.abs(value - 128) / 128);
+    for (const value of input) loudest = Math.max(loudest, Math.abs(value));
 
-    if (elapsed >= nextSampleAt) {
+    if (captured >= nextPeakAt) {
+      // 1.6 because a spoken voice rarely reaches full scale, and a waveform
+      // drawn honestly from the raw peak is a flat line with two bumps in it.
       peaks.push(Math.min(1, loudest * 1.6));
-      nextSampleAt += sampleEvery;
+      loudest = 0;
+      nextPeakAt += samplesPerPeak;
     }
 
-    onTick(Math.min(elapsed, MAX_MS), peaks);
+    onTick(Math.min((captured / rate) * 1000, MAX_MS), peaks);
 
-    if (elapsed >= MAX_MS) {
-      // The cap, enforced here so the UI cannot forget it.
-      if (recorder.state === 'recording') recorder.stop();
+    // The cap, enforced where the samples are counted, so the UI cannot forget
+    // it and a backgrounded tab cannot run past it.
+    if (captured >= maxSamples) finish();
+  };
+
+  source.connect(processor);
+  /*
+    A ScriptProcessorNode does not run unless it is connected onwards. Silenced
+    on the way out, or the phone plays your own voice back at you while you are
+    still speaking.
+  */
+  const mute = audio.createGain();
+  mute.gain.value = 0;
+  processor.connect(mute);
+  mute.connect(audio.destination);
+
+  let settle: ((recording: Recording | null) => void) | null = null;
+  const finished = new Promise<Recording | null>((resolve) => {
+    settle = resolve;
+  });
+
+  function teardown(): void {
+    stopped = true;
+    processor.onaudioprocess = null;
+    processor.disconnect();
+    source.disconnect();
+    mute.disconnect();
+    release();
+    void audio.close().catch(() => undefined);
+  }
+
+  function finish(): void {
+    if (!settle) return;
+    const resolve = settle;
+    settle = null;
+
+    teardown();
+
+    const durationMs = Math.round((captured / rate) * 1000);
+    if (captured === 0 || durationMs < 400) {
+      // A tap rather than a hold. Nothing worth sending, and nothing worth an
+      // error message either.
+      resolve(null);
       return;
     }
 
-    frame = requestAnimationFrame(tick);
-  };
-
-  const release = () => {
-    stopped = true;
-    cancelAnimationFrame(frame);
-    for (const track of stream.getTracks()) track.stop();
-    void audio.close().catch(() => undefined);
-  };
-
-  const finished = new Promise<Recording | null>((resolve) => {
-    recorder.onstop = () => {
-      const durationMs = Math.min(MAX_MS, Math.round(performance.now() - started));
-      release();
-
-      if (chunks.length === 0 || durationMs < 400) {
-        // A tap rather than a hold. Nothing worth sending, and nothing worth
-        // an error message either.
-        resolve(null);
-        return;
-      }
-
-      resolve({ blob: new Blob(chunks, { type: mimeType }), durationMs, peaks: even(peaks) });
-    };
-  });
-
-  /*
-    No timeslice, deliberately.
-
-    `start(250)` asks for the file in quarter-second pieces, and Safari answers
-    with fragments of an mp4 rather than slices of a finished one — glued back
-    together they upload fine, draw a waveform, and will not decode. That is the
-    whole of why a note recorded on an iPhone played nowhere, including on the
-    iPhone that recorded it. Nothing here ever wanted the pieces: the waveform
-    is drawn from the analyser, not from the chunks, so asking for one blob at
-    the end costs nothing and is the only form Safari writes correctly.
-  */
-  recorder.start();
-  frame = requestAnimationFrame(tick);
+    const samples = downsample(join(blocks, captured), rate, SAMPLE_RATE);
+    resolve({
+      blob: new Blob([wav(samples, SAMPLE_RATE)], { type: AUDIO_TYPE }),
+      durationMs: Math.min(MAX_MS, durationMs),
+      peaks: even(peaks),
+    });
+  }
 
   return {
     get peaks() {
       return peaks;
     },
     get elapsed() {
-      return Math.min(performance.now() - started, MAX_MS);
+      return Math.min((captured / rate) * 1000, MAX_MS);
     },
     stop: () => {
-      if (recorder.state === 'recording') recorder.stop();
+      finish();
       return finished;
     },
     cancel: () => {
-      recorder.onstop = null;
-      if (recorder.state === 'recording') recorder.stop();
-      release();
+      if (!settle) return;
+      const resolve = settle;
+      settle = null;
+      teardown();
+      resolve(null);
     },
   };
+}
+
+/** The captured blocks as one run of samples. */
+export function join(blocks: Float32Array[], total: number): Float32Array {
+  const all = new Float32Array(total);
+  let at = 0;
+  for (const block of blocks) {
+    if (at >= total) break;
+    all.set(block.subarray(0, Math.min(block.length, total - at)), at);
+    at += block.length;
+  }
+  return all;
+}
+
+/**
+ * 48kHz down to 16, by averaging rather than by picking.
+ *
+ * Taking every third sample aliases — high frequencies fold down and make a
+ * voice tinny in a way that sounds like a bad line. Averaging the samples that
+ * fall inside each output step is the cheapest thing that does not, and at 3:1
+ * it is close enough to a real filter that nobody could tell.
+ */
+export function downsample(input: Float32Array, from: number, to: number): Float32Array {
+  if (to >= from) return input;
+
+  const ratio = from / to;
+  const out = new Float32Array(Math.floor(input.length / ratio));
+
+  for (let i = 0; i < out.length; i += 1) {
+    const start = Math.floor(i * ratio);
+    const end = Math.min(input.length, Math.floor((i + 1) * ratio));
+
+    let sum = 0;
+    for (let n = start; n < end; n += 1) sum += input[n] ?? 0;
+    out[i] = end > start ? sum / (end - start) : 0;
+  }
+
+  return out;
+}
+
+/**
+ * A WAV file, written by hand.
+ *
+ * Forty-four bytes of header and then the samples: little-endian, signed
+ * sixteen-bit, one channel. The same decision the ZIP writer and the PNG chunk
+ * writer in this repo made — the format is small enough to be exact, and a
+ * dependency for it would be a dependency for the life of the app.
+ */
+export function wav(samples: Float32Array, rate: number): ArrayBuffer {
+  const bytes = samples.length * 2;
+  const buffer = new ArrayBuffer(44 + bytes);
+  const view = new DataView(buffer);
+
+  const ascii = (at: number, text: string): void => {
+    for (let i = 0; i < text.length; i += 1) view.setUint8(at + i, text.charCodeAt(i));
+  };
+
+  ascii(0, 'RIFF');
+  view.setUint32(4, 36 + bytes, true);
+  ascii(8, 'WAVE');
+
+  ascii(12, 'fmt ');
+  view.setUint32(16, 16, true); // the size of this chunk
+  view.setUint16(20, 1, true); // 1 = uncompressed PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, rate, true);
+  view.setUint32(28, rate * 2, true); // bytes per second
+  view.setUint16(32, 2, true); // bytes per frame
+  view.setUint16(34, 16, true); // bits per sample
+
+  ascii(36, 'data');
+  view.setUint32(40, bytes, true);
+
+  for (let i = 0; i < samples.length; i += 1) {
+    // Clamped before scaling: a sample past 1 would wrap into a loud click.
+    const value = Math.max(-1, Math.min(1, samples[i] ?? 0));
+    view.setInt16(44 + i * 2, Math.round(value * 32767), true);
+  }
+
+  return buffer;
 }
 
 /**

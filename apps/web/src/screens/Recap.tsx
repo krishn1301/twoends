@@ -82,9 +82,30 @@ export function Recap({ recap, onClose }: { recap: RecapRow; onClose: () => void
       month: recap.month,
       daysTogether: contents.daysTogether,
       daysAnswered: contents.daysAnswered,
-      photos: contents.photos
-        .map((photo) => ({ url: urls.get(photo.storage_path), caption: photo.caption }))
-        .filter((p): p is { url: string; caption: string | null } => typeof p.url === 'string'),
+      photos: [
+        ...contents.photos.map((photo) => ({
+          url: urls.get(photo.storage_path),
+          caption: photo.caption,
+        })),
+        /*
+          The diptychs belong in the poster too. They were signed in the same
+          batch as the snaps and then only ever shown on screen — a month that
+          contained four "same thing, same time" pairs and did not put one of
+          them in the picture it exports is not a recap of that month.
+        */
+        ...contents.moments.flatMap((day) =>
+          day.shots.map((shot) => ({ url: urls.get(shot.storage_path), caption: day.prompt })),
+        ),
+      ].filter((p): p is { url: string; caption: string | null } => typeof p.url === 'string'),
+      /*
+        And the canvases. `recapContents` has always fetched them and the
+        poster never had a field to put them in, which is why "save as image"
+        produced a page of questions and answers and nothing else.
+      */
+      drawings: contents.drawings
+        .map((row) => row.strokes as Drawing)
+        .filter(isDrawing)
+        .map((drawing) => drawing.strokes),
       closest: contents.closest
         ? {
             question: contents.closest.question,

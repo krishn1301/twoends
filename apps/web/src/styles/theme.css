@@ -410,6 +410,43 @@ body,
 }
 
 /*
+  Where the tab bar lives, and why it is measured from the top.
+
+  Three attempts anchored it to the bottom and all three moved. `bottom: 0` on
+  a fixed element moved because iOS re-measures the layout viewport; a
+  JavaScript anchor on `visualViewport` jittered through every rubber-band; and
+  `clamp(-64px, calc(100% - 100dvh), 0px)` turned out to be a no-op — measured
+  off the phone afterwards, Dates -> Coming up still sat 68.7 CSS px above the
+  edge and Dates -> Capsules 21.7, the same 47 px apart as before it was added.
+  A percentage on a fixed element resolves against a box Safari keeps at full
+  height whatever it then paints, so subtracting `dvh` from it subtracts zero.
+
+  So: never say `bottom` at all. `top: 0` is the one edge that does not move —
+  under `viewport-fit=cover` it is the top of the screen, which the status bar
+  paints over and nothing resizes — and `lvh` is the full height of the screen
+  in an installed app, where there are no dynamic toolbars for it to disagree
+  with. A box pinned to the top and given exactly that height ends exactly at
+  the bottom of the phone, on every screen, with nothing to recompute.
+
+  `dvh` rather than `lvh` because this also runs in an ordinary browser tab,
+  where the toolbars are real and `lvh` would put the bar underneath one.
+  `100vh` first for anything too old for either; the second declaration wins
+  wherever it is understood.
+*/
+.dock {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/*
   `viewport-fit=cover` lets the page paint under the notch and the home
   indicator, which is what keeps the black reaching every edge on an installed
   iPhone PWA. These insets are what stop content hiding under them.
