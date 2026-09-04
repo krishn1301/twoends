@@ -38,8 +38,17 @@ export async function sendVoiceNote(
 ): Promise<{ error: string | null }> {
   const path = `${coupleId}/${crypto.randomUUID()}.${extensionFor(blob.type)}`;
 
+  /*
+    The bare container, without the codecs parameter the recorder asked for.
+
+    `audio/mp4;codecs=mp4a.40.2` is a legal Content-Type and it is not what a
+    player wants to be told over the wire — Safari is the strict one, and it
+    refuses a media response whose type it cannot match exactly rather than
+    sniffing the bytes the way Chrome does. Recording asks for codecs because
+    that is the question MediaRecorder answers; serving does not.
+  */
   const upload = await supabase.storage.from('voice').upload(path, blob, {
-    contentType: blob.type,
+    contentType: blob.type.split(';')[0] || 'application/octet-stream',
     // Random paths, so a collision means something is badly wrong and
     // overwriting would hide it.
     upsert: false,

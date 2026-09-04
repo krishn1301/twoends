@@ -203,7 +203,18 @@ export async function startRecording(
     };
   });
 
-  recorder.start(250);
+  /*
+    No timeslice, deliberately.
+
+    `start(250)` asks for the file in quarter-second pieces, and Safari answers
+    with fragments of an mp4 rather than slices of a finished one — glued back
+    together they upload fine, draw a waveform, and will not decode. That is the
+    whole of why a note recorded on an iPhone played nowhere, including on the
+    iPhone that recorded it. Nothing here ever wanted the pieces: the waveform
+    is drawn from the analyser, not from the chunks, so asking for one blob at
+    the end costs nothing and is the only form Safari writes correctly.
+  */
+  recorder.start();
   frame = requestAnimationFrame(tick);
 
   return {

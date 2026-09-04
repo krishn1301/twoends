@@ -197,8 +197,13 @@ export function VoicePlayer({
     A file this browser cannot decode used to do nothing at all: the button
     depressed, no sound, no error. Silence is the worst possible report,
     because the obvious reading is that the recording failed — and it had not.
+
+    It keeps the reason rather than a flag. `MediaError.code` splits the whole
+    space in one number — 2 is the link, 3 is the bytes, 4 is the container —
+    and there is no other way to learn which of the three it was on a phone
+    nobody can attach a debugger to.
   */
-  const [broken, setBroken] = useState(false);
+  const [broken, setBroken] = useState<string | null>(null);
 
   const seconds = durationMs / 1000;
   const played = seconds > 0 ? Math.min(1, at / seconds) : 0;
@@ -207,7 +212,7 @@ export function VoicePlayer({
     return (
       <div className="flex items-center gap-3">
         <Bars peaks={peaks} colour={colour} played={0} dim />
-        <span className="text-ash shrink-0 text-[0.78rem]">will not play here</span>
+        <span className="text-ash shrink-0 text-[0.78rem]">{broken}</span>
       </div>
     );
   }
@@ -224,7 +229,7 @@ export function VoicePlayer({
             // A rejected `play()` is the other way this fails silently — iOS
             // refuses one that is not inside a gesture, and a decode error
             // arrives here rather than on the element.
-            void element.play().catch(() => setBroken(true));
+            void element.play().catch(() => setBroken(reasonFor(element)));
           } else element.pause();
         }}
         aria-label={playing ? 'Pause' : 'Play'}
@@ -255,7 +260,7 @@ export function VoicePlayer({
       </button>
 
       <span className="counter text-ash shrink-0 text-[0.78rem]">
-        {broken ? '—' : clock(playing ? (seconds - at) * 1000 : durationMs)}
+        {clock(playing ? (seconds - at) * 1000 : durationMs)}
       </span>
 
       {url && (
@@ -270,11 +275,28 @@ export function VoicePlayer({
             setAt(0);
           }}
           onTimeUpdate={(event) => setAt(event.currentTarget.currentTime)}
-          onError={() => setBroken(true)}
+          onError={(event) => setBroken(reasonFor(event.currentTarget))}
         />
       )}
     </div>
   );
+}
+
+/**
+ * Why a note would not play, in the fewest words that still name the half.
+ *
+ * The number in brackets is `MediaError.code`, and it is there on purpose: a
+ * screenshot from a phone is the only report this app will ever get, and
+ * “it doesn’t work” costs a round trip that a single digit does not. 2 means the
+ * link expired or the file never arrived, 3 means the bytes are damaged, 4
+ * means this browser will not take the container at all.
+ */
+function reasonFor(element: HTMLAudioElement): string {
+  const code = element.error?.code ?? 0;
+  if (code === 2) return 'could not load (2)';
+  if (code === 3) return 'damaged (3)';
+  if (code === 4) return 'wrong format (4)';
+  return 'will not play here';
 }
 
 function Microphone({ colour }: { colour: string }) {
