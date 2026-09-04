@@ -15,5 +15,5 @@
   // The theme test reads files off disk; the update test imports one. Both
   // belong to the app, which is why this project compiles them itself rather
   // than referencing one that has no Node types.
-  "include": ["test/**/*.ts", "src/lib/update.ts", "src/lib/recorder.ts"]
+  "include": ["test/**/*.ts", "src/lib/update.ts", "src/lib/recorder.ts", "src/lib/whosePlace.ts"]
 }

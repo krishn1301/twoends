@@ -220,6 +220,42 @@
 }
 
 /*
+  The mark, once, when the app opens.
+
+  It holds long enough to be read and then goes, and the app is already there
+  underneath it — this fades an overlay away rather than gating a render. The
+  guardrail elsewhere in this file says nothing animates on page load, and this
+  is the exception the owner asked for after seeing the pairing reveal: it is
+  the best mark in the app and it was only ever shown twice.
+*/
+@keyframes launch {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  18%,
+  72% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+
+.launch {
+  animation: launch 1900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Still a moment, with nothing travelling. */
+  .launch {
+    animation: fade-in 1900ms ease both;
+  }
+}
+
+/*
   Item 7 — the pairing moment.
 
   The inviter's waiting screen simply became Home with no transition, and the

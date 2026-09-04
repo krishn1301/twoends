@@ -23,33 +23,59 @@ export interface Recording {
   peaks: number[];
 }
 
-export type RecorderFailure =
-  | 'denied'
-  | 'no-microphone'
-  | 'unsupported'
-  | 'failed';
+export type RecorderFailure = 'denied' | 'no-microphone' | 'unsupported' | 'failed';
 
 /**
- * What this browser will actually record.
+ * What this browser can both record and play, best first.
  *
- * Opus in WebM where it exists, which is everything except Safari; Safari
- * records AAC in MP4 and has done since 14.3. Asked rather than assumed,
- * because `MediaRecorder` throws on an unsupported type rather than falling
- * back, and a thrown constructor reads to the user as the microphone being
- * broken.
+ * mp4 leads. Where a browser can do both, AAC in mp4 is the one every other
+ * browser can also open — and a note recorded on an iPhone has to be playable
+ * on an Android phone, which is the entire point of there being two of them.
  */
+const CANDIDATES = [
+  'audio/mp4;codecs=mp4a.40.2',
+  'audio/mp4',
+  'audio/webm;codecs=opus',
+  'audio/webm',
+  'audio/ogg;codecs=opus',
+] as const;
+
+/**
+ * Whether this browser can *play back* a container it says it can record.
+ *
+ * This is the whole of the bug that made voice notes silent. `isTypeSupported`
+ * answers "can I record this", and nothing was asking the other question — so a
+ * browser that reports WebM as recordable and cannot decode it produced a file
+ * that uploaded fine, showed a waveform, and played nothing. The recording was
+ * never the broken part.
+ *
+ * Safari is the one that does this, and it is also the one most of the people
+ * this app is for are on. Which is why mp4 is first in the list now: where both
+ * work it is the more portable of the two, and a note recorded on an iPhone has
+ * to be playable on an Android phone as well.
+ */
+function canPlay(type: string): boolean {
+  if (typeof document === 'undefined') return true;
+
+  const probe = document.createElement('audio');
+  // `canPlayType` wants the bare container for a reliable answer; a codecs
+  // parameter it does not recognise makes it say "" even for one it can play.
+  const base = type.split(';')[0]!;
+  return probe.canPlayType(base) !== '';
+}
+
 export function pickFormat(): string | null {
   if (typeof MediaRecorder === 'undefined') return null;
 
-  for (const type of [
-    'audio/webm;codecs=opus',
-    'audio/webm',
-    'audio/mp4;codecs=mp4a.40.2',
-    'audio/mp4',
-    'audio/ogg;codecs=opus',
-  ]) {
-    if (MediaRecorder.isTypeSupported(type)) return type;
+  for (const type of CANDIDATES) {
+    if (MediaRecorder.isTypeSupported(type) && canPlay(type)) return type;
   }
+
+  /*
+    Nothing this browser can both record and play. Recording anyway would give
+    somebody a note they can see and not hear, which is worse than not offering
+    it — the composer renders nothing at all when this returns null.
+  */
   return null;
 }
 

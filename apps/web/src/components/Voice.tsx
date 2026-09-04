@@ -145,14 +145,16 @@ export function VoiceComposer({
         className={`flex min-h-14 w-full touch-none items-center gap-3 rounded-full px-5 transition-colors disabled:opacity-40 ${
           live ? '' : 'bg-surface-2'
         }`}
-        style={live ? { background: `color-mix(in oklab, ${colour} 24%, var(--color-tint-base))` } : undefined}
+        style={
+          live
+            ? { background: `color-mix(in oklab, ${colour} 24%, var(--color-tint-base))` }
+            : undefined
+        }
       >
         {live ? (
           <>
             <Bars peaks={peaks} colour={colour} />
-            <span className="counter text-chalk shrink-0 text-sm">
-              {clock(MAX_MS - elapsed)}
-            </span>
+            <span className="counter text-chalk shrink-0 text-sm">{clock(MAX_MS - elapsed)}</span>
           </>
         ) : (
           <>
@@ -191,9 +193,24 @@ export function VoicePlayer({
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [at, setAt] = useState(0);
+  /*
+    A file this browser cannot decode used to do nothing at all: the button
+    depressed, no sound, no error. Silence is the worst possible report,
+    because the obvious reading is that the recording failed — and it had not.
+  */
+  const [broken, setBroken] = useState(false);
 
   const seconds = durationMs / 1000;
   const played = seconds > 0 ? Math.min(1, at / seconds) : 0;
+
+  if (broken) {
+    return (
+      <div className="flex items-center gap-3">
+        <Bars peaks={peaks} colour={colour} played={0} dim />
+        <span className="text-ash shrink-0 text-[0.78rem]">will not play here</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-3">
@@ -203,8 +220,12 @@ export function VoicePlayer({
         onClick={() => {
           const element = audio.current;
           if (!element) return;
-          if (element.paused) void element.play();
-          else element.pause();
+          if (element.paused) {
+            // A rejected `play()` is the other way this fails silently — iOS
+            // refuses one that is not inside a gesture, and a decode error
+            // arrives here rather than on the element.
+            void element.play().catch(() => setBroken(true));
+          } else element.pause();
         }}
         aria-label={playing ? 'Pause' : 'Play'}
         className="grid h-11 w-11 shrink-0 place-items-center rounded-full disabled:opacity-40"
@@ -234,7 +255,7 @@ export function VoicePlayer({
       </button>
 
       <span className="counter text-ash shrink-0 text-[0.78rem]">
-        {clock(playing ? (seconds - at) * 1000 : durationMs)}
+        {broken ? '—' : clock(playing ? (seconds - at) * 1000 : durationMs)}
       </span>
 
       {url && (
@@ -249,6 +270,7 @@ export function VoicePlayer({
             setAt(0);
           }}
           onTimeUpdate={(event) => setAt(event.currentTarget.currentTime)}
+          onError={() => setBroken(true)}
         />
       )}
     </div>

@@ -5,6 +5,7 @@ import { VOICE_LINES, getAccent, nextQuote } from '@twoends/core';
 import { VoiceComposer, VoicePlayer } from '../components/Voice.tsx';
 import { notifyPartner } from '../db/push.ts';
 import {
+  deleteVoiceNote,
   keepVoiceNote,
   recentVoiceNotes,
   sendVoiceNote,
@@ -68,6 +69,33 @@ export function VoiceNotes() {
     };
   }, [couple?.id, round]);
 
+  /*
+    Deleting one, behind a confirmation.
+
+    It is the only thing on this screen that cannot be undone — a photograph can
+    at least be sent again from the camera roll, and a thirty-second thing
+    somebody said once cannot. So the button arms rather than fires, and it says
+    so on the second press rather than opening a dialog.
+
+    Either of them can delete, which is the rule photographs already have: the
+    person who said it does not own the memory of it, and unpairing has to be
+    able to remove everything the pair made.
+  */
+  const [arming, setArming] = useState<string | null>(null);
+
+  async function remove(note: VoiceNote) {
+    if (arming !== note.id) {
+      setArming(note.id);
+      return;
+    }
+
+    setArming(null);
+    // Gone from the list first: the two round trips take a moment and a row
+    // that sits there after you confirmed reads as the tap not registering.
+    setNotes((rows) => rows.filter((row) => row.id !== note.id));
+    await deleteVoiceNote(note);
+  }
+
   async function toggleKeep(note: VoiceNote) {
     setNotes((rows) => rows.map((row) => (row.id === note.id ? { ...row, kept: !row.kept } : row)));
     await keepVoiceNote(note.id, !note.kept);
@@ -107,8 +135,8 @@ export function VoiceNotes() {
           phone will find it working from the Home Screen.
         */
         <p className="text-ash text-[0.95rem] leading-relaxed">
-          This browser will not let the app use the microphone. Adding TwoEnds to your Home
-          Screen and opening it from there usually fixes it.
+          This browser will not let the app use the microphone. Adding TwoEnds to your Home Screen
+          and opening it from there usually fixes it.
         </p>
       )}
 
@@ -151,12 +179,55 @@ export function VoiceNotes() {
                 >
                   <Heart filled={note.kept} />
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => void remove(note)}
+                  onBlur={() => setArming((id) => (id === note.id ? null : id))}
+                  aria-label={arming === note.id ? 'Delete it, for good' : 'Delete this one'}
+                  className="text-ash grid h-9 place-items-center px-2 text-xs"
+                >
+                  {arming === note.id ? 'Sure?' : <Cross />}
+                </button>
               </div>
             </div>
           ))}
         </section>
       )}
+
+      {/*
+        The most common reason somebody hears nothing, and the one the app
+        cannot detect.
+
+        An iPhone's ringer switch mutes HTML audio — the button depresses, the
+        waveform fills, the counter runs, and there is no sound. From inside the
+        app that is indistinguishable from a broken recording, which is exactly
+        how it gets reported. Said once, under the list, only where it applies.
+      */}
+      {notes.length > 0 && isApple() && (
+        <p className="text-ash text-[0.85rem] leading-relaxed">
+          Hearing nothing? An iPhone&rsquo;s side switch mutes sound from the web, even at full
+          volume. Turn the ringer on, or use headphones.
+        </p>
+      )}
     </div>
+  );
+}
+
+/**
+ * Whether this is an iPhone or an iPad.
+ *
+ * User-agent sniffing, which is normally the wrong tool — here it decides
+ * whether to show one sentence of advice, and being wrong costs somebody
+ * reading a line that does not apply to them. iPadOS reports itself as a Mac,
+ * hence the touch check.
+ */
+function isApple(): boolean {
+  if (typeof navigator === 'undefined') return false;
+
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   );
 }
 
@@ -183,6 +254,14 @@ function Heart({ filled }: { filled: boolean }) {
         strokeWidth="1.7"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function Cross() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }

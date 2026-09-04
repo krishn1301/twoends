@@ -8,6 +8,7 @@ import { Ask } from './screens/Ask.tsx';
 import { Dates } from './screens/Dates.tsx';
 import { Draw } from './screens/Draw.tsx';
 import { Home } from './screens/Home.tsx';
+import { Launch } from './screens/Launch.tsx';
 import { Onboarding } from './screens/Onboarding.tsx';
 import { Pair } from './screens/Pair.tsx';
 import { Paired } from './screens/Paired.tsx';
@@ -163,6 +164,12 @@ export function App() {
             </Sheet>
           )}
           <TabBar current={tab} onSelect={setTab} />
+
+          {/*
+            Last in the tree so it sits over everything, and it removes itself.
+            The app behind it is already interactive — this is not a gate.
+          */}
+          <Launch />
         </>
       );
   }
