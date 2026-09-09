@@ -140,6 +140,20 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!--
+          The notification icon, for every push FCM draws itself.
+
+          The payload names it too, but this is the one that matters: a message
+          arriving with no icon field falls back to the launcher icon, which
+          Android renders as a white silhouette of a full-colour tile — a blob.
+          Declared here so it is right even for a push nobody remembered to set
+          it on.
+        -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_icon" />
+
     </application>
 
     <!-- Permissions -->
@@ -183,6 +197,19 @@
       before it is recording anything. Nothing here listens in the background,
       and there is no permission that would let it.
     -->
+    <!--
+      Notifications, from Android 13 onwards.
+
+      The push plugin's own manifest declares the Firebase messaging service and
+      **not** this — so `requestPermissions()` would return denied on every
+      modern phone with no prompt ever shown, which is indistinguishable from
+      somebody having refused. Exactly the shape of the two bugs below it: a
+      Capacitor WebView can only ask for what this file declares.
+
+      Below Android 13 it is granted at install and nothing is shown.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!--
       Asked for by the audio stack when a WebView opens a capture stream. It

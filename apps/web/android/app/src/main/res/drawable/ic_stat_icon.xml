@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The status-bar icon, for notifications.
+
+  Android takes only the alpha channel of this and tints the result white, so
+  the launcher's monochrome layer could not be reused: its seam is a black path
+  at 35% alpha drawn *over* the two discs, which still composites to fully
+  opaque. In the status bar that is a featureless blob — the one thing the mark
+  must never become, since the whole shape is "there are two of us".
+
+  So the seam is real here: two outlines rather than two fills. At 24dp a
+  stroked pair also simply reads better than a solid one, and it is the same
+  geometry as the launcher icon and the in-app monogram — centres half a
+  diameter apart, overlapping by half.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:pathData="M9,12 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.8" />
+
+    <path
+        android:pathData="M15,12 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.8" />
+</vector>

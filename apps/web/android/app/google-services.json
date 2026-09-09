@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "75014921860",
+    "project_id": "twoends-39d57",
+    "storage_bucket": "twoends-39d57.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:75014921860:android:322710da3fee464fa6ecd1",
+        "android_client_info": {
+          "package_name": "com.twoends.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAScIRyo3XZynpiUna2EgUyemq8LyS7-cs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

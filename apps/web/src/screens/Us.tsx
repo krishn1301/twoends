@@ -25,7 +25,13 @@ import { exportEverything, type ExportProgress } from '../db/exportAll.ts';
 import { cancelUnpair, confirmUnpair, requestUnpair, unpairState } from '../db/unpair.ts';
 import { useChrome, useDesignVersion } from '../design/version.ts';
 import { saveFile } from '../lib/saveFile.ts';
-import { disablePush, enablePush, pushState, type PushState } from '../db/push.ts';
+import {
+  disablePush,
+  enablePush,
+  pushState,
+  refreshPushState,
+  type PushState,
+} from '../db/push.ts';
 import { supabase } from '../lib/supabase.ts';
 import { APP_VERSION, canUpdate, checkForUpdate, type UpdateResult } from '../lib/update.ts';
 import { useAvatars } from '../state/avatars.ts';
@@ -122,6 +128,22 @@ export function Us() {
   const [push, setPush] = useState<PushState>(() => pushState());
   const [pushBusy, setPushBusy] = useState(false);
 
+  /*
+    In the APK the synchronous guess above is only ever a cache: the plugin
+    reports its permission from a promise, and the answer arrives after the
+    first render. On the web this resolves to the same value it already had.
+  */
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const state = await refreshPushState(profile?.id);
+      if (alive) setPush(state);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [profile?.id]);
+
   const [exporting, setExporting] = useState<ExportProgress | null>(null);
   const [exported, setExported] = useState<string | null>(null);
   const [armed, setArmed] = useState(false);
@@ -188,7 +210,7 @@ export function Us() {
       if (error) setError(error);
     }
 
-    setPush(pushState());
+    setPush(await refreshPushState(profile.id));
     setPushBusy(false);
   }
 
@@ -425,20 +447,11 @@ export function Us() {
                 inside an app that is not a browser: it reads as a fault and
                 offers nothing to do about it.
               */}
-              {canUpdate() ? (
-                <>
-                  <p className="text-sm font-medium">The widgets are the nudge here</p>
-                  <p className="text-ash mt-1.5 text-sm leading-relaxed">
-                    Android gives an installed app no way to ask for notifications, so this one
-                    cannot buzz. It is also the only place TwoEnds has home-screen widgets, and
-                    those redraw on their own — a snap, a drawing or an answer turns up there
-                    without anybody being nudged. If you want the buzz as well, open the site in
-                    Chrome and add it to your Home Screen; that copy can notify.
-                  </p>
-                </>
-              ) : (
-                <p className="text-ash text-sm">This browser cannot do notifications.</p>
-              )}
+              <p className="text-ash text-sm">
+                {canUpdate()
+                  ? 'This phone could not register for notifications.'
+                  : 'This browser cannot do notifications.'}
+              </p>
             </div>
           ) : (
             <Row label={push === 'on' ? 'On' : 'Off'}>
