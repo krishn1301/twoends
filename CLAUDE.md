@@ -83,20 +83,69 @@ Commands: `pnpm db:push`, `pnpm db:types`, `pnpm test:rls`, `pnpm verify`,
 
 ## Current phase
 
-**All six phases of `TWOENDS_FEATURES_SPEC.md` are built, deployed and tagged
-`v1.2.0`. Phase 15 and everything before it shipped and confirmed on a paired
-device; the six below are verified in Chrome and against the live database, and
-have not yet been used on a phone.**
+**Everything is built, shipped and used on real phones. `v1.3.0` is the current
+release, and the README's Android link serves it.** 375 unit tests, 180 RLS,
+migrations 25–31.
 
-Shipped as: retention (v1.1.0) · recap · voice notes · same thing same time ·
-both here · arrival mode. Migrations 25–30. **355 unit tests, 180 RLS.**
+The list below used to say what had not been tried on a device. It has all been
+tried now, and the phase that did it is the most productive this project has
+had — not because much was written, but because almost everything on that list
+turned out to be broken in a way no amount of Chrome could show.
 
-Not yet exercised on a real device, and the first things to check:
+### Phase 19 — what the phones found
 
-- a recap generating for a couple with real history (the test pair has none)
-- recording a voice note on a phone, and the microphone-refused path
-- a moment opening at its hour, and the twenty minutes running out
-- the diptych reveal, which needs both people inside the same window
+Every item here was reported by somebody holding the app, and every one of them
+was invisible from a laptop.
+
+- **Voice notes had never worked, twice over.** On iPhone `pickFormat` asked
+  only whether the browser could *record* a container and never whether it could
+  play one back, and Safari's MediaRecorder writes a **fragmented** MP4 that
+  Safari's own `<audio>` element cannot play progressively — proven by pulling a
+  real recording off the bucket and walking its boxes: `ftyp iso5 / moov / moof /
+  mdat`. Dropping the timeslice made it one fragment instead of thirty and
+  changed nothing, because one fragment is still a fragment. There is no
+  `MediaRecorder` in `lib/recorder.ts` any more: samples come off a
+  ScriptProcessorNode and a **WAV is written by hand**, 16kHz mono, which is the
+  one container every browser in this couple can both write and read. The
+  thirty-second cap is therefore also a one-megabyte cap.
+- **And in the APK it was impossible.** `RECORD_AUDIO` was not in the manifest,
+  so `getUserMedia` could only ever reject — reported by the composer as "the
+  microphone is blocked", which is indistinguishable from a refusal.
+- **One hold sent two notes.** Releasing the record button fires `pointerup`
+  *and* `lostpointercapture`; both handlers ended the recording and the guard
+  between them was React state, so neither had seen the other's `setLive(null)`.
+  A ref, read and cleared before the first `await`.
+- **The APK can be notified now.** Android's WebView gives an installed
+  Capacitor app no Notification API, so the one build with home-screen widgets
+  was the one that could not buzz. `_shared/fcm.ts` is a second transport — a
+  service-account JWT, an OAuth exchange, one POST — and `push_tokens.platform`
+  has carried `'android'` since migration 1 while both senders filtered it to
+  `'web'`, which was the whole of why the APK was excluded.
+- **`push()` returning a boolean was quietly dangerous.** Every caller deleted
+  the registration on false, and false meant 404 *and* 500 *and* a thrown fetch
+  — so one minute of a push service being unreachable would have unsubscribed
+  every device the couple owns, permanently, with no symptom but silence. It is
+  `'sent' | 'gone' | 'failed'` now and only `gone` deletes.
+- **The moment's clock starts on the first photograph.** Twenty minutes from the
+  top of an hour was a deadline for both of them and the first day it ran for
+  real it produced nothing: one took the picture inside the window, the other
+  opened the app later to a card that had deleted itself. An hour, from whoever
+  went first, and the card moves to the bottom of Home rather than vanishing.
+  Migration 31 is one `security definer` function returning `min(created_at)`,
+  because the reveal policy hides the partner's row and **row-level security
+  cannot expose one column of a hidden row**.
+- **The recap poster was silently dropping every photograph.** The page had
+  already shown those signed URLs in plain `<img>` tags, so the browser held a
+  non-CORS copy, and the poster's `crossOrigin` request was served that copy and
+  rejected — `onerror`, for all of them, with nothing on screen. Fetched as bytes
+  and loaded from a blob now. The canvases were fetched for the page and had no
+  field on the poster at all.
+- **Four widget faults, three of them geometry.** See the gotchas.
+
+Verified across two devices and two accounts: a fresh pair with one side on the
+APK and the other in Chrome, photographing the same prompt, with PostgREST asked
+directly — with a valid session and no shot of her own, Nila got `200` and an
+empty array while her card counted down correctly.
 
 ### Phases 16–18 — retention, the monthly recap, voice notes
 
@@ -1089,6 +1138,27 @@ none` for itself and must keep doing so.
   and wrong for a 2×2.** The streak widget bottom-aligned itself into a tall
   black tile with an empty top half, which reads as a rendering fault. Only a
   launcher shows you this.
+- **Glance clips; it does not scale.** A `Column` taller than the widget loses
+  whichever end the alignment does not favour, and nothing anywhere says so — the
+  widget draws and one word is missing its bottom half. The countdown and
+  anniversary widgets branch on `LocalSize.current.height` now, with three tiers
+  each and the content each tier needs written in the comment. **Widening a
+  widget on a Samsung grid shortens it**, which is why the countdown looked right
+  where it was placed and lost both its title and its subtitle the moment it was
+  dragged wider — the one change nobody expects to cost height.
+- **A ratio shared between a drawing and its caller has to be a constant.**
+  `pairMark`'s Together style spreads two discs over `2 - 0.22 = 1.78` diameters
+  and the caller asked for `1.72`, so `left` came out negative and both faces
+  lost a sliver off their outer edge for months. It reads as "two circles in an
+  invisible square", which is exactly what it is. `TOGETHER_RATIO` is exported
+  now and `apps/web/test/widget-marks.test.ts` reads both Kotlin files and fails
+  if anybody hardcodes a number there again — there is no Kotlin test harness
+  here and nothing else can catch an error three device pixels wide.
+- **An FCM notification icon keeps only its alpha.** The launcher's monochrome
+  layer cuts its seam with a 35%-alpha black path drawn *over* two opaque discs,
+  which composites to fully opaque — so reusing it would have drawn a white blob
+  in the status bar. `ic_stat_icon` is two outlines, and it is declared as the
+  Firebase default so a payload that forgets the field still gets it.
 - **Seeding a canvas by hand needs the exact `Drawing` shape** — `{ version: 1,
 strokes: [{ color, width, points: [{x, y, p}] }] }`. `isDrawing` correctly
   rejects anything else, and the widget then draws its empty state, which looks
