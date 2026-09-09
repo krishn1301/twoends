@@ -75,6 +75,25 @@ try {
   const owner = /github\.com[/:]([^/]+)\//.exec(remote)?.[1] ?? '<owner>';
   console.log(`\nDeployed. https://${owner}.github.io/${REPO}/\n`);
   console.log('First deploy only: Settings → Pages → Source = gh-pages branch, / (root).\n');
+
+  /*
+    Put `dist` back the way the Android build needs it.
+
+    This build ran with `VITE_BASE=/twoends/`, so every asset URL in `dist`
+    carries the repo prefix — and `cap sync` copies `dist` verbatim into the
+    APK, where the WebView serves from the root of `https://localhost`. An APK
+    assembled locally at any point after a deploy therefore ships an
+    `index.html` asking for `/twoends/assets/...`, every request 404s, and the
+    app opens to a blank screen with nothing in logcat naming the cause.
+
+    It happened once, on a real phone, and cost the owner a working app until
+    somebody thought to unzip the APK. Forty seconds here is worth more than
+    the next hour of looking for it. CI never had the bug, because a runner
+    builds fresh with no VITE_BASE — which is exactly why it survived: every
+    APK anyone had actually tested came from CI.
+  */
+  console.log('Rebuilding dist for the native shell, so a local APK is not left broken.\n');
+  run('pnpm', ['--filter', '@twoends/web', 'build']);
 } finally {
   rmSync(staging, { recursive: true, force: true });
 }

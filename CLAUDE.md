@@ -655,6 +655,17 @@ sync`.** It is applied at the _bottom_ of `app/build.gradle`, so any
   installed APK can run the _previous_ web bundle for one launch, which looks
   exactly like an edit that did not take. `am force-stop` and relaunch once
   before concluding anything is broken.
+- **`pnpm deploy` leaves `apps/web/dist` built for GitHub Pages, and `cap sync`
+  copies it straight into the APK.** The deploy build runs with
+  `VITE_BASE=/twoends/`, so every asset URL carries the repo prefix — and the
+  WebView serves from the root of `https://localhost`. An APK assembled
+  locally at any point after a deploy therefore opens to a **blank screen**,
+  every asset 404ing, with nothing in logcat naming the cause. It looks like a
+  crash and is not one; the giveaway is `src="/twoends/assets/..."` inside
+  `assets/public/index.html` in the APK. `deploy.mjs` rebuilds `dist` with the
+  default base on its way out now, so the tree is always native-ready.
+  **CI never had this bug** — a runner builds fresh with no `VITE_BASE` — which
+  is exactly why it survived: every APK anyone had actually tested came from CI.
 - **`adb exec-out screencap -p > file.png` corrupts the PNG from PowerShell** —
   the redirect adds a BOM and re-encodes. Use `adb shell screencap -p /sdcard/s.png`
   then `adb pull -a`.

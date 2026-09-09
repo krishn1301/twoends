@@ -113,7 +113,12 @@ private fun AnniversaryContent(
     */
     val height = LocalSize.current.height
     val markDp = (height.value - 32f).coerceIn(24f, 40f).toInt()
-    val markWide = (markDp * 1.72f).toInt()
+    /*
+      Ceiling plus a pixel, not a rounded-down guess. `TOGETHER_RATIO` is the
+      width the mark needs for this height, and asking for a hair less crops the
+      outer edge off both faces.
+    */
+    val markWide = kotlin.math.ceil(markDp * TOGETHER_RATIO).toInt() + 1
 
     /*
       "146 days together" rather than "together" over "146" over "days".

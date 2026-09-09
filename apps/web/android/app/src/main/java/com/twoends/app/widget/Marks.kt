@@ -204,6 +204,27 @@ private fun heartPath(cx: Float, cy: Float, size: Float): Path {
 
 // ── the pair ─────────────────────────────────────────────────────────────────
 
+/**
+ * How far the two discs of a `Together` mark overlap, as a fraction of one.
+ *
+ * The launcher mark's own ratio: discs of r=22 sitting 22 apart on a 108 grid.
+ */
+const val TOGETHER_OVERLAP = 0.22f
+
+/**
+ * How wide a `Together` mark has to be for the height it is given.
+ *
+ * Two diameters less the overlap. **The caller has to ask for at least this**,
+ * and for a long time it asked for 1.72 — so `left` came out negative, the pair
+ * was drawn wider than the bitmap holding it, and both discs lost a sliver off
+ * their outer edges. It reads as two circles inside an invisible square, which
+ * is exactly what it is.
+ *
+ * A number the drawing and its caller both have to agree on cannot live in only
+ * one of them; `widget-marks.test.ts` fails if they drift apart again.
+ */
+const val TOGETHER_RATIO = 2f - TOGETHER_OVERLAP
+
 /** How the two faces relate to each other on a given widget. */
 enum class MarkStyle {
     /** Separated, joined by a line, with a heart in the gap. Distance. */
@@ -271,7 +292,7 @@ fun pairMark(
           so yours reads as the nearer of the two, matching every place in the
           app that draws you on the left.
         */
-        val overlap = diameter * 0.22f
+        val overlap = diameter * TOGETHER_OVERLAP
         val spread = diameter * 2 - overlap
         val left = (w - spread) / 2f
 
