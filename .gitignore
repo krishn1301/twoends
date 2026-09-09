@@ -71,4 +71,8 @@ pnpm-debug.log*
 *.key
 
 # The visual review. Personal names in it, and this repo is public.
-TWOENDS_VISUAL_CHANGES.md
+# The working briefs. They quote the owner's own review of the live app and
+# name the couple it was built for — including a pet name — and this repo is
+# public. One of them was committed once already and had to be pulled back out.
+# A glob rather than three lines, so the next one is ignored before it exists.
+TWOENDS_*.md

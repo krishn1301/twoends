@@ -845,6 +845,18 @@ references profiles on delete cascade`**, so deleting one anonymous auth user
   screen 1200px leaves the bar's bottom edge at exactly `innerHeight`, and
   `document.scrollTop` never leaves 0. **Anything anchored to a viewport edge on
   iOS is anchored to a number that moves** unless the document cannot scroll.
+- **`safe-area-inset-bottom` is a drawn line on iOS and a live gesture area on
+  Android.** The tab bar sat at `max(0.75rem, inset - 1rem)` — deliberately
+  *inside* the inset, copying the way a certain photo app tucks its capsule into
+  the iPhone home indicator. On an iPhone that is only decoration to overlap. On
+  Android the same band takes the swipe-up-to-home gesture, and the bar was
+  close enough to it that leaving the app landed a tap on a tab and changed the
+  page on the way out. It is `calc(env(safe-area-inset-bottom) + 10px)` now, in
+  **both looks** — the number taken from Life.rpg's dock rather than guessed,
+  because that app sits on the same launcher and has never had this. Anything
+  positioned relative to that inset has to be reasoned about per platform: the
+  same number means "a line is painted here" on one and "do not put a tap
+  target here" on the other.
 - **Diagnostics beat reasoning from screenshots.** Three of those four attempts
   were plausible readings of a picture and all three were wrong. The fix came
   from six numbers — layout size, visual size, scale, sideways overflow,

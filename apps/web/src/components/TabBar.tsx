@@ -127,10 +127,22 @@ export function TabBar({
             bottom edge of a box pinned to the top of the screen and given the
             screen's own height, because every attempt to measure up from the
             bottom measured something that moves between one tab and the next.
+
+            **Clear of the system's inset, not inside it.** This used to
+            subtract a whole rem from `safe-area-inset-bottom`, copying the way
+            a certain photo app tucks its capsule into the home indicator. That
+            reads well on an iPhone, where the inset is a drawn line and
+            nothing more, and it is wrong on Android, where the same band is a
+            live gesture area: the bar ended up close enough to it that swiping
+            home landed on a tab and changed the page on the way out of the app.
+
+            The number is Life.rpg's, taken rather than guessed — the sibling
+            project on this machine sits its dock at `safe-bottom + 10px` and
+            has never had this problem. Same rule in both looks, because this
+            one is not a matter of taste: an inset you can lose a tap to is not
+            decoration.
           */
-          paddingBottom: v2
-            ? 'max(0.75rem, calc(env(safe-area-inset-bottom) - 1rem))'
-            : 'max(0.85rem, env(safe-area-inset-bottom))',
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 10px)',
         }}
       >
         <div
