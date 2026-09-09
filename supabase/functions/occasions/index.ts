@@ -31,7 +31,8 @@ import {
   fillsTheScreen,
   worthShowing,
 } from '../../../packages/core/src/index.ts';
-import { push, type PushSubscriptionJSON } from '../_shared/webpush.ts';
+import { pushAndroid } from '../_shared/fcm.ts';
+import { push, type PushResult, type PushSubscriptionJSON } from '../_shared/webpush.ts';
 
 /**
  * The hour, in the couple's own timezone, that this is allowed to arrive.
@@ -231,11 +232,12 @@ Deno.serve(async (req) => {
       // it is worse than the silence it replaced.
       if (!copy) continue;
 
+      // Every device. See `deliver` below — the APK is an `android` row and
+      // was excluded by the `platform = 'web'` filter this used to carry.
       const { data: tokens } = await admin
         .from('push_tokens')
-        .select('id, token')
-        .eq('profile_id', me.id)
-        .eq('platform', 'web');
+        .select('id, platform, token')
+        .eq('profile_id', me.id);
 
       if (!tokens?.length) continue;
 
@@ -257,10 +259,11 @@ Deno.serve(async (req) => {
 
       let landed = 0;
       for (const row of tokens) {
-        const subscription = JSON.parse(row.token) as PushSubscriptionJSON;
-        const ok = await push(subscription, message);
-        if (ok) landed++;
-        else await admin.from('push_tokens').delete().eq('id', row.id);
+        const result = await deliver(row.platform as string, row.token as string, message);
+        if (result === 'sent') landed++;
+        // Only a dead registration is deleted; a failure is the network. See
+        // `notify`, which learned this the same way.
+        if (result === 'gone') await admin.from('push_tokens').delete().eq('id', row.id);
       }
 
       if (landed > 0) {
@@ -459,4 +462,27 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+/**
+ * One message, whichever kind of device this row is.
+ *
+ * The same four lines as `notify`'s, deliberately duplicated rather than
+ * shared: `_shared` is for things with weight — a JWT, an AES-GCM seal, an
+ * OAuth exchange — and a two-branch switch that both functions can read at a
+ * glance is clearer in both than an import would be. If a third transport ever
+ * appears it moves.
+ */
+async function deliver(
+  platform: string,
+  token: string,
+  message: { title: string; body: string },
+): Promise<PushResult> {
+  if (platform === 'android') return await pushAndroid(token, message);
+
+  try {
+    return await push(JSON.parse(token) as PushSubscriptionJSON, message);
+  } catch {
+    return 'gone';
+  }
 }

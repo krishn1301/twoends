@@ -14,7 +14,8 @@
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-import { push, type PushSubscriptionJSON } from '../_shared/webpush.ts';
+import { pushAndroid } from '../_shared/fcm.ts';
+import { push, type PushResult, type PushSubscriptionJSON } from '../_shared/webpush.ts';
 
 /** What just happened. The only thing the caller gets to choose. */
 type Kind = 'answered' | 'snap' | 'drawing' | 'capsule' | 'asked' | 'moment';
@@ -39,6 +40,31 @@ const COPY: Record<Kind, (name: string) => { title: string; body: string }> = {
     body: 'You have an hour to take yours.',
   }),
 };
+
+/**
+ * One message, whichever kind of device this row is.
+ *
+ * The two transports have deliberately identical contracts — false means "this
+ * registration is dead, delete it" in both — so the caller does not have to
+ * know which one it used. A `web` row holds a serialised PushSubscription; an
+ * `android` row holds a bare FCM registration token. `ios` is reserved and
+ * unused: an iPhone gets Web Push through the installed PWA and is a `web` row.
+ */
+async function deliver(
+  platform: string,
+  token: string,
+  message: { title: string; body: string },
+): Promise<PushResult> {
+  if (platform === 'android') return await pushAndroid(token, message);
+
+  try {
+    return await push(JSON.parse(token) as PushSubscriptionJSON, message);
+  } catch {
+    // A row whose token will not parse can never be sent to. `gone` deletes
+    // it, which is the right end for a corrupt registration.
+    return 'gone';
+  }
+}
 
 /**
  * Two pushes per person per day, hard cap.
@@ -108,11 +134,17 @@ Deno.serve(async (req) => {
     .eq('id', auth.user.id)
     .maybeSingle();
 
+  /*
+    Every device, not just the browsers.
+
+    This used to filter `platform = 'web'`, which was the whole of why the APK
+    never buzzed: it is the only build with home-screen widgets and it was the
+    one excluded from the query. `deliver` picks the transport from the row.
+  */
   const { data: tokens } = await admin
     .from('push_tokens')
-    .select('id, token')
-    .eq('profile_id', partnerId)
-    .eq('platform', 'web');
+    .select('id, platform, token')
+    .eq('profile_id', partnerId);
 
   if (!tokens?.length) return json({ sent: 0, reason: 'no devices' });
 
@@ -120,13 +152,16 @@ Deno.serve(async (req) => {
   let sent = 0;
 
   for (const row of tokens) {
-    const subscription = JSON.parse(row.token) as PushSubscriptionJSON;
-    const ok = await push(subscription, message);
+    const result = await deliver(row.platform as string, row.token as string, message);
 
-    if (ok) sent++;
-    // A subscription the browser has revoked is gone for good; leaving it would
-    // mean retrying a dead endpoint on every action forever.
-    else await admin.from('push_tokens').delete().eq('id', row.id);
+    if (result === 'sent') sent++;
+    /*
+      Only `gone` deletes. A `failed` is the network or a service being down,
+      and treating that as a dead device would unsubscribe every phone the
+      couple owns during one bad minute — with no symptom except notifications
+      never arriving again.
+    */
+    if (result === 'gone') await admin.from('push_tokens').delete().eq('id', row.id);
   }
 
   if (sent > 0) {

@@ -13,11 +13,23 @@ export interface PushSubscriptionJSON {
   keys: { p256dh: string; auth: string };
 }
 
-/** Seals one message for one subscription and posts it. True if it landed. */
+/**
+ * What happened to one message.
+ *
+ * `gone` is the only one that means "delete this row", and it is deliberately
+ * not the same as `failed`. This used to be a boolean, and every caller deleted
+ * the registration on false — so a minute of Google being unreachable, or a
+ * 500 from a push service, would silently unsubscribe every device the couple
+ * owns and the only symptom would be notifications quietly never arriving
+ * again. A transport failure is about the network, not about the device.
+ */
+export type PushResult = 'sent' | 'gone' | 'failed';
+
+/** Seals one message for one subscription and posts it. */
 export async function push(
   subscription: PushSubscriptionJSON,
   message: { title: string; body: string },
-): Promise<boolean> {
+): Promise<PushResult> {
   try {
     const endpoint = new URL(subscription.endpoint);
     const jwt = await vapidToken(endpoint.origin);
@@ -35,11 +47,11 @@ export async function push(
       body,
     });
 
-    // 404 and 410 mean the browser dropped this subscription.
-    if (response.status === 404 || response.status === 410) return false;
-    return response.ok;
+    // 404 and 410 mean the browser dropped this subscription for good.
+    if (response.status === 404 || response.status === 410) return 'gone';
+    return response.ok ? 'sent' : 'failed';
   } catch {
-    return false;
+    return 'failed';
   }
 }
 
