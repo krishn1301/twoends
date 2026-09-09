@@ -19,6 +19,7 @@ import androidx.glance.LocalSize
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
+import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.height
@@ -114,6 +115,22 @@ private fun AnniversaryContent(
     val markDp = (height.value - 32f).coerceIn(24f, 40f).toInt()
     val markWide = (markDp * 1.72f).toInt()
 
+    /*
+      "146 days together" rather than "together" over "146" over "days".
+
+      The word was an eyebrow above the number and it was the first thing
+      dropped when the widget got short, which lost the only part of this
+      that is a sentence. Put next to "days" it survives every branch, and it
+      reads as the thing you would actually say out loud.
+
+      It goes only where there is width for it. On a two-cell placement the
+      mark takes most of the row and "days together" would be cut mid-word,
+      which is the failure this whole change was made to stop.
+    */
+    val unit = if (days == 1L) "day" else "days"
+    val roomForWord = LocalSize.current.width >= 200.dp
+    val trailing = if (roomForWord) "$unit together" else unit
+
     Shell(from = snapshot.myAccent, to = snapshot.theirAccent) {
         Row(
             modifier = GlanceModifier.fillMaxSize(),
@@ -123,33 +140,23 @@ private fun AnniversaryContent(
                 when {
                     // 15 + 40 + 16 = 71dp of content, against 76dp of room.
                     height >= 104.dp -> {
-                        Eyebrow(occasion ?: "together", Color.White)
+                        // Only a real occasion earns the eyebrow now; on an
+                        // ordinary day the sentence below says enough.
+                        if (occasion != null) Eyebrow(occasion, Color.White)
                         Counter("$days", size = 30, color = Color.White)
-                        Headline(
-                            if (days == 1L) "day" else "days",
-                            size = 12,
-                            color = Color.White,
-                        )
+                        Headline(trailing, size = 12, color = Color.White, maxLines = 1)
                     }
                     // The eyebrow goes first: the two faces beside it already
                     // say whose count this is.
                     height >= 84.dp -> {
                         Counter("$days", size = 26, color = Color.White)
-                        Headline(
-                            if (days == 1L) "day" else "days",
-                            size = 11,
-                            color = Color.White,
-                        )
+                        Headline(trailing, size = 11, color = Color.White, maxLines = 1)
                     }
                     // One line, so there is no second line to lose.
                     else -> Row(verticalAlignment = Alignment.CenterVertically) {
                         Counter("$days", size = 22, color = Color.White)
                         Spacer(modifier = GlanceModifier.width(5.dp))
-                        Headline(
-                            if (days == 1L) "day" else "days",
-                            size = 11,
-                            color = Color.White,
-                        )
+                        Headline(trailing, size = 11, color = Color.White, maxLines = 1)
                     }
                 }
             }
@@ -535,6 +542,43 @@ private fun DistanceContent(
     */
     val heading = title ?: "—"
 
+    /*
+      The run between each face and the number.
+
+      Two people and a figure sitting in the space between them is already the
+      idea; the lines are what make the space read as *distance* rather than as
+      three things that happen to be in a row. It is the same drawing the app
+      puts between the two faces on Home, which is where somebody will have seen
+      it first.
+
+      Stretched by weight rather than measured: whatever the number and the two
+      faces do not use, the two lines share equally, so the figure stays centred
+      at every width the launcher hands out.
+
+      There are no lines when there is nothing to say. With location off the
+      middle holds a sentence instead of a reading, and a line drawn to it would
+      be pointing at an explanation.
+    */
+    val joined = title != null
+
+    /*
+      The heart is the one thing here that is not a fact, which is why it is the
+      first thing to go when the widget is short — and why it is worth having at
+      all. 80dp is a 24sp number plus the heart plus `Shell`'s padding.
+    */
+    val withHeart = joined && height >= 80.dp
+
+    // The weight comes from the call site: `defaultWeight` is a `RowScope`
+    // extension and does not exist inside a plain composable lambda.
+    val rule = @Composable { modifier: GlanceModifier ->
+        Image(
+            provider = ImageProvider(hairline(120, 3, 0x33FFFFFF)),
+            contentDescription = null,
+            contentScale = ContentScale.FillBounds,
+            modifier = modifier.height(1.dp),
+        )
+    }
+
     Shell(from = tint(snapshot.theirAccent)) {
         Row(
             modifier = GlanceModifier.fillMaxSize(),
@@ -542,34 +586,54 @@ private fun DistanceContent(
         ) {
             face(mine, snapshot.myAccent, snapshot.myName)
 
-            /*
-              `defaultWeight` is what pushes the two faces to the ends: the
-              middle takes every pixel neither of them wanted. That is the whole
-              layout, and it is why this needs no size branch of its own.
-            */
+            if (joined) {
+                Spacer(modifier = GlanceModifier.width(10.dp))
+                rule(GlanceModifier.defaultWeight())
+                Spacer(modifier = GlanceModifier.width(10.dp))
+            }
+
             Column(
-                modifier = GlanceModifier.defaultWeight(),
+                modifier = if (joined) GlanceModifier else GlanceModifier.defaultWeight(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Counter(
                     text = heading,
+                    // A step smaller when the heart is under it, so the pair
+                    // fits the room rather than the heart being clipped off the
+                    // bottom of a column that was already full.
                     size = when {
-                        heading.length > 9 -> 17
-                        heading.length > 6 -> 22
-                        else -> 28
+                        heading.length > 9 -> if (withHeart) 15 else 17
+                        heading.length > 6 -> if (withHeart) 19 else 22
+                        else -> if (withHeart) 24 else 28
                     },
                     color = accent,
                 )
 
                 /*
-                  The note survives only where it is still telling you
-                  something. With a real reading between two faces it repeated
-                  the number back — "km from Sansu Baby" under "800 km" — and
-                  the request was to stop wasting the room on it. When location
-                  is off it is the only thing on the widget that says why.
+                  The heart goes under the number, small, and only where there is
+                  height for it. It is the one thing on this widget that is not a
+                  fact — which is why it is the first thing to go, and why it is
+                  worth having at all.
                 */
-                if (title == null && height >= 84.dp) {
+                if (withHeart) {
+                    Spacer(modifier = GlanceModifier.height(2.dp))
+                    Image(
+                        provider = ImageProvider(
+                            heartMark(13 * 3, lens(snapshot.myAccent, snapshot.theirAccent)),
+                        ),
+                        contentDescription = null,
+                        modifier = GlanceModifier.width(13.dp).height(13.dp),
+                    )
+                }
+
+                /*
+                  The note survives only where it is still telling you something.
+                  With a real reading between two faces it repeated the number it
+                  sat under. When location is off it is the only thing on the
+                  widget that says why.
+                */
+                if (!joined && height >= 84.dp) {
                     Spacer(modifier = GlanceModifier.height(4.dp))
                     Headline(
                         text = if (snapshot.paired) "Both of you turn it on" else "Pair first",
@@ -578,6 +642,12 @@ private fun DistanceContent(
                         maxLines = 1,
                     )
                 }
+            }
+
+            if (joined) {
+                Spacer(modifier = GlanceModifier.width(10.dp))
+                rule(GlanceModifier.defaultWeight())
+                Spacer(modifier = GlanceModifier.width(10.dp))
             }
 
             face(theirs, snapshot.theirAccent, snapshot.theirName)

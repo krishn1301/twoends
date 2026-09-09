@@ -330,6 +330,48 @@ fun pairMark(
  * `countdowns.cover_path` exists in the schema and no screen has ever written
  * to it, so a photo countdown would render empty for every user in the world.
  */
+/**
+ * A hairline, for the run between a face and the number beside it.
+ *
+ * Stretched by the caller with `ContentScale.FillBounds`, so the bitmap only
+ * has to carry the colour and the cap — the width it is drawn at is whatever
+ * the row had left over. One pixel of source would alias into a grey smear at
+ * the ends, hence a real rounded rect at a real size.
+ */
+fun hairline(widthPx: Int, heightPx: Int, colour: Int): Bitmap {
+    val (w, h) = fit(widthPx, heightPx)
+    val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(out)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    paint.color = colour
+    canvas.drawRoundRect(RectF(0f, 0f, w.toFloat(), h.toFloat()), h / 2f, h / 2f, paint)
+    return out
+}
+
+/**
+ * The heart on its own, small, for the middle of the distance widget.
+ *
+ * `pairMark` draws one in the gap between two faces; this is the same silhouette
+ * when the two faces are at opposite ends of a widget and there is no gap to put
+ * it in. Same path, so the two cannot drift.
+ */
+fun heartMark(sizePx: Int, colour: Int): Bitmap {
+    val size = sizePx.coerceIn(4, 128)
+    val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(out)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    paint.color = colour
+    /*
+      0.92, not a third. `heartPath` takes `size` as the width the heart spans —
+      `r = size / 4` and the triangle runs from `cx - 2r` to `cx + 2r` — so
+      passing a fraction of the bitmap draws a heart that fraction of the way
+      across it. At 0.34 inside an 11dp square the result was four device pixels
+      of pink and read as a speck of dust.
+    */
+    canvas.drawPath(heartPath(size / 2f, size * 0.46f, size * 0.92f), paint)
+    return out
+}
+
 fun progressRule(fraction: Float, accent: Int, widthPx: Int, heightPx: Int): Bitmap {
     val (w, h) = fit(widthPx, heightPx)
     val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)

@@ -227,17 +227,32 @@ const previews = {
     const [w, h] = SIZES.wide;
     const s = card(w, h, tint(IRIS));
 
-    const r = 46;
-    const pad = 24;
+    const r = 38;
+    const pad = 20;
     faceAt(s, pad + r, h / 2, r, CORAL, 'a');
     faceAt(s, w - pad - r, h / 2, r, IRIS, 's');
 
     const reading = '1150 km';
     const gap = w - 2 * (pad + 2 * r) - 24;
-    let scale = 7;
-    while (scale > 3 && textWidth(reading, scale) > gap) scale -= 1;
+    // Leave room for a run of line on each side, not just for the words.
+    let scale = 6;
+    while (scale > 3 && textWidth(reading, scale) > gap - 90) scale -= 1;
 
-    label(s, reading, (w - textWidth(reading, scale)) / 2, h / 2 - (7 * scale) / 2, scale, IRIS);
+    const textW = textWidth(reading, scale);
+    const cy = h / 2 - 10;
+    label(s, reading, (w - textW) / 2, cy - (7 * scale) / 2, scale, IRIS);
+
+    /*
+      The run from each face to the figure. Two people and a number between them
+      is the idea; the lines are what make the space between read as distance
+      rather than as three things in a row.
+    */
+    const rule = (x0, x1) => (x, y) => x >= x0 && x <= x1 && Math.abs(y - cy) <= 1.5;
+    s.shape(rule(pad + 2 * r + 12, (w - textW) / 2 - 14), () => ASH);
+    s.shape(rule((w + textW) / 2 + 14, w - pad - 2 * r - 12), () => ASH);
+
+    s.shape(heart(w / 2, cy + (7 * scale) / 2 + 20, 16), () => lens(CORAL, IRIS));
+
     return png(s.px, w, h, { text: SIGNATURE });
   },
 
