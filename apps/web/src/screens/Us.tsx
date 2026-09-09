@@ -410,7 +410,35 @@ export function Us() {
             </div>
           ) : push === 'unsupported' ? (
             <div className="px-4 py-3.5">
-              <p className="text-ash text-sm">This browser cannot do notifications.</p>
+              {/*
+                Two different things arrive here as `unsupported`, and only one
+                of them is a browser being old.
+
+                The other is this app's own APK. Android's WebView exposes no
+                Notification API to an installed Capacitor app, so the native
+                build can never register — and it is the only build with
+                home-screen widgets. The platform that can show you a photograph
+                without being opened is the one that cannot tap you on the
+                shoulder, which is the opposite of what anybody would guess.
+
+                "This browser cannot do notifications" is true and useless
+                inside an app that is not a browser: it reads as a fault and
+                offers nothing to do about it.
+              */}
+              {canUpdate() ? (
+                <>
+                  <p className="text-sm font-medium">The widgets are the nudge here</p>
+                  <p className="text-ash mt-1.5 text-sm leading-relaxed">
+                    Android gives an installed app no way to ask for notifications, so this one
+                    cannot buzz. It is also the only place TwoEnds has home-screen widgets, and
+                    those redraw on their own — a snap, a drawing or an answer turns up there
+                    without anybody being nudged. If you want the buzz as well, open the site in
+                    Chrome and add it to your Home Screen; that copy can notify.
+                  </p>
+                </>
+              ) : (
+                <p className="text-ash text-sm">This browser cannot do notifications.</p>
+              )}
             </div>
           ) : (
             <Row label={push === 'on' ? 'On' : 'Off'}>
