@@ -212,15 +212,32 @@ const SIZES = { wide: [420, 210], square: [420, 330] };
 
 const previews = {
   /*
-    Distance, the one that was asked for: the figure across the top, both faces
-    underneath, a heart in the gap between them.
+    Distance: one of you at each end, the number in the gap.
+
+    It used to be a square with the figure across the top and both faces
+    together underneath. That put the two people in the middle of a widget about
+    how far apart they are, and left the width doing nothing — so the shape is a
+    strip now and the gap between the faces is the subject.
+
+    The type scale is chosen against the gap rather than fixed, because "here"
+    and "1150 km" are very different widths and a mockup that overflows is worse
+    than no mockup.
   */
   distance: () => {
-    const [w, h] = SIZES.square;
+    const [w, h] = SIZES.wide;
     const s = card(w, h, tint(IRIS));
-    label(s, 'apart', (w - textWidth('apart', 3)) / 2, 58, 3, IRIS);
-    label(s, '1150 km', (w - textWidth('1150 km', 7)) / 2, 92, 7, IRIS);
-    pairMark(s, w / 2, 226, 30, 'apart');
+
+    const r = 46;
+    const pad = 24;
+    faceAt(s, pad + r, h / 2, r, CORAL, 'a');
+    faceAt(s, w - pad - r, h / 2, r, IRIS, 's');
+
+    const reading = '1150 km';
+    const gap = w - 2 * (pad + 2 * r) - 24;
+    let scale = 7;
+    while (scale > 3 && textWidth(reading, scale) > gap) scale -= 1;
+
+    label(s, reading, (w - textWidth(reading, scale)) / 2, h / 2 - (7 * scale) / 2, scale, IRIS);
     return png(s.px, w, h, { text: SIGNATURE });
   },
 

@@ -1,24 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The square one: the distance across the top, both of you underneath.
+  The wide one: one of you at each end, the distance in the gap.
 
-  110dp rather than the 70dp this started at, because two faces you can actually
-  recognise need the room — and because `targetCellHeight` below is an API 31
-  attribute that the phone this is built for ignores completely. On API 29 only
-  `minHeight` is read, and the launcher rounds it up to whole cells on a grid
-  that varies by device. So this number is the only one doing any work here, and
-  the composable branches on the size it is really handed.
+  It was a 2x2 square, and on a real home screen that put both faces huddled in
+  the middle of it with the width unused, under a label reading "apart" that
+  said what the number already said. A widget about how far apart two people are
+  should be the widest thing on the screen, and the gap between the two faces
+  should be doing the talking.
 
-  `widget_distance_strip.xml` is the same widget in a row, offered separately so
-  the choice happens in the picker rather than by dragging a resize handle.
+  So: three cells by one, and the composable fills it as a row. `targetCellWidth`
+  and `targetCellHeight` are API 31 attributes that older launchers ignore
+  completely — on those only `minWidth` and `minHeight` are read and rounded up
+  to whole cells on a grid that varies by device — so the two sets of numbers
+  have to agree about the same shape rather than one correcting the other.
+
+  **A widget already on a home screen does not resize itself when this changes.**
+  An instance placed before this has to be removed and added again to take the
+  new shape; the drawing adapts either way.
+
+  `widget_distance_strip.xml` is the same widget offered smaller, for a row
+  above the apps.
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="140dp"
-    android:minHeight="110dp"
-    android:targetCellWidth="2"
-    android:targetCellHeight="2"
-    android:minResizeWidth="140dp"
-    android:minResizeHeight="90dp"
+    android:minWidth="250dp"
+    android:minHeight="80dp"
+    android:targetCellWidth="3"
+    android:targetCellHeight="1"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="60dp"
     android:description="@string/widget_distance_description"
     android:updatePeriodMillis="0"
     android:resizeMode="horizontal|vertical"

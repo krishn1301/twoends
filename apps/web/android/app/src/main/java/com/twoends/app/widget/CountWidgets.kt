@@ -97,15 +97,61 @@ private fun AnniversaryContent(
         theirName = snapshot.theirName,
     )
 
+    /*
+      Three heights, because Glance clips and does not scale.
+
+      "days" was being cut in half along its baseline at the size this widget
+      actually arrives on a home screen. `Shell` spends 28dp of the height on
+      padding, and eyebrow + 32sp counter + 12sp line is about 73dp of
+      content — so on the one-cell row a 70dp `minHeight` earns, the last
+      line had nowhere to go. Nothing announced it: the widget drew, and the
+      bottom of one word was missing.
+
+      The numbers in each branch are the content it needs, not guesses. A
+      line of text occupies roughly 1.3 times its point size in dp.
+    */
+    val height = LocalSize.current.height
+    val markDp = (height.value - 32f).coerceIn(24f, 40f).toInt()
+    val markWide = (markDp * 1.72f).toInt()
+
     Shell(from = snapshot.myAccent, to = snapshot.theirAccent) {
         Row(
             modifier = GlanceModifier.fillMaxSize(),
-            verticalAlignment = Alignment.Bottom,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = GlanceModifier.defaultWeight()) {
-                Eyebrow(occasion ?: "together", Color.White)
-                Counter("$days", size = 32, color = Color.White)
-                Headline(if (days == 1L) "day" else "days", size = 12, color = Color.White)
+                when {
+                    // 15 + 40 + 16 = 71dp of content, against 76dp of room.
+                    height >= 104.dp -> {
+                        Eyebrow(occasion ?: "together", Color.White)
+                        Counter("$days", size = 30, color = Color.White)
+                        Headline(
+                            if (days == 1L) "day" else "days",
+                            size = 12,
+                            color = Color.White,
+                        )
+                    }
+                    // The eyebrow goes first: the two faces beside it already
+                    // say whose count this is.
+                    height >= 84.dp -> {
+                        Counter("$days", size = 26, color = Color.White)
+                        Headline(
+                            if (days == 1L) "day" else "days",
+                            size = 11,
+                            color = Color.White,
+                        )
+                    }
+                    // One line, so there is no second line to lose.
+                    else -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        Counter("$days", size = 22, color = Color.White)
+                        Spacer(modifier = GlanceModifier.width(5.dp))
+                        Headline(
+                            if (days == 1L) "day" else "days",
+                            size = 11,
+                            color = Color.White,
+                        )
+                    }
+                }
             }
             Image(
                 provider = ImageProvider(
@@ -116,13 +162,13 @@ private fun AnniversaryContent(
                         theirAccent = snapshot.theirAccent,
                         myInitial = snapshot.myName,
                         theirInitial = snapshot.theirName,
-                        widthPx = 62 * 3,
-                        heightPx = 36 * 3,
+                        widthPx = markWide * 3,
+                        heightPx = markDp * 3,
                         style = MarkStyle.Together,
                     ),
                 ),
                 contentDescription = "${snapshot.myName} and ${snapshot.theirName}",
-                modifier = GlanceModifier.width(62.dp).height(36.dp),
+                modifier = GlanceModifier.width(markWide.dp).height(markDp.dp),
             )
         }
     }
@@ -172,35 +218,69 @@ private fun CountdownContent(snapshot: WidgetStore.Snapshot) {
     val span = if (since != null && left > 0L) since + left else 0L
     val progress = if (span > 0L) since!!.toFloat() / span else 1f
 
+    val count = if (left < 0L) "—" else "$left"
+    val line = when {
+        left == 0L -> "today · $title"
+        left < 0L -> title
+        else -> "${if (left == 1L) "day" else "days"} · $title"
+    }
+
+    /*
+      Three heights, for the reason the anniversary widget gives above, and
+      this one had the most to lose. Eyebrow, a 34sp number, a 13sp line, a
+      spacer and the rule come to about 87dp of content and `Shell` spends
+      another 28, so any instance shorter than 118dp was throwing away
+      whichever end the alignment did not favour.
+
+      Widening a widget on a Samsung grid *shortens* it, which is why this
+      looked right where it was placed and lost both its title and its
+      subtitle the moment it was dragged wider — the one change nobody would
+      expect to cost height.
+
+      The progress rule goes first. It is the only thing here that repeats
+      something already on the screen: the number is the fact and the rule is
+      the feeling, so it is the right thing to lose when there is no room.
+    */
+    val height = LocalSize.current.height
+
     Shell(from = tint(snapshot.theirAccent)) {
-        Column(modifier = GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.Bottom) {
-            Eyebrow("countdown", accent)
-            Counter(
-                text = when {
-                    left < 0L -> "—"
-                    else -> "$left"
-                },
-                size = 34,
-                color = accent,
-            )
-            Headline(
-                text = when {
-                    left == 0L -> "today · $title"
-                    left < 0L -> title
-                    else -> "${if (left == 1L) "day" else "days"} · $title"
-                },
-                size = 13,
-                color = Chalk,
-                maxLines = 1,
-            )
-            Spacer(modifier = GlanceModifier.height(7.dp))
-            Image(
-                provider = ImageProvider(
-                    progressRule(progress, snapshot.theirAccent, widthPx = 132 * 3, heightPx = 9),
-                ),
-                contentDescription = null,
-                modifier = GlanceModifier.width(132.dp).height(3.dp),
-            )
+        Column(
+            modifier = GlanceModifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            when {
+                // 15 + 44 + 18 + 7 + 3 = 87dp of content, against 90dp of room.
+                height >= 118.dp -> {
+                    Eyebrow("countdown", accent)
+                    Counter(count, size = 34, color = accent)
+                    Headline(line, size = 13, color = Chalk, maxLines = 1)
+                    Spacer(modifier = GlanceModifier.height(7.dp))
+                    Image(
+                        provider = ImageProvider(
+                            progressRule(
+                                progress,
+                                snapshot.theirAccent,
+                                widthPx = 132 * 3,
+                                heightPx = 9,
+                            ),
+                        ),
+                        contentDescription = null,
+                        modifier = GlanceModifier.width(132.dp).height(3.dp),
+                    )
+                }
+                // 15 + 37 + 17 = 69dp, against 68. The rule is what goes.
+                height >= 96.dp -> {
+                    Eyebrow("countdown", accent)
+                    Counter(count, size = 28, color = accent)
+                    Headline(line, size = 12, color = Chalk, maxLines = 1)
+                }
+                // One row, so there is no end of a column to cut off.
+                else -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    Counter(count, size = 26, color = accent)
+                    Spacer(modifier = GlanceModifier.width(8.dp))
+                    Headline(line, size = 12, color = Chalk, maxLines = 1)
+                }
+            }
         }
     }
 }
@@ -400,10 +480,15 @@ class DistanceStripReceiver : GlanceAppWidgetReceiver() {
  * `packages/core/src/distance.ts` decides whether a reading is a number, "same
  * city" or "here", and this draws whatever it decided.
  *
- * The shape: the distance across the top, the two of you underneath, a heart in
- * the gap. That is what was asked for, and it is right — the number is what you
- * glance at, and the faces are what make it mean something rather than being a
- * fact about two dots.
+ * **The shape is one of you at each end and the number in the gap.** It used to
+ * stack — an "apart" label, the number, then both faces side by side in the
+ * middle under it — and on a real home screen that read as a column of things
+ * with the two people huddled in the centre and the width unused. The word
+ * "apart" is gone with it: "800 km" between two faces is not ambiguous, and a
+ * label that says what a number obviously means is a label nobody reads twice.
+ *
+ * The gap between them *is* the distance, which is the only thing this widget
+ * has ever been about. Making it the widest thing on the screen is the point.
  */
 @Composable
 private fun DistanceContent(
@@ -413,95 +498,89 @@ private fun DistanceContent(
 ) {
     val accent = Color(snapshot.theirAccent)
     val title = snapshot.distanceTitle
+    val height = LocalSize.current.height
 
     /*
-      Branch on the size actually delivered, not on which provider this is.
+      The faces grow with the widget and stop before they eat it.
 
-      `targetCellWidth` and `targetCellHeight` are API 31 attributes and are
-      ignored outright on the phone this is built for — only `minWidth` and
-      `minHeight` are consulted, and the launcher then rounds up to whole cells
-      on a grid that differs per device and per user setting. So a "2x1" widget
-      arrives at a height nobody declared. That is exactly how the streak widget
-      once ended up bottom-aligned in a tall black tile with an empty top half.
-
-      It also covers the migration: raising `minHeight` does not resize the
-      instances already sitting on someone's home screen, so the widget placed
-      last night keeps arriving strip-shaped until it is removed and re-added.
+      28dp is `Shell`'s padding, top and bottom. Clamped at 30 because below
+      that a photograph is a smudge and the initial is unreadable, and at 64
+      because past it the number stops being the loudest thing.
     */
-    val tall = LocalSize.current.height >= 96.dp
+    val faceDp = (height.value - 28f).coerceIn(30f, 64f).toInt()
 
-    /*
-      The note is the first thing to go, and 150dp is where it earns its place.
-
-      Measured rather than guessed: eyebrow 15 + counter 30 + spacer 6 + mark 40
-      is 91dp of content, and `Shell` adds 14dp of padding top and bottom, so the
-      widget without a note needs 119dp. A line of 11sp text plus its spacer is
-      another 21. At 130 the first version overflowed and the note came out
-      sliced in half along its baseline, which looks like a bug rather than a
-      tight fit — because it is one.
-    */
-    val roomForNote = LocalSize.current.height >= 150.dp
-
-    val mark = @Composable { width: Int, height: Int ->
+    val face = @Composable { photo: Bitmap?, colour: Int, name: String ->
         Image(
             provider = ImageProvider(
-                pairMark(
-                    mine = mine,
-                    theirs = theirs,
-                    myAccent = snapshot.myAccent,
-                    theirAccent = snapshot.theirAccent,
-                    myInitial = snapshot.myName,
-                    theirInitial = snapshot.theirName,
-                    widthPx = width * 3,
-                    heightPx = height * 3,
-                    style = if (title == null) MarkStyle.Locked else MarkStyle.Apart,
+                avatarBitmap(
+                    photo = photo,
+                    accent = colour,
+                    initial = name,
+                    sizePx = faceDp * 3,
+                    // Faded when there is nothing to show, which is the same
+                    // signal the old locked mark gave without a second layout.
+                    alpha = if (title == null) 150 else 255,
                 ),
             ),
-            contentDescription = "${snapshot.myName} and ${snapshot.theirName}",
-            modifier = GlanceModifier.width(width.dp).height(height.dp),
+            contentDescription = name,
+            modifier = GlanceModifier.width(faceDp.dp).height(faceDp.dp),
         )
     }
 
-    // Locked and unlocked share a layout on purpose. A widget that still shows
-    // two faces is worth keeping on a home screen while you decide; three lines
-    // of grey text is what gets dragged to the bin — and with location off by
-    // default, this is the state most people meet first.
+    /*
+      Locked and unlocked share a layout on purpose. A widget that still shows
+      two faces is worth keeping on a home screen while you decide; three lines
+      of grey text is what gets dragged to the bin — and with location off by
+      default, this is the state most people meet first.
+    */
     val heading = title ?: "—"
-    val note = snapshot.distanceNote
-        ?: if (snapshot.paired) "Both of you turn it on" else "Pair first"
 
     Shell(from = tint(snapshot.theirAccent)) {
-        if (tall) {
+        Row(
+            modifier = GlanceModifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            face(mine, snapshot.myAccent, snapshot.myName)
+
+            /*
+              `defaultWeight` is what pushes the two faces to the ends: the
+              middle takes every pixel neither of them wanted. That is the whole
+              layout, and it is why this needs no size branch of its own.
+            */
             Column(
-                modifier = GlanceModifier.fillMaxSize(),
+                modifier = GlanceModifier.defaultWeight(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Eyebrow(if (title == null) "distance" else "apart", accent)
-                Counter(text = heading, size = if (heading.length > 7) 20 else 26, color = accent)
-                Spacer(modifier = GlanceModifier.height(6.dp))
-                mark(126, 40)
-                if (roomForNote) {
-                    Spacer(modifier = GlanceModifier.height(6.dp))
-                    Headline(text = note, size = 11, color = Ash, maxLines = 1)
-                }
-            }
-        } else {
-            Row(
-                modifier = GlanceModifier.fillMaxSize(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                mark(88, 32)
-                Spacer(modifier = GlanceModifier.width(10.dp))
-                Column {
-                    Eyebrow(if (title == null) "distance" else "apart", accent)
-                    Counter(
-                        text = snapshot.distanceLabel ?: "—",
-                        size = if ((snapshot.distanceLabel?.length ?: 1) > 4) 17 else 24,
-                        color = accent,
+                Counter(
+                    text = heading,
+                    size = when {
+                        heading.length > 9 -> 17
+                        heading.length > 6 -> 22
+                        else -> 28
+                    },
+                    color = accent,
+                )
+
+                /*
+                  The note survives only where it is still telling you
+                  something. With a real reading between two faces it repeated
+                  the number back — "km from Sansu Baby" under "800 km" — and
+                  the request was to stop wasting the room on it. When location
+                  is off it is the only thing on the widget that says why.
+                */
+                if (title == null && height >= 84.dp) {
+                    Spacer(modifier = GlanceModifier.height(4.dp))
+                    Headline(
+                        text = if (snapshot.paired) "Both of you turn it on" else "Pair first",
+                        size = 11,
+                        color = Ash,
+                        maxLines = 1,
                     )
                 }
             }
+
+            face(theirs, snapshot.theirAccent, snapshot.theirName)
         }
     }
 }
