@@ -299,7 +299,9 @@ export function Us() {
     else await refresh();
   }
 
-  const elapsed = couple?.started_on ? timeTogether(couple.started_on, now) : null;
+  const elapsed = couple?.started_on
+    ? timeTogether(couple.started_on, now, couple.ended_on)
+    : null;
   const unpair = unpairState(couple?.unpair_requested_by, profile?.id);
 
   return (

@@ -136,6 +136,7 @@ export const useShared = create<SharedState>((set) => ({
       theirAccentKey: partner?.accent_key ?? 'rose',
       coupleId: couple.id,
       startedOn: couple.started_on ?? null,
+      endedOn: couple.ended_on ?? null,
       // Anchors, so a widget can work out that today is the day without the app
       // having been opened — which is the only morning it matters on.
       myBirthday: profile?.birthday ?? null,

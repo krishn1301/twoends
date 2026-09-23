@@ -46,6 +46,14 @@ export interface Couple {
   member_a: string;
   member_b: string | null;
   started_on: string | null;
+  /**
+   * The day it ended, or null, and while it is null nothing behaves differently.
+   *
+   * Set, and the togetherness counter stops there and no occasion fires again —
+   * see migration 32. It hides and deletes nothing; every row either of them
+   * made stays exactly where it is.
+   */
+  ended_on: string | null;
   relationship_type: RelationshipType | null;
   day_timezone: string | null;
   unpair_requested_by: string | null;
@@ -213,7 +221,7 @@ export const useSession = create<SessionState>((set, get) => ({
       supabase
         .from('couples')
         .select(
-          'id, member_a, member_b, started_on, relationship_type, day_timezone, unpair_requested_by, adult_packs_enabled, together',
+          'id, member_a, member_b, started_on, ended_on, relationship_type, day_timezone, unpair_requested_by, adult_packs_enabled, together',
         )
         .maybeSingle(),
     ]);

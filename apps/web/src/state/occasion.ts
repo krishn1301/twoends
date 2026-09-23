@@ -64,11 +64,19 @@ export function useOccasion(): Occasion | null {
     () =>
       occasionFor({
         startedOn: couple?.started_on ?? null,
+        endedOn: couple?.ended_on ?? null,
         myBirthday: profile?.birthday,
         theirBirthday: partner?.birthday,
         localDate,
         minutesOfDay,
       }),
-    [couple?.started_on, profile?.birthday, partner?.birthday, localDate, minutesOfDay],
+    [
+      couple?.started_on,
+      couple?.ended_on,
+      profile?.birthday,
+      partner?.birthday,
+      localDate,
+      minutesOfDay,
+    ],
   );
 }

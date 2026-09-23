@@ -256,9 +256,22 @@ fun Empty(eyebrow: String, line: String, accent: Int) {
  * latter is wrong by a day twice a year in any zone that observes daylight
  * saving, and wrong in a way nobody notices until an anniversary is off.
  */
-fun daysSince(isoDate: String?, today: LocalDate = LocalDate.now()): Long? {
+/**
+ * Whole days from an anchor to today, or to `endedOn` when the count has been
+ * stopped.
+ *
+ * The end date defaults to null, so every other caller — the countdown asks
+ * this for its progress rule — is unchanged.
+ */
+fun daysSince(
+    isoDate: String?,
+    today: LocalDate = LocalDate.now(),
+    endedOn: String? = null,
+): Long? {
     val start = parseDate(isoDate) ?: return null
-    return ChronoUnit.DAYS.between(start, today).coerceAtLeast(0)
+    val ended = parseDate(endedOn)
+    val stop = if (ended != null && ended.isBefore(today)) ended else today
+    return ChronoUnit.DAYS.between(start, stop).coerceAtLeast(0)
 }
 
 fun daysUntil(isoInstant: String?, today: LocalDate = LocalDate.now()): Long? {
@@ -313,7 +326,12 @@ fun occasionToday(
     theirBirthday: String?,
     theirName: String,
     today: LocalDate = LocalDate.now(),
+    endedOn: String? = null,
 ): String? {
+    // Nothing is announced after the end — the same rule, and the same
+    // reasoning, as the guard at the top of `occasionFor` in core.
+    parseAnchor(endedOn)?.let { if (!today.isBefore(it)) return null }
+
     val started = parseAnchor(startedOn)
 
     if (started != null) {

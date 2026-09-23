@@ -42,6 +42,7 @@ object WidgetStore {
         val myAccent: Int,
         val theirAccent: Int,
         val startedOn: String?,
+        val endedOn: String?,
         /**
          * Dates, not a finished label.
          *
@@ -96,6 +97,7 @@ object WidgetStore {
         myAccent = 0xFFE8A87C.toInt(),
         theirAccent = 0xFFB6A6E8.toInt(),
         startedOn = null,
+        endedOn = null,
         myBirthday = null,
         theirBirthday = null,
         streak = 0,
@@ -127,6 +129,7 @@ object WidgetStore {
                 myAccent = parseColor(json.optString("myAccent"), EMPTY.myAccent),
                 theirAccent = parseColor(json.optString("theirAccent"), EMPTY.theirAccent),
                 startedOn = json.optStringOrNull("startedOn"),
+                endedOn = json.optStringOrNull("endedOn"),
                 myBirthday = json.optStringOrNull("myBirthday"),
                 theirBirthday = json.optStringOrNull("theirBirthday"),
                 streak = json.optInt("streak", 0),

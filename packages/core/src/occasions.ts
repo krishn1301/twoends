@@ -100,6 +100,15 @@ export const fillsTheScreen = (kind: OccasionKind): boolean => kind !== 'minute'
 export interface OccasionInput {
   /** The couple's start date, `YYYY-MM-DD`. */
   startedOn: string | null;
+  /**
+   * The day it ended, `YYYY-MM-DD`, or null.
+   *
+   * Set, and from that day on there are no occasions at all: no anniversary, no
+   * milestone, no monthly, no minute. Not a filter over which ones still apply
+   * — every one of them is an announcement about a thing that is over, and the
+   * monthly is the worst of them because it comes round twelve times a year.
+   */
+  endedOn?: string | null;
   /** The reader's birthday, `YYYY-MM-DD`. */
   myBirthday?: string | null;
   /** Their partner's. */
@@ -125,6 +134,16 @@ export interface OccasionInput {
 export function occasionFor(input: OccasionInput): Occasion | null {
   const today = split(input.localDate);
   if (!today) return null;
+
+  /*
+    Before anything else, because there is no occasion this should survive.
+
+    A birthday is the only one that might argue for itself, and it loses: the
+    copy for it is written to two people who are together, and an app that has
+    been told the pair has ended has no business being the thing that brings
+    that up.
+  */
+  if (input.endedOn && input.localDate >= input.endedOn) return null;
 
   const started = split(input.startedOn);
 

@@ -85,12 +85,55 @@ Commands: `pnpm db:push`, `pnpm db:types`, `pnpm test:rls`, `pnpm verify`,
 
 **Everything is built, shipped and used on real phones. `v1.3.0` is the current
 release, and the README's Android link serves it.** 375 unit tests, 180 RLS,
-migrations 25–31.
+migrations 25–32.
 
 The list below used to say what had not been tried on a device. It has all been
 tried now, and the phase that did it is the most productive this project has
 had — not because much was written, but because almost everything on that list
 turned out to be broken in a way no amount of Chrome could show.
+
+### Stopping the counter
+
+Migration 32 adds one nullable `ended_on` to `couples`, and it exists because
+there was no way for a pair who had ended to put the number down.
+
+Everything in this app derives from an anchor at draw time — `started_on` is a
+date, nothing caches a label, and that is exactly what makes a widget right on a
+morning nobody opened the app. It also meant the count could only ever go up.
+The only way to stop it was to delete the account, which takes the photographs,
+the drawings, the capsules and every recap with it. Nobody should be asked to
+choose between those two things.
+
+- `timeTogether(startedOn, now, endedOn?)` counts to the end date instead of to
+  now, and is clamped to `now` as well so a date typed for next month cannot
+  fast-forward the count. It freezes at local midnight, so the hours, minutes
+  and seconds are not left running under a day count that is standing still.
+- `occasionFor` returns **null** from that day on — anniversary, milestone,
+  monthly, minute and birthday alike. The monthly is the one that matters: it
+  lands on the same day of the month, twelve times a year, and would otherwise
+  say how long a thing that is over went on for. The birthday is the only one
+  with an argument for itself and it loses, because that copy is written to two
+  people who are together.
+- Gated in `packages/core`, so the app card and the scheduled push inherit it
+  from one place. `occasions/index.ts` selects `ended_on` and passes it; the
+  guard sits above everything else in `occasionFor`.
+- The widget has its own copy in `Theme.kt` — `daysSince` takes an `endedOn` and
+  `occasionToday` returns null past it — for the same reason the milestone list
+  is duplicated there: a widget cannot run TypeScript, and a label written into
+  the snapshot at push time is a label written when the app was last opened.
+  **`widget-occasions.test.ts` does not yet guard this half.** The milestone
+  drift it was written for is checked; the end date is not.
+
+**It hides and deletes nothing.** Every photograph, canvas, answer, capsule and
+recap stays exactly where it is and stays readable by both of them. Recaps go on
+being generated — `catchUpRecaps` runs off `started_on` when somebody opens
+Dates and never asked the occasion anything. The ordinary pushes are untouched
+too: "they sent a photo" is an event, not an announcement about the pair.
+
+There is **no UI**. It is set in the database and cleared the same way, and
+clearing it starts the count again from the same anchor — a property worth
+having on purpose rather than a shortcut. `packages/core/src/ended.test.ts`
+covers both halves.
 
 ### Phase 19 — what the phones found
 

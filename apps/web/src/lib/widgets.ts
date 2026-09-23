@@ -27,6 +27,13 @@ interface WidgetSnapshot {
   myAccent: string;
   theirAccent: string;
   startedOn: string | null;
+  /**
+   * The day it ended, or null. An anchor like the others, and for the same
+   * reason: the widget has to be able to work out that the count is over on a
+   * morning nobody opened the app, which a label written at push time could
+   * not do.
+   */
+  endedOn: string | null;
   /*
     Sent as dates, not as a finished label, and this is the one place in the
     snapshot where that is the right way round.
@@ -162,6 +169,7 @@ export interface WidgetInput {
   theirAccentKey: string;
   coupleId: string;
   startedOn: string | null;
+  endedOn: string | null;
   myBirthday: string | null;
   theirBirthday: string | null;
   snaps: Snap[];
@@ -207,6 +215,7 @@ export async function syncWidgets(input: WidgetInput): Promise<void> {
     myAccent: getAccent(input.myAccentKey).onDark,
     theirAccent: getAccent(input.theirAccentKey).onDark,
     startedOn: input.startedOn,
+    endedOn: input.endedOn,
     myBirthday: input.myBirthday,
     theirBirthday: input.theirBirthday,
     streak: streak.current,

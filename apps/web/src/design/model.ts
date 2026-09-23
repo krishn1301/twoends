@@ -75,7 +75,7 @@ export function useDesignModel(): DesignModel {
       `started_on` has not been set yet should see a counter at zero and
       starting, not one claiming a year and a half of history it invented.
     */
-    elapsed: timeTogether(couple?.started_on ?? localToday(now), now),
+    elapsed: timeTogether(couple?.started_on ?? localToday(now), now, couple?.ended_on),
   };
 }
 

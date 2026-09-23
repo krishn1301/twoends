@@ -43,9 +43,22 @@ export function elapsedBetween(startMs: number, nowMs: number): Elapsed {
   };
 }
 
-/** Convenience wrapper for an ISO start date. */
-export function timeTogether(startedOn: string, now: Date): Elapsed {
-  return elapsedBetween(localMidnight(startedOn).getTime(), now.getTime());
+/**
+ * Convenience wrapper for an ISO start date.
+ *
+ * `endedOn` stops the clock, and it is the only way this number ever stops.
+ * Everything else in the app recomputes from the anchor at draw time —
+ * deliberately, so a widget nobody has opened is still right — which also means
+ * there was no way to let a couple put it down. A pair that has ended should not
+ * have to watch their own counter keep going, and deleting the account to make
+ * it stop would take the photographs with it.
+ *
+ * Clamped to `now` as well, so an end date somebody typed for next month does
+ * not fast-forward the count. The end has to have happened.
+ */
+export function timeTogether(startedOn: string, now: Date, endedOn?: string | null): Elapsed {
+  const stop = endedOn ? Math.min(localMidnight(endedOn).getTime(), now.getTime()) : now.getTime();
+  return elapsedBetween(localMidnight(startedOn).getTime(), stop);
 }
 
 /**

@@ -61,7 +61,7 @@ private fun AnniversaryContent(
     mine: Bitmap?,
     theirs: Bitmap?,
 ) {
-    val days = daysSince(snapshot.startedOn)
+    val days = daysSince(snapshot.startedOn, endedOn = snapshot.endedOn)
     if (days == null) {
         Empty("anniversary", "Set the day you started", snapshot.myAccent)
         return
@@ -96,6 +96,7 @@ private fun AnniversaryContent(
         myBirthday = snapshot.myBirthday,
         theirBirthday = snapshot.theirBirthday,
         theirName = snapshot.theirName,
+        endedOn = snapshot.endedOn,
     )
 
     /*

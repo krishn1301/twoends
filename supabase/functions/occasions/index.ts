@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
 
   const { data: couples } = await admin
     .from('couples')
-    .select('id, member_a, member_b, started_on, day_timezone, together');
+    .select('id, member_a, member_b, started_on, ended_on, day_timezone, together');
 
   let sent = 0;
   let considered = 0;
@@ -199,6 +199,8 @@ Deno.serve(async (req) => {
       */
       const occasion = occasionFor({
         startedOn: couple.started_on,
+        // A pair who have ended are told nothing, by anything, ever again.
+        endedOn: couple.ended_on,
         myBirthday: me.birthday,
         theirBirthday: them.birthday,
         localDate,

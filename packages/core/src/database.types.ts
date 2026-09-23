@@ -244,6 +244,7 @@ export type Database = {
           adult_packs_enabled: boolean
           created_at: string
           day_timezone: string
+          ended_on: string | null
           id: string
           member_a: string
           member_b: string | null
@@ -259,6 +260,7 @@ export type Database = {
           adult_packs_enabled?: boolean
           created_at?: string
           day_timezone?: string
+          ended_on?: string | null
           id?: string
           member_a: string
           member_b?: string | null
@@ -274,6 +276,7 @@ export type Database = {
           adult_packs_enabled?: boolean
           created_at?: string
           day_timezone?: string
+          ended_on?: string | null
           id?: string
           member_a?: string
           member_b?: string | null
