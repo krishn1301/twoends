@@ -45,7 +45,12 @@ jobs:
           # is actually tested against.
           java-version: 21
 
-      - uses: android-actions/setup-android@v3
+      # v3, not v4, is why this started failing on a commit that touched no
+      # Android code at all: its default package list still asks sdkmanager for
+      # `tools`, which Google removed from the SDK repository. The step dies
+      # with "Failed to find package 'tools'" and exit 1, eighteen seconds in,
+      # long before anything in this project is compiled.
+      - uses: android-actions/setup-android@v4
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
