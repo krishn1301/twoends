@@ -41,7 +41,10 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@v3
+      # v3 asks sdkmanager for `tools`, which Google removed from the SDK
+      # repository. Every build died with "Failed to find package 'tools'" and
+      # exit 1 before compiling a line. v4 drops it.
+      - uses: android-actions/setup-android@v4
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
